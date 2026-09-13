@@ -17,18 +17,5 @@ auto Query::bind(System::Uuid contract) const
   // when a malformed provider forgets to write its new result.
   ttx_binding result = {};
   const auto status = value.bind(value.source, contract, &result);
-  switch (static_cast<Binding::Status>(status)) {
-  case Binding::Status::Satisfied:
-    if (result.operations) {
-      return Binding(result);
-    }
-
-    return Binding::Failure::Rejected;
-  case Binding::Status::Unsupported:
-    return Binding::Failure::Unsupported;
-  case Binding::Status::Pending:
-    return Binding::Failure::Pending;
-  default:
-    return Binding::Failure::Rejected;
-  }
+  return Binding::accept(status, result);
 }

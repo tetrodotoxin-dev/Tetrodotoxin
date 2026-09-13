@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ttx/semantic/query.hpp"
+
 #include "perimortem/core/view/bytes.hpp"
 #include "perimortem/core/option.hpp"
 
@@ -72,6 +74,14 @@ class Abstract {
 
     constexpr auto get_abi() const -> ttx_abstract {
       return {source, operations};
+    }
+
+    // Navigation has already supplied the Abstract's bootstrap operations.
+    // Lending that same bind thunk lets Semantic consumers fulfill a callable
+    // on the encountered policy without recovering a native Abstract or
+    // negotiating another permission surface before asking their question.
+    constexpr auto get_query() const -> Semantic::Query {
+      return Semantic::Query({source, operations->bind});
     }
 
     template <typename Contract>

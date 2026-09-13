@@ -5,6 +5,8 @@
 
 #include "perimortem/core/perimortem.hpp"
 
+#include "perimortem/utility/result.hpp"
+
 #include "ttx/semantic/binding.h"
 
 namespace Ttx::Semantic {
@@ -37,11 +39,20 @@ class Binding {
   };
 
   // The ingress checks the status before accepting this successful pair.
-  // Keeping its C value directly avoids a second representation of the state
-  // and table when a native provider returns through that same ingress.
+  // A useful optimization is keeping its C value directly to avoid a second
+  // representation of the state and table when a native provider returns
+  // through that same ingress.
   explicit constexpr Binding(ttx_binding value) : value(value) {}
 
   constexpr auto get_abi() const -> ttx_binding { return value; }
+
+  // All foreign negotiation entries admit the same status and pair so keeping
+  // this check gated at ingress with a Result wrap prevents a failed or partial
+  // response from becoming a typed view, without adding additional validation
+  // to each operation call. Otherwise it's easy for untyped C values to become
+  // SIGSEVs if the caller forgets the whole handshake.
+  static auto accept(ttx_binding_status status, ttx_binding value)
+      -> Perimortem::Utility::Result<Binding, Failure>;
 
   template <typename Contract>
   static constexpr auto provide(
