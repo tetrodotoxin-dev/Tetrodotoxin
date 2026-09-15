@@ -3,13 +3,13 @@
 
 #pragma once
 
-#include "ttx/data/protocol/fragment.h"
 #include "ttx/data/form/representation.hpp"
+#include "ttx/data/protocol/fragment.h"
 
 namespace Ttx::Data::Protocol {
 
 // Fragment supplies individual observations without lending a backing record.
-// The native facade returns a value or failure from each synchronous call,
+// The C++ interface returns a value or failure from each synchronous call,
 // keeping the C output parameter inside the implementation boundary.
 class Fragment {
  public:
@@ -84,9 +84,58 @@ class Fragment {
     auto get_pointer(Count position) const
         -> Perimortem::Utility::Result<void*, Status>;
 
+    auto get_v64(Count position) const
+        -> Perimortem::Utility::Result<Form::Schema::V64, Status>;
+    auto get_v128(Count position) const
+        -> Perimortem::Utility::Result<Form::Schema::V128, Status>;
+    auto get_v256(Count position) const
+        -> Perimortem::Utility::Result<Form::Schema::V256, Status>;
+    auto get_v512(Count position) const
+        -> Perimortem::Utility::Result<Form::Schema::V512, Status>;
+
    private:
     ttx_fragment_access value;
   };
 };
 
 }  // namespace Ttx::Data::Protocol
+
+// These are the C Fragment output carriers, not native SIMD register types.
+// Their byte arrays must remain structs when they occur in a callable ABI.
+TTX_DATA_RECORD(ttx_vector64, TTX_DATA_MEMBER(ttx_vector64, bytes));
+TTX_DATA_RECORD(ttx_vector128, TTX_DATA_MEMBER(ttx_vector128, bytes));
+TTX_DATA_RECORD(ttx_vector256, TTX_DATA_MEMBER(ttx_vector256, bytes));
+TTX_DATA_RECORD(ttx_vector512, TTX_DATA_MEMBER(ttx_vector512, bytes));
+
+TTX_DATA_RECORD(
+    ttx_fragment_view_operations,
+    TTX_DATA_MEMBER(ttx_fragment_view_operations, representation));
+
+TTX_DATA_RECORD(
+    ttx_fragment_access_operations,
+    TTX_DATA_MEMBER(ttx_fragment_access_operations, representation),
+    TTX_DATA_MEMBER(ttx_fragment_access_operations, get_u8),
+    TTX_DATA_MEMBER(ttx_fragment_access_operations, get_u16),
+    TTX_DATA_MEMBER(ttx_fragment_access_operations, get_u32),
+    TTX_DATA_MEMBER(ttx_fragment_access_operations, get_u64),
+    TTX_DATA_MEMBER(ttx_fragment_access_operations, get_s8),
+    TTX_DATA_MEMBER(ttx_fragment_access_operations, get_s16),
+    TTX_DATA_MEMBER(ttx_fragment_access_operations, get_s32),
+    TTX_DATA_MEMBER(ttx_fragment_access_operations, get_s64),
+    TTX_DATA_MEMBER(ttx_fragment_access_operations, get_r32),
+    TTX_DATA_MEMBER(ttx_fragment_access_operations, get_r64),
+    TTX_DATA_MEMBER(ttx_fragment_access_operations, get_pointer),
+    TTX_DATA_MEMBER(ttx_fragment_access_operations, get_v64),
+    TTX_DATA_MEMBER(ttx_fragment_access_operations, get_v128),
+    TTX_DATA_MEMBER(ttx_fragment_access_operations, get_v256),
+    TTX_DATA_MEMBER(ttx_fragment_access_operations, get_v512));
+
+TTX_DATA_RECORD(
+    ttx_fragment_view,
+    TTX_DATA_MEMBER(ttx_fragment_view, source),
+    TTX_DATA_MEMBER(ttx_fragment_view, operations));
+
+TTX_DATA_RECORD(
+    ttx_fragment_access,
+    TTX_DATA_MEMBER(ttx_fragment_access, source),
+    TTX_DATA_MEMBER(ttx_fragment_access, operations));

@@ -1,6 +1,6 @@
 // # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
-#include "ttx/data/protocol/shared.h"
+#include "ttx/data/protocol/shared.hpp"
 
 auto ttx_shared_release(ttx_shared_lifetime* lifetime) -> void {
   // Release enters provider code, which can reenter the owner of this carrier.
@@ -10,4 +10,16 @@ auto ttx_shared_release(ttx_shared_lifetime* lifetime) -> void {
   if (previous.release) {
     previous.release(previous.source);
   }
+}
+
+#include "ttx/data/form/compiled.hpp"
+
+auto ttx_shared_view_representation() -> const ttx_representation* {
+  return &Ttx::Data::Form::Compiled<
+      Ttx::Data::Form::Native<ttx_shared_view>::reference>::get_representation();
+}
+
+auto ttx_shared_access_representation() -> const ttx_representation* {
+  return &Ttx::Data::Form::Compiled<
+      Ttx::Data::Form::Native<ttx_shared_access>::reference>::get_representation();
 }

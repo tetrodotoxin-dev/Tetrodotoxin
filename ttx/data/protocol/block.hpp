@@ -69,3 +69,28 @@ class Block {
   };
 };
 }  // namespace Ttx::Data::Protocol
+
+TTX_DATA_RECORD(
+    ttx_block_surface,
+    TTX_DATA_MEMBER(ttx_block_surface, data),
+    TTX_DATA_MEMBER(ttx_block_surface, size));
+
+TTX_DATA_RECORD(
+    ttx_block_view_operations,
+    TTX_DATA_MEMBER(ttx_block_view_operations, representation),
+    TTX_DATA_MEMBER(ttx_block_view_operations, surface));
+
+TTX_DATA_RECORD(
+    ttx_block_access_operations,
+    TTX_DATA_MEMBER(ttx_block_access_operations, representation),
+    TTX_DATA_MEMBER(ttx_block_access_operations, commit));
+
+TTX_DATA_RECORD(
+    ttx_block_view,
+    TTX_DATA_MEMBER(ttx_block_view, source),
+    TTX_DATA_MEMBER(ttx_block_view, operations));
+
+TTX_DATA_RECORD(
+    ttx_block_access,
+    TTX_DATA_MEMBER(ttx_block_access, source),
+    TTX_DATA_MEMBER(ttx_block_access, operations));

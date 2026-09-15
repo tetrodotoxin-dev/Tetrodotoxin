@@ -39,6 +39,10 @@ typedef struct ttx_fragment_access_operations {
   ttx_data_status (*get_r64)(const void* source, Count position, R64* result);
   ttx_data_status (
       *get_pointer)(const void* source, Count position, void** result);
+  ttx_data_status (*get_v64)(const void* source, Count position, ttx_vector64* result);
+  ttx_data_status (*get_v128)(const void* source, Count position, ttx_vector128* result);
+  ttx_data_status (*get_v256)(const void* source, Count position, ttx_vector256* result);
+  ttx_data_status (*get_v512)(const void* source, Count position, ttx_vector512* result);
 } ttx_fragment_access_operations;
 
 typedef struct ttx_fragment_view {
@@ -50,5 +54,10 @@ typedef struct ttx_fragment_access {
   const void* source;
   const ttx_fragment_access_operations* operations;
 } ttx_fragment_access;
+
+// The protocol's own callable record is described independently of the
+// payload it transports, allowing binding to check this interface's ABI.
+PERIMORTEM_C const ttx_representation* ttx_fragment_view_representation(void);
+PERIMORTEM_C const ttx_representation* ttx_fragment_access_representation(void);
 
 #endif

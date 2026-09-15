@@ -105,3 +105,28 @@ class Shared {
   };
 };
 }  // namespace Ttx::Data::Protocol
+
+TTX_DATA_RECORD(
+    ttx_shared_lifetime,
+    TTX_DATA_MEMBER(ttx_shared_lifetime, data),
+    TTX_DATA_MEMBER(ttx_shared_lifetime, source),
+    TTX_DATA_MEMBER(ttx_shared_lifetime, release));
+
+TTX_DATA_RECORD(
+    ttx_shared_view_operations,
+    TTX_DATA_MEMBER(ttx_shared_view_operations, representation));
+
+TTX_DATA_RECORD(
+    ttx_shared_access_operations,
+    TTX_DATA_MEMBER(ttx_shared_access_operations, representation),
+    TTX_DATA_MEMBER(ttx_shared_access_operations, acquire));
+
+TTX_DATA_RECORD(
+    ttx_shared_view,
+    TTX_DATA_MEMBER(ttx_shared_view, source),
+    TTX_DATA_MEMBER(ttx_shared_view, operations));
+
+TTX_DATA_RECORD(
+    ttx_shared_access,
+    TTX_DATA_MEMBER(ttx_shared_access, source),
+    TTX_DATA_MEMBER(ttx_shared_access, operations));

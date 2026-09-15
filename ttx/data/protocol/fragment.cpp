@@ -7,8 +7,8 @@ using namespace Ttx::Data;
 using namespace Ttx::Data::Protocol;
 
 // The output belongs to this stack frame. A successful provider call supplies
-// its value before returning, so neither the facade nor its consumer needs a
-// continuation or retained request just to read one primitive.
+// its value before returning. The C++ caller can therefore receive a value or
+// failure directly without retaining storage for a later reply.
 template <typename Value>
 static auto read(
     ttx_data_status (*operation)(const void*, Count, Value*),
@@ -76,4 +76,36 @@ auto Fragment::Access::get_r64(Count position) const
 auto Fragment::Access::get_pointer(Count position) const
     -> Perimortem::Utility::Result<void*, Status> {
   return read(value.operations->get_pointer, value.source, position);
+}
+
+auto Fragment::Access::get_v64(Count position) const
+    -> Perimortem::Utility::Result<Form::Schema::V64, Status> {
+  return read(value.operations->get_v64, value.source, position);
+}
+
+auto Fragment::Access::get_v128(Count position) const
+    -> Perimortem::Utility::Result<Form::Schema::V128, Status> {
+  return read(value.operations->get_v128, value.source, position);
+}
+
+auto Fragment::Access::get_v256(Count position) const
+    -> Perimortem::Utility::Result<Form::Schema::V256, Status> {
+  return read(value.operations->get_v256, value.source, position);
+}
+
+auto Fragment::Access::get_v512(Count position) const
+    -> Perimortem::Utility::Result<Form::Schema::V512, Status> {
+  return read(value.operations->get_v512, value.source, position);
+}
+
+#include "ttx/data/form/compiled.hpp"
+
+auto ttx_fragment_view_representation() -> const ttx_representation* {
+  return &Ttx::Data::Form::Compiled<
+      Ttx::Data::Form::Native<ttx_fragment_view>::reference>::get_representation();
+}
+
+auto ttx_fragment_access_representation() -> const ttx_representation* {
+  return &Ttx::Data::Form::Compiled<
+      Ttx::Data::Form::Native<ttx_fragment_access>::reference>::get_representation();
 }

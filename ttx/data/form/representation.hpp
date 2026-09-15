@@ -3,13 +3,16 @@
 
 #pragma once
 
-#include "ttx/data/form/encoding.hpp"
+#include "ttx/data/encoding/element.hpp"
+#include "ttx/data/encoding/struct.hpp"
 #include "ttx/data/form/representation.h"
+#include "ttx/data/form/native.hpp"
 
 namespace Ttx::Data::Form {
 
-// The native surface adds observations to the actual C carrier. Both sides
-// borrow the same bytes and establish agreement through their canonical form.
+// C++ navigation uses the C record directly, so either language can borrow a
+// published Representation without copying its descriptors. Both establish
+// agreement by comparing those canonical bytes.
 using Representation = ttx_representation;
 
 }  // namespace Ttx::Data::Form
@@ -19,17 +22,15 @@ constexpr auto ttx_representation_position::get_extent() const -> Count {
 }
 
 constexpr auto ttx_representation::get_extent() const -> Count {
-  using Ttx::Data::Form::Encoding;
+  using namespace Ttx::Data::Encoding;
   const U8 depth = get_depth();
-  const auto block = Encoding::Block::read(get_bytes(), 0, depth);
-  return Encoding::header(block, depth).extent;
+  return Struct::decode(get_bytes(), 0, depth).extent;
 }
 
 constexpr auto ttx_representation::get_alignment() const -> Count {
-  using Ttx::Data::Form::Encoding;
+  using namespace Ttx::Data::Encoding;
   const U8 depth = get_depth();
-  const auto block = Encoding::Block::read(get_bytes(), 0, depth);
-  return Encoding::header(block, depth).alignment;
+  return Struct::decode(get_bytes(), 0, depth).alignment;
 }
 
 constexpr auto ttx_representation::compatible(
@@ -49,23 +50,20 @@ template <typename Consumer>
 constexpr auto ttx_representation::visit(Consumer consumer) const
     -> Ttx::Data::Status {
   using Ttx::Data::Status;
-  using Ttx::Data::Form::Encoding;
+  using namespace Ttx::Data::Encoding;
   const U8 depth = get_depth();
   const auto walk = [&](this auto&& self, Count body, Count offset) -> Status {
-    const auto header = Encoding::header(
-        Encoding::Block::read(get_bytes(), body, depth), depth);
+    const auto header = Struct::decode(get_bytes(), body, depth);
     for (Count i = 0; i < header.count; ++i) {
-      const auto entry = Encoding::element(
-          Encoding::Block::read(get_bytes(), body + i + 1, depth), depth);
+      const auto entry = Element::decode(get_bytes(), body + i + 1, depth);
       for (Count repetition = 0; repetition < entry.count; ++repetition) {
-        const Count start = offset + entry.offset + repetition * entry.stride;
+        const Count start = offset + entry.offset + repetition * entry.distance;
         Status status;
-        if (entry.composite) {
+        if (entry.is_inline()) {
           status = self(entry.type, start);
         } else {
           const Position position(
-              start, Value(entry.type & 63),
-              (entry.type & 64) ? ByteOrder::Big : ByteOrder::Little);
+              start, entry.get_value(), entry.get_byte_order());
           status = consumer(position);
         }
 
@@ -85,28 +83,25 @@ constexpr auto ttx_representation::visit(
     Perimortem::Core::View::Vector<Count> coordinates,
     Consumer consumer) const -> Ttx::Data::Status {
   using Ttx::Data::Status;
-  using Ttx::Data::Form::Encoding;
+  using namespace Ttx::Data::Encoding;
   const U8 depth = get_depth();
   Count selected = 0;
 
   const auto walk = [&](this auto&& self, Count body, Count offset) -> Status {
-    const auto header = Encoding::header(
-        Encoding::Block::read(get_bytes(), body, depth), depth);
+    const auto header = Struct::decode(get_bytes(), body, depth);
     for (Count i = 0; i < header.count && selected < coordinates.get_size();
          ++i) {
-      const auto entry = Encoding::element(
-          Encoding::Block::read(get_bytes(), body + i + 1, depth), depth);
+      const auto entry = Element::decode(get_bytes(), body + i + 1, depth);
       const Count first = offset + entry.offset;
       Count width;
-      if (entry.composite) {
-        const auto child = Encoding::header(
-            Encoding::Block::read(get_bytes(), entry.type, depth), depth);
+      if (entry.is_inline()) {
+        const auto child = Struct::decode(get_bytes(), entry.type, depth);
         width = child.extent;
       } else {
-        width = ttx_schema::get_width(Value(entry.type & 63));
+        width = ttx_schema::get_width(entry.get_value());
       }
 
-      const Count end = first + (entry.count - 1) * entry.stride + width;
+      const Count end = first + (entry.count - 1) * entry.distance + width;
 
       // The next requested coordinate selects an instance directly. Keeping
       // the descriptor here lets later requests in this same run reuse it.
@@ -116,10 +111,10 @@ constexpr auto ttx_representation::visit(
           return Status::Bounds;
         }
 
-        const Count instance = (requested - first) / entry.stride;
-        const Count start = first + instance * entry.stride;
+        const Count instance = (requested - first) / entry.distance;
+        const Count start = first + instance * entry.distance;
         Status status;
-        if (entry.composite) {
+        if (entry.is_inline()) {
           if (requested >= start + width) {
             return Status::Bounds;
           }
@@ -135,8 +130,7 @@ constexpr auto ttx_representation::visit(
           }
 
           const Position position(
-              start, Value(entry.type & 63),
-              (entry.type & 64) ? ByteOrder::Big : ByteOrder::Little);
+              start, entry.get_value(), entry.get_byte_order());
           status = consumer(position);
           ++selected;
         }
@@ -156,3 +150,8 @@ constexpr auto ttx_representation::visit(
 
   return selected == coordinates.get_size() ? Status::Success : Status::Bounds;
 }
+
+TTX_DATA_RECORD(
+    ttx_representation,
+    TTX_DATA_MEMBER(ttx_representation, data),
+    TTX_DATA_MEMBER(ttx_representation, size));

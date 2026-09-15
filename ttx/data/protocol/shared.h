@@ -44,4 +44,9 @@ typedef struct ttx_shared_access {
 // reenter its caller without observing or releasing the old obligation again.
 PERIMORTEM_C void ttx_shared_release(ttx_shared_lifetime* lifetime);
 
+// The protocol's own callable record is described independently of the
+// payload it transports, allowing binding to check this interface's ABI.
+PERIMORTEM_C const ttx_representation* ttx_shared_view_representation(void);
+PERIMORTEM_C const ttx_representation* ttx_shared_access_representation(void);
+
 #endif

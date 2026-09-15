@@ -33,4 +33,9 @@ typedef struct ttx_direct_access {
   const ttx_direct_access_operations* operations;
 } ttx_direct_access;
 
+// The protocol's own callable record is described independently of the
+// payload it transports, allowing binding to check this interface's ABI.
+PERIMORTEM_C const ttx_representation* ttx_direct_view_representation(void);
+PERIMORTEM_C const ttx_representation* ttx_direct_access_representation(void);
+
 #endif

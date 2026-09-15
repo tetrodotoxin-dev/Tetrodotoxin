@@ -6,11 +6,11 @@
 
 #include "perimortem/core/perimortem.h"
 
-// Data starts with completed descriptions, but matching those descriptions or
-// fulfilling an access can still fail. These statuses report that concrete
-// outcome to the owning operation. An unresolved semantic question must be
-// settled before it becomes a Data schema, rather than represented as an
-// unknown size or layout inside the transport.
+// Data operates on completed descriptions. Matching those descriptions or
+// transferring the described values can still fail, so these statuses report
+// the outcome to the owning operation. Any semantic question that determines
+// geometry must be settled before transport, which requires known sizes and
+// positions.
 typedef U8 ttx_data_status;
 #define TTX_DATA_SUCCESS ((ttx_data_status)0)
 #define TTX_DATA_INVALID ((ttx_data_status)1)

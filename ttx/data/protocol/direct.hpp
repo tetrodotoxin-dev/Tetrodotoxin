@@ -62,3 +62,22 @@ class Direct {
   };
 };
 }  // namespace Ttx::Data::Protocol
+
+TTX_DATA_RECORD(
+    ttx_direct_view_operations,
+    TTX_DATA_MEMBER(ttx_direct_view_operations, representation));
+
+TTX_DATA_RECORD(
+    ttx_direct_access_operations,
+    TTX_DATA_MEMBER(ttx_direct_access_operations, representation),
+    TTX_DATA_MEMBER(ttx_direct_access_operations, read_ptr));
+
+TTX_DATA_RECORD(
+    ttx_direct_view,
+    TTX_DATA_MEMBER(ttx_direct_view, source),
+    TTX_DATA_MEMBER(ttx_direct_view, operations));
+
+TTX_DATA_RECORD(
+    ttx_direct_access,
+    TTX_DATA_MEMBER(ttx_direct_access, source),
+    TTX_DATA_MEMBER(ttx_direct_access, operations));

@@ -51,3 +51,9 @@ class Storage {
   ttx_storage value;
 };
 }  // namespace Ttx::Data::Form
+
+TTX_DATA_RECORD(
+    ttx_storage,
+    TTX_DATA_MEMBER(ttx_storage, representation),
+    TTX_DATA_MEMBER(ttx_storage, data),
+    TTX_DATA_MEMBER(ttx_storage, size));

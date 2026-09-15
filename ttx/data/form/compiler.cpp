@@ -8,19 +8,19 @@
 using namespace Ttx::Data;
 using namespace Ttx::Data::Form;
 
-// The C facade keeps preparation local and requests one final allocation only
-// after its exact size is known. The view and bytes share the supplied owner's
-// lifetime. Compiler destruction releases all other construction storage.
+// The C entry prepares the description before asking its owner to allocate
+// the exact output size. The view and bytes share that owner's lifetime, while
+// Compiler destruction releases the temporary preparation storage.
 auto ttx_representation_compile(
-    const ttx_schema* schema,
+    ttx_schema_reference schema,
     ttx_representation_allocator allocator,
     const ttx_representation** result) -> ttx_data_status {
-  if (!schema || !allocator.allocate || !result) {
+  if (!schema.is_set() || !allocator.allocate || !result) {
     return TTX_DATA_INVALID;
   }
 
   Compiler compiler;
-  const auto status = compiler.compile(*schema);
+  const auto status = compiler.compile(schema);
   if (status != Status::Success) {
     return static_cast<ttx_data_status>(status);
   }

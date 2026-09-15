@@ -7,17 +7,14 @@ using namespace Ttx::Data;
 using namespace Ttx::Data::Form;
 
 static auto header(const Representation& source, Count body)
-    -> Encoding::Header {
-  return Encoding::header(
-      Encoding::Block::read(source.get_bytes(), body, source.get_depth()),
-      source.get_depth());
+    -> Encoding::Struct {
+  return Encoding::Struct::decode(source.get_bytes(), body, source.get_depth());
 }
 
 static auto element(const Representation& source, Count block)
     -> Encoding::Element {
-  return Encoding::element(
-      Encoding::Block::read(source.get_bytes(), block, source.get_depth()),
-      source.get_depth());
+  return Encoding::Element::decode(
+      source.get_bytes(), block, source.get_depth());
 }
 
 // Byte lookup can skip padding and whole instances. A coordinate inside a
@@ -34,10 +31,10 @@ static auto next(
     const auto entry = element(source, body + i + 1);
     const Count first = offset + entry.offset;
     const Count local = requested > first ? requested - first : 0;
-    Count instance = local / entry.stride;
+    Count instance = local / entry.distance;
     if (instance < entry.count) {
-      const Count start = first + instance * entry.stride;
-      if (entry.composite) {
+      const Count start = first + instance * entry.distance;
+      if (entry.is_inline()) {
         if (next(source, entry.type, start, requested, result)) {
           return True;
         }
@@ -45,15 +42,14 @@ static auto next(
         ++instance;
         if (instance < entry.count) {
           return next(
-              source, entry.type, first + instance * entry.stride, 0, result);
+              source, entry.type, first + instance * entry.distance, 0, result);
         }
       } else {
         instance += start < requested;
         if (instance < entry.count) {
           result = Representation::Position(
-              first + instance * entry.stride, Schema::Value(entry.type & 63),
-              (entry.type & 64) ? Schema::ByteOrder::Big
-                                : Schema::ByteOrder::Little);
+              first + instance * entry.distance, entry.get_value(),
+              entry.get_byte_order());
           return True;
         }
       }
@@ -78,7 +74,7 @@ auto ttx_representation_next(
   }
 
   return next(*source, 0, 0, offset, *result) ? TTX_DATA_SUCCESS
-                                           : TTX_DATA_BOUNDS;
+                                              : TTX_DATA_BOUNDS;
 }
 
 auto ttx_representation::next(Count offset) const
@@ -99,8 +95,8 @@ auto ttx_representation_visit(
     return TTX_DATA_INVALID;
   }
 
-  return static_cast<ttx_data_status>(source->visit(
-      [&](Representation::Position position) {
+  return static_cast<ttx_data_status>(
+      source->visit([&](Representation::Position position) {
         return static_cast<Status>(visitor.visit(visitor.source, position));
       }));
 }
@@ -122,7 +118,7 @@ auto ttx_representation_visit_selected(
 }
 
 auto ttx_representation::compile(
-    const ttx_schema& schema,
+    ttx_schema_reference schema,
     Perimortem::Memory::Allocator::Arena& arena)
     -> Perimortem::Utility::Result<const ttx_representation&, Status> {
   const ttx_representation_allocator allocator = {
@@ -132,7 +128,7 @@ auto ttx_representation::compile(
           .get_data();
     }};
   const ttx_representation* result = nullptr;
-  const auto status = ttx_representation_compile(&schema, allocator, &result);
+  const auto status = ttx_representation_compile(schema, allocator, &result);
   if (status != TTX_DATA_SUCCESS) {
     return static_cast<Status>(status);
   }

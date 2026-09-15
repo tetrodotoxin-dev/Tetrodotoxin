@@ -3,11 +3,12 @@
 
 #pragma once
 
-#include "perimortem/core/static/vector.hpp"
+#include "perimortem/core/hash.hpp"
 
 #include "perimortem/memory/const/vector.hpp"
 
-#include "ttx/data/form/encoding.hpp"
+#include "ttx/data/encoding/callable.hpp"
+#include "ttx/data/encoding/struct.hpp"
 #include "ttx/data/form/schema.hpp"
 #include "ttx/data/status.hpp"
 
@@ -24,13 +25,13 @@ namespace Ttx::Data::Form {
 // extent of the object including tail padding, and its required alignment.
 // For a 32 bit block the fields, shown from most to least significant, are:
 //
-//   EEEEEEEE EEEESSSS SSSSCCCC CCCCFFFF
+//   EEEEEEEE EEEEAAAA AAAACCCC CCCCFFFF
 //
 //   F: Encoding depth, in U32 chunks. One means 32 bits, two means 64,
 //      three means 96, and so on through fifteen. Zero is invalid.
 //   C: Number of direct element descriptor blocks following this header.
 //      This counts compact descriptors, not their expanded repetitions.
-//   S: Required alignment in bytes, expressed as a nonzero power of two.
+//   A: Required alignment in bytes, expressed as a nonzero power of two.
 //   E: Object extent in bytes, including padding after the last member.
 //
 // F always occupies bits zero through three, including in wider formats.
@@ -39,44 +40,71 @@ namespace Ttx::Data::Form {
 // bootstrap ambiguous. Every struct header repeats the same F because a
 // reference needs one common block size throughout the publication.
 //
-// Element blocks describe a primitive or a reference to another struct body.
-// For a 32 bit block their fields are:
+// Element blocks describe occurrences of a primitive, struct or callable:
 //
-//   AAAAAAAA OOOOOOOO SSSSSSSS CPPPPPPP
+//   NNNNNNNN OOOOOOOO DDDDDDSC *PPPPPPP
 //
-//   A: Number of occurrences. One describes a single element. Zero is never
-//      emitted, so no zero value changes the meaning of multiplication.
-//   O: Byte offset of the first occurrence relative to its enclosing struct.
-//   S: Byte stride between the starts of repeated occurrences. This can exceed
-//      the element's size without creating another struct or a hidden member.
-//   C: Zero selects a primitive code in P. One selects a struct header index.
-//   P: Primitive code or absolute block index measured from the buffer start.
-//      A reference reaches byte P * 4 * F, not a location relative to itself.
+//   N: Number of occurrences, always nonzero.
+//   O: Byte offset of the first occurrence within its enclosing struct.
+//   D: Distance in bytes between repeated starts. A singleton uses its width.
+//   S: P references a struct header when set.
+//   C: P references a callable header when set. S must be clear and * set.
+//   *: The occupied value is an eight byte pointer with alignment eight.
+//      Its target remains described by S, C and P but is not inline storage.
+//   P: Primitive code or absolute header index, at byte P * 4 * F.
 //
-// These two S fields answer different questions. A struct aligned to eight
-// bytes can occupy 24 bytes. An array of that struct has stride 24, while its
-// header still reports alignment eight. Likewise the two C fields are local
-// to their block kind: a header's C is a count, an element's C is a selector.
+// S and C are mutually exclusive. S=0, C=0, *=1, P=0 is the canonical opaque
+// pointer. Ordinary primitive code zero is invalid. Setting * changes the
+// occupied width, not D, so separately spaced pointer slots remain expressible.
 //
-// Wider encodings keep this division regular. Let q be eight times F, and let
-// r be q minus one. Element A, O and S each occupy q bits. Its selector takes
-// one bit and P occupies r bits. Struct C and S each occupy q bits, F stays
-// four bits, and E occupies the remaining 16 * F minus four bits.
+// Callable headers describe a realized signature rather than occupied bytes:
 //
-//   F   Block bits   Struct C/S/E bits   Element A/O/S/P bits
-//   1       32             8/8/12                 8/8/8/7
-//   2       64           16/16/28             16/16/16/15
-//   3       96           24/24/44             24/24/24/23
-//   4      128           32/32/60             32/32/32/31
-//   8      256          64/64/124             64/64/64/63
+//   NNNNNNNN CCCCCCCC xxxxxxSC *PPPPPPP
 //
-// In every profile the numeric block is assembled with these shifts:
+//   N: Expanded number of formal arguments. For a variadic signature this is
+//      its fixed prefix. Following argument blocks have counts summing to N.
+//   C: ABI profile, 1 for System V AMD64 LP64 and 2 for its variadic convention.
 //
-//   struct  = F | (C << 4) | (S << (4 + q)) | (E << (4 + 2*q))
-//   element = P | (C << r) | (S << q) | (O << (2*q)) | (A << (3*q))
+//   x: Reserved, always zero. These bits participate in bytewise agreement.
+//
+//   S, C, *, P: Return description using the element selectors. Setting every
+//      selector bit to one denotes void, only in this return slot.
+//
+// Argument blocks have O=0 and D=0. N repeats consecutive identical formal
+// parameters, not an array parameter. No argument sorting takes place. A
+// receiver is an explicit ordinary argument. Native arrays must be supplied
+// through a pointer to their storage form. Nontrivial C++ objects likewise
+// need a provider thunk with the declared C boundary. The variadic profile
+// implies a trailing ellipsis whose concrete argument types belong to each
+// call site. No signature interpretation or call is needed to transfer a table.
+//
+// The root is always a struct header, including for one callable pointer.
+// Referenced callable headers inherit F from that root. Their return target
+// is visited before their arguments when assigning first use block indices.
+//
+// Wider encodings use q = 8 * F. N and O occupy q bits, D occupies q minus two,
+// the selectors occupy three bits, and P occupies q minus one. Callable ABI
+// occupies O's q bits and its reserved field occupies D's q minus two bits.
+// Struct C and A occupy q bits, F occupies four, and E occupies 16 * F minus
+// four.
+//
+//   F   Block bits   Struct C/A/E bits   Element N/O/D/P bits
+//   1       32             8/8/12                 8/8/6/7
+//   2       64           16/16/28            16/16/14/15
+//   3       96           24/24/44            24/24/22/23
+//   4      128           32/32/60            32/32/30/31
+//   8      256          64/64/124            64/64/62/63
+//
+// Numeric blocks are assembled with these shifts, where pointer_bit is q minus
+// one:
+//
+//   struct   = F | (C << 4) | (A << (4 + q)) | (E << (4 + 2*q))
+//   selectors = P | (* << pointer_bit) | (C << q) | (S << (q+1))
+//   element  = selectors | (D << (q+2)) | (O << (2*q)) | (N << (3*q))
+//   callable = return_selectors | (ABI << (2*q)) | (N << (3*q))
 //
 // All fields are unsigned. Wider profiles do not imply a native U96 or U128
-// C++ type. Read and write each block greedily as F / 2 U64 chunks followed by
+// C++ type. Writers can emit each block as F / 2 U64 chunks followed by
 // F % 2 U32 chunks. Start with the least significant bits of the block, so an
 // odd depth leaves its most significant 32 bits for the final U32 operation:
 //
@@ -86,12 +114,17 @@ namespace Ttx::Data::Form {
 //   3   U64, U32
 //   4   U64, U64
 //
-// Perimortem::Core::Writer::Binary encodes each chunk in little endian order,
-// and Core::Reader::Binary reads the same sequence with host conversion. The
-// chunks occupy consecutive bytes without alignment padding between them or
-// between blocks. This keeps F in the first byte even when a block spans
-// several operations. Grouping the chunks changes the number of operations,
-// while the resulting bytes remain the block's little endian encoding.
+// Perimortem::Core::Writer::Binary encodes each chunk in little endian order.
+// Blocks remain consecutive, with no padding between them. After the last
+// block, append four zero bytes only when needed to make the complete buffer
+// a multiple of eight bytes. Those zeros participate in canonical comparison
+// as buffer padding, leaving descriptor counts, block indices and F unchanged.
+//
+// Readers use U64 chunks at offsets 0, 8, 16 and so on from the whole buffer's
+// start. Every such chunk is complete, even if it crosses a block boundary.
+// A field spanning two chunks combines their relevant bits. Encoding::Block
+// handles unaligned loads and converts the chunks to host byte order. Reading
+// a field therefore needs neither a U32 tail read nor an assembled block.
 // Unused high bits are zero, with no native struct padding, pointers or
 // allocation addresses in the encoded buffer. Serialization does not allocate
 // a separate object for each primitive or referenced body.
@@ -114,31 +147,41 @@ namespace Ttx::Data::Form {
 //     8       S64        8
 //     9       R32        4
 //    10       R64        8
-//    12       Pointer    8
+//    13       V64        8
+//    14       V128      16
+//    15       V256      32
+//    16       V512      64
 //
-// Codes zero, eleven and the unassigned base codes are reserved. Byte order
-// cannot distinguish a one byte value, so U8 and S8 always clear bit six.
-// Names, source identity, callable signatures and calling conventions belong
-// to Semantic contracts acquired through Data transport. Pointer storage does
-// not itself establish any of those meanings and pointers do not encode the
-// schema they point to, only that they exist.
+// Codes zero, eleven, twelve and other unassigned codes are reserved. Pointer
+// is a native observation category, not a primitive code in this stream. U8
+// and S8 clear the byte order bit because one byte has no ordering distinction.
+// SIMD carriers have size and alignment equal to their listed width. Their
+// codes preserve the vector ABI classification even when a scalar aggregate
+// could occupy the same bytes. Lane operations belong to the semantic contract.
+// Big endian vector storage reverses the complete carrier, not individual
+// lanes.
+//
+// Complete canonical equality includes every reachable callable signature and
+// ABI. A conforming provider's negotiated function pointers can therefore be
+// called using that agreed signature. UUIDs still establish operation meaning,
+// and owners still establish lifetime. Neither is inferred from payload bytes.
 //
 // A struct header is followed immediately by its C direct element blocks.
-// Other struct bodies follow in first use depth first order. For example,
+// Other bodies follow in first use depth first order. For example,
 // after the root header and its descriptors come C1, C1's children C1C1 and
 // C1C2, then C2 and its child C2C1. Each body includes its header and direct
 // descriptors before any newly reached child body. References can therefore
 // point forward or backward to an already emitted body. References aren't
-// relative and are direct offsets from the root as the format is not meant to
-// be self syncing in anyway.
+// relative and are direct offsets from the root because readers establish
+// their position from that root rather than resynchronizing within the stream.
 //
 // One stored body may serve many occurrences: each reference preserves its
-// own offset, count and stride, and still denotes a struct boundary for every
+// own offset, count and distance, and still denotes a struct boundary for every
 // occurrence. Sharing the body never merges those occurrences into one object.
-// References land only on header blocks within this buffer. Containment is
-// acyclic, so a back reference can reuse a completed body but cannot introduce
-// a recursive object with no finite extent. This is one of the main reasons
-// pointers don't encode their schema information.
+// References land only on matching header kinds. Inline containment is acyclic.
+// Pointer targets and callable descriptions may refer back to an unfinished
+// body because they add no inline storage. Numbering reserves a body's index
+// before following those references and emits a reached body only once.
 //
 // Encoded buffers can be compared for equivalence by checking their lengths
 // and comparing every byte. Equal canonical bytes establish the same data
@@ -153,21 +196,21 @@ namespace Ttx::Data::Form {
 //    even when it contains only one member. Padding is described by offsets
 //    and extents rather than invented members or synthetic structs.
 //
-// 2. Normalize each body before its parent compares or shares it. Its direct
-//    occurrences are ordered by byte offset. Invalid primitive codes, cycles,
+// 2. Normalize storage occurrences in byte offset order. Signature arguments
+//    retain declaration order. Invalid primitive codes, inline cycles,
 //    impossible geometry and overlapping occupied placements are rejected.
 //    Names and source enumeration order do not affect the resulting body.
 //
 // 3. Compact from the lowest offset. When the next occurrence has the same
-//    normalized type, their start difference establishes a candidate stride.
-//    Take the longest consecutive run of that type at that stride, then
+//    normalized type, their start difference establishes a candidate distance.
+//    Take the longest consecutive run of that type at that distance, then
 //    continue with the first occurrence outside the run. Struct type equality
 //    here includes the normalized child body, extent and alignment. Primitive
 //    type equality includes its payload byte order.
 //
 // 4. Source range boundaries do not stop that compaction. Compare and consume
 //    matching prefixes arithmetically, splitting a source run when necessary.
-//    U32 starts 0, 4, 8, 16 normalize to a count of three at stride four and
+//    U32 starts 0, 4, 8, 16 normalize to a count of three at distance four and
 //    one singleton at 16, even if the input grouped them as two pairs. Nested
 //    repetition can be combined only while preserving the same starts and
 //    struct occurrences. A count never moves through a struct reference into
@@ -175,51 +218,62 @@ namespace Ttx::Data::Form {
 //    Repeated batches with gaps can require a separate run for each batch, so
 //    their descriptor count grows with the discontinuities being described.
 //
-// 5. For A greater than one, S is the actual distance between starts. For A
-//    equal to one, S is the intrinsic element size: primitive width or the
-//    referenced header's E. An unused source stride is discarded. Thus one
-//    U32 in an eight byte aligned, eight byte struct has element stride four.
-//    An array of those structs has reference stride eight. This leaves no
-//    discretionary padding value that could change the bytes of a singleton.
+// 5. For N greater than one, D is the actual distance between starts. For N
+//    equal to one, D is the intrinsic element size: primitive width or the
+//    referenced header's E, or eight for a pointer. Argument D is always zero.
+//    Thus one U32 in an eight byte aligned, eight byte struct has element
+//    distance four. An array of those structs has reference distance eight.
+//    This leaves no discretionary padding value that could change the bytes of
+//    a singleton.
 //
 // 6. Validate the final occupied end using the last start plus the element
-//    size. A * S is not necessarily that end, because it includes a stride
-//    after the last occurrence. Three U32s at stride eight end at byte 20.
+//    size. N * D is not necessarily that end, because it includes a distance
+//    after the last occurrence. Three U32s at distance eight end at byte 20.
 //    A root extent of 24 preserves the remaining four bytes of tail padding.
 //
 // 7. Elide zero occurrences and empty members. With no values, the only result
-//    is one root header with F one, C zero, S one and E zero. A nonzero extent
-//    without values is invalid. No unreachable empty body or zero A element
-//    is added to the buffer to remember how that unit was authored.
+//    is one root header with F one, C zero, A one and E zero, followed by four
+//    zero padding bytes. A nonzero extent without values is invalid.
+//    No unreachable empty body or zero N element is added to the buffer to
+//    remember how that unit was authored.
 //
 // 8. Intern structurally equal normalized bodies, including bodies authored
-//    independently. Equality uses child structure rather than source pointers,
-//    hash values or names. Assign their absolute block indices by first use
-//    depth first traversal after compaction. Emit each distinct reachable body
-//    once, with no extra body inventory or unreferenced records at the end.
+//    independently. Acyclic targets settle in dependency order. Recursive
+//    descriptions refine structural classes until no class splits, ignoring
+//    graph allocation and run spelling, then merge newly equal runs. Equality
+//    uses child structure rather than source pointers, hash values or names.
+//    Assign their absolute block indices by first use depth first traversal
+//    after compaction. Emit each distinct reachable body once, with no extra
+//    body inventory or unreferenced records at the end.
 //
-// 9. Scan all normalized fields and assigned indices for the smallest F that
-//    holds every value in its profile. One overflowing count, offset, stride,
+// 9. Merge adjacent equal argument types by adding N, with O and D zero.
+//    Their counts sum to the callable header N. Preserve ABI and return type.
+//    The void sentinel fills the complete selector field at the chosen F.
+//
+// 10. Scan all normalized fields and assigned indices for the smallest F that
+//    holds every value in its profile. One overflowing count, offset, distance,
 //    reference, extent, alignment or descriptor count promotes the entire
-//    buffer. A run is not split merely to avoid promotion. All bodies repeat
-//    the chosen F. Block indices were assigned in blocks, so widening changes
-//    byte addresses without changing traversal or reference numbering.
+//    buffer. A run is not split merely to avoid promotion. Struct headers
+//    repeat the chosen F and callable headers inherit it from the root. Block
+//    indices were assigned in blocks, so widening changes byte addresses
+//    without changing traversal or reference numbering.
 //
-// 10. Write only that final depth, with unused bits zero. Hashing, runtime
+// 11. Write only that final depth, with unused bits and final padding zero.
+//     Round the complete buffer size up to eight bytes. Hashing, runtime
 //     versus constant evaluation, and allocation policy cannot affect the
 //     output. Compiler owns temporary preparation and the caller owns the final
 //     buffer, so construction storage disappears from the published descriptor.
 //
 // For example, U8 at offsets zero, one and two followed by U32 at offset four
-// becomes one U8 descriptor with A three and S one, then one U32 descriptor
-// with A one and S four. The header's E eight retains the surrounding padding.
-// U32s at offsets zero, eight and sixteen use one descriptor with A three
-// and S eight. Referencing three one member structs uses C one, while
-// that flat primitive run uses C zero, so the two layouts cannot collide.
+// becomes one U8 descriptor with N three and D one, then one U32 descriptor
+// with N one and D four. The header's E eight retains the surrounding padding.
+// U32s at offsets zero, eight and sixteen use one descriptor with N three
+// and D eight. Referencing three one member structs uses S one, while
+// that flat primitive run uses S zero, so the two layouts cannot collide.
 //
 // Comparison is linear in the encoded byte length and requires no decoding.
 // Access reads the depth from the first byte, then follows header counts,
-// offsets and references. Repetition computes an instance start from O and S
+// offsets and references. Repetition computes an instance start from O and D
 // without storing an entry for each value. Enumeration necessarily visits each
 // requested primitive occurrence, not merely each compressed descriptor.
 //
@@ -229,171 +283,312 @@ class Compiler {
   Compiler(const Compiler&) = delete;
   constexpr Compiler(Compiler&&) = default;
 
-  // Compilation keeps its construction inventory until publication. Success
-  // establishes the precondition for size and write, while a failed attempt
-  // leaves only temporary storage that the compiler will release normally.
-  constexpr auto compile(const Schema& source) -> Status {
+  // Preparation owns one content inventory. Source graphs can disappear after
+  // success because publication consumes only these normalized records.
+  constexpr auto compile(Schema::Reference source) -> Status {
     bodies.resize(0);
-    elements.resize(0);
-    sources.resize(0);
-    order.resize(0);
+    records.resize(0);
     buckets.resize(0);
+    first = 0;
     block_count = 0;
     depth = 0;
-    for (Count i = 0; i < primitive_bodies.get_size(); ++i) {
-      primitive_bodies[i] = 0;
-    }
 
     Count root = 0;
-    const auto status = prepare(source, root);
+    if ((source.flags & ~TTX_SCHEMA_REFERENCE_POINTER) || !source.is_set()) {
+      return Status::Invalid;
+    }
+
+    auto status = source.is_pointer() ? prepare_reference(source)
+                                      : prepare(*source.schema, root);
     if (status != Status::Success) {
       return status;
     }
 
-    const auto numbering = number(root);
-    if (numbering != Status::Success) {
-      return numbering;
+    if (source.is_pointer() || (source.schema && source.schema->get_kind() ==
+                                                     Schema::Kind::Callable)) {
+      const Count first = begin(8, 8);
+      records.insert(describe(source));
+      root = bodies.get_size();
+      bodies.insert(Body());
+      seal(first, root);
     }
 
-    return choose_depth();
+    for (Count i = 0; status == Status::Success && i < bodies.get_size(); ++i) {
+      if (bodies[i].size == Unseen) {
+        Count body = 0;
+        status = prepare(*bodies[i].schema, body);
+      }
+    }
+
+    if (status != Status::Success) {
+      return status;
+    }
+
+    // A single body needs no interning. A struct and a callable are also
+    // necessarily distinct, so a form containing just those has nothing to merge.
+    // Larger graphs or two bodies of the same kind need structural settlement.
+    const Count count = bodies.get_size();
+    if (count > 1 &&
+        (count > 2 || bool(header(0).distance) == bool(header(1).distance))) {
+      reconcile(root);
+    }
+
+    Limits limits;
+    Count last = Unseen;
+    first = root + 1;
+    number(root, limits, last);
+    return choose_depth(limits);
   }
 
-  constexpr auto get_size() const -> Count { return block_count * 4 * depth; }
+  constexpr auto get_size() const -> Count {
+    return Perimortem::Core::Data::align<8>(block_count * 4 * depth);
+  }
   constexpr auto get_depth() const -> U8 { return depth; }
 
-  // The prepared records already contain every decision. This pass merely
-  // replaces internal body IDs with their assigned block indices and writes
-  // the bits. Check capacity once so a short target receives no partial form.
+  // Preparation has settled indices and the common depth. Each content record
+  // can therefore emit one block directly into the caller's buffer. get_size()
+  // includes final padding, so one capacity check covers every write.
   constexpr auto write(Perimortem::Core::Access::Bytes target) const -> Status {
     if (target.get_size() < get_size()) {
       return Status::Bounds;
     }
 
-    Perimortem::Core::Writer::Binary<Perimortem::Core::Data::ByteOrder::Little>
-        writer(target);
-    for (Count i = 0; i < order.get_size(); ++i) {
-      const auto& body = bodies[order[i]];
-      const auto header = Encoding::header(
-          Encoding::Header(body.size, body.alignment, body.extent), depth);
-      header.write(writer, depth);
-      for (Count j = 0; j < body.size; ++j) {
-        auto entry = elements[body.first + j];
-        if (entry.composite) {
-          entry.type = bodies[entry.type].block;
-        }
+    Writer writer(target);
+    for (Count item = first; item; item = bodies[item - 1].next) {
+      const auto& body = bodies[item - 1];
+      const auto& head = records[body.first];
+      if (head.distance) {
+        Encoding::Struct(body.size - 1, head.distance, head.offset)
+            .encode(depth)
+            .write(writer, depth);
+      } else {
+        const auto returned =
+            published(Element(1, 0, 0, head.type, head.attributes & 7));
+        Encoding::Callable(
+            head.count, head.offset, returned, head.attributes & Void)
+            .encode(depth)
+            .write(writer, depth);
+      }
 
-        const auto block = Encoding::element(entry, depth);
-        block.write(writer, depth);
+      for (Count i = 1; i < body.size; ++i) {
+        published(records[body.first + i]).encode(depth).write(writer, depth);
       }
     }
 
-    return writer.is_valid() ? Status::Success : Status::Bounds;
+    if (writer.get_location() & 7) {
+      writer << U32(0);
+    }
+
+    return Status::Success;
   }
 
  private:
   using Element = Encoding::Element;
   using Elements = Perimortem::Memory::Const::Vector<Element>;
+  using Indices = Perimortem::Memory::Const::Vector<Count>;
+  using View = Perimortem::Core::View::Vector<Element>;
+  using Writer = Perimortem::Core::Writer::Binary<
+      Perimortem::Core::Data::ByteOrder::Little>;
+  static constexpr Count Unseen = Count(-1);
+  static constexpr Count Active = Count(-2);
 
+  // Preparation uses Void to mark a callable return header. Encoding converts
+  // it to the reserved return selector so it never occupies an Element flag.
+  static constexpr Count Void = 8;
+
+  // Discovery keeps each source and its emitted span in one inventory. After
+  // discovery, hashing uses the normalized span instead of the source address.
+  // During settlement block holds Active or a canonical body ID. Numbering
+  // replaces those temporary IDs with absolute output indices. Hash lookup
+  // has then finished, allowing next to hold the emission order.
   struct Body {
-    Count extent;
-    Count alignment;
-    Count first;
-    Count size;
-    U64 hash;
-    Count next = 0;
-    Count block = Count(-1);
-
-    constexpr Body(
-        Count extent = 0,
-        Count alignment = 1,
-        Count first = 0,
-        Count size = 0,
-        U64 hash = 0)
-        : extent(extent),
-          alignment(alignment),
-          first(first),
-          size(size),
-          hash(hash) {}
-  };
-
-  // Remembering a source before following children lets another encounter
-  // detect a containment cycle. Completion replaces the pending marker with
-  // the canonical body ID that later visits can reuse.
-  struct Source {
     const Schema* schema = nullptr;
-    Count body = Count(-1);
+    Count first = 0;
+    Count size = Unseen;
+    U64 hash = 0;
+    Count next = 0;
+    Count block = Unseen;
 
-    constexpr Source(const Schema* schema = nullptr) : schema(schema) {}
+    constexpr Body() = default;
+    constexpr Body(const Schema* schema, U64 hash)
+        : schema(schema), hash(hash) {}
+    constexpr Body(Count first, Count size, U64 hash)
+        : first(first), size(size), hash(hash) {}
+  };
+  struct Octets {
+    U8 bytes[sizeof(Element)];
   };
 
-  // These helpers share the compiler's temporary inventories. Keeping them on
-  // the owner makes their phase dependencies explicit without exposing a
-  // Driver or passing a construction graph through every recursive call.
-  constexpr auto prepare(const Schema& source, Count& result) -> Status {
-    // Primitive facts are complete at this edge. Intern their one descriptor
-    // directly instead of allocating a temporary vector and memo entry for
-    // every independently authored spelling of the same scalar.
-    if (source.get_kind() == Schema::Kind::Value) {
-      return prepare_value(source, result);
+  // Numbering already visits every emitted field. Accumulate their occupied
+  // bits there so selecting the common depth needs no second descriptor walk.
+  struct Limits {
+    Count common = 0;
+    Count reference = 0;
+    Count distance = 0;
+    Count extent = 0;
+  };
+
+  // The runtime view borrows the actual initialized content. Constant
+  // evaluation cannot reinterpret an object pointer, so only that path copies
+  // the same representation into byte storage for the existing byte hasher.
+  static constexpr auto hash(View content) -> U64 {
+    if consteval {
+      Perimortem::Memory::Const::Vector<U8> bytes;
+      bytes.resize(content.get_size() * sizeof(Element));
+      for (Count i = 0; i < content.get_size(); ++i) {
+        const auto word = __builtin_bit_cast(Octets, content[i]);
+        for (Count j = 0; j < sizeof(Element); ++j) {
+          bytes[i * sizeof(Element) + j] = word.bytes[j];
+        }
+      }
+
+      return Perimortem::Core::Hash(
+                 Perimortem::Core::View::Bytes(
+                     bytes.get_data(), bytes.get_size()))
+          .get_value();
+    } else {
+      return Perimortem::Core::Hash(
+                 Perimortem::Core::View::Bytes(
+                     reinterpret_cast<const U8*>(content.get_data()),
+                     content.get_size() * sizeof(Element)))
+          .get_value();
+    }
+  }
+
+  static constexpr auto equal(View a, View b) -> Bool {
+    return a.get_size() == b.get_size() &&
+           Perimortem::Core::Data::compare(
+               a.get_data(), b.get_data(), a.get_size());
+  }
+
+  static constexpr auto span(const Elements& data, Count first, Count size)
+      -> View {
+    return View(data.get_data() + first, size);
+  }
+
+  constexpr auto header(Count body) const -> const Element& {
+    return records[bodies[body].first];
+  }
+
+  constexpr auto extent(Count body) const -> Count {
+    const auto& value = header(body);
+    return value.distance ? value.offset : 8;
+  }
+
+  constexpr auto width(const Element& entry) const -> Count {
+    return entry.is_pointer()  ? 8
+           : entry.is_inline() ? extent(entry.type)
+                               : Schema::get_width(entry.get_value());
+  }
+
+  constexpr auto published(Element entry) const -> Element {
+    if (entry.references()) {
+      entry.type = bodies[entry.type].block;
     }
 
-    for (Count i = 0; i < sources.get_size(); ++i) {
-      if (sources[i].schema == &source) {
-        result = sources[i].body;
-        return result == Count(-1) ? Status::Invalid : Status::Success;
+    return entry;
+  }
+
+  // Source memoization, body interning and recursive refinement all index
+  // existing inventory entries. Sharing lookup and growth lets each phase use
+  // those stored keys and hashes directly.
+  static constexpr auto find(
+      const auto& entries,
+      const Indices& buckets,
+      U64 fingerprint,
+      auto matches) -> Count {
+    if (buckets.is_empty()) {
+      for (Count i = 0; i < entries.get_size(); ++i) {
+        if (entries[i].hash == fingerprint && matches(i)) {
+          return i;
+        }
+      }
+    } else {
+      for (Count item = buckets[fingerprint & (buckets.get_size() - 1)]; item;
+           item = entries[item - 1].next) {
+        if (entries[item - 1].hash == fingerprint && matches(item - 1)) {
+          return item - 1;
+        }
       }
     }
 
-    const Count alignment = source.get_alignment();
-    if (!alignment || (alignment & (alignment - 1))) {
-      return Status::Invalid;
-    }
-
-    const Count slot = sources.get_size();
-    sources.insert(Source(&source));
-    Elements pending;
-    const auto status = collect(source, pending);
-    if (status != Status::Success) {
-      return status;
-    }
-
-    Elements normalized;
-    const auto normalization = normalize(pending, normalized);
-    if (normalization != Status::Success) {
-      return normalization;
-    }
-
-    if (normalized.is_empty() && source.get_extent()) {
-      return Status::Invalid;
-    }
-
-    const Count extent = source.get_extent();
-    result = intern(
-        extent, normalized.is_empty() ? 1 : alignment, normalized.get_view());
-    sources[slot].body = result;
-    return Status::Success;
+    return Unseen;
   }
 
-  constexpr auto collect(const Schema& source, Elements& output) -> Status {
-    switch (source.get_kind()) {
-    case Schema::Kind::Value:
-      return Status::Invalid;
-    case Schema::Kind::Range:
-      return collect_range(source, output);
-    case Schema::Kind::Composite:
-      return collect_composite(source, output);
-    }
-
-    return Status::Invalid;
+  static constexpr auto place(auto& entries, Indices& buckets, Count id)
+      -> void {
+    auto& entry = entries[id];
+    const Count bucket = entry.hash & (buckets.get_size() - 1);
+    entry.next = buckets[bucket];
+    buckets[bucket] = id + 1;
   }
 
-  constexpr auto prepare_value(const Schema& source, Count& result) -> Status {
-    const Count width = Schema::get_width(source.get_value());
-    if (!width || source.get_extent() != width) {
-      return Status::Invalid;
+  static constexpr auto reset(Indices& buckets, Count size) -> void {
+    // Rounding table capacity to a power of two lets bucket lookup use a mask.
+    // This capacity only affects scratch storage, leaving emitted order intact.
+    if (size) {
+      size = Count(1) << Perimortem::Core::Math::log2(size - 1);
     }
 
-    if (source.get_alignment() != width) {
+    buckets.resize(size);
+    for (Count i = 0; i < size; ++i) {
+      buckets[i] = 0;
+    }
+  }
+
+  static constexpr auto index(auto& entries, Indices& buckets, Count id)
+      -> void {
+    // Small forms avoid index allocation. Larger inventories keep cached
+    // hashes so growing a table does not rehash source pointers or bodies.
+    if (entries.get_size() < 8) {
+      return;
+    }
+
+    if (buckets.get_size() <= entries.get_size() * 2) {
+      reset(buckets, entries.get_size() * 4);
+      for (Count i = 0; i < entries.get_size(); ++i) {
+        place(entries, buckets, i);
+      }
+    } else {
+      place(entries, buckets, id);
+    }
+  }
+
+  static constexpr auto source_hash(const Schema* schema) -> U64 {
+    if consteval {
+      // Constant evaluation can compare source pointers, but cannot hash
+      // their addresses. Only source memoization uses this common bucket.
+      return 0;
+    } else {
+      return Perimortem::Core::Hash(schema).get_value();
+    }
+  }
+
+  constexpr auto find_source(const Schema* schema) const -> Count {
+    return find(bodies, buckets, source_hash(schema), [&](Count i) {
+      return bodies[i].schema == schema;
+    });
+  }
+
+  constexpr auto source_slot(const Schema* schema) -> Count {
+    const Count found = find_source(schema);
+    if (found != Unseen) {
+      return found;
+    }
+
+    const Count slot = bodies.get_size();
+    bodies.insert(Body(schema, source_hash(schema)));
+    if !consteval {
+      index(bodies, buckets, slot);
+    }
+
+    return slot;
+  }
+
+  static constexpr auto validate_value(const Schema& source) -> Status {
+    const Count size = Schema::get_width(source.get_value());
+    if (!size || source.get_extent() != size ||
+        source.get_alignment() != size) {
       return Status::Invalid;
     }
 
@@ -402,433 +597,643 @@ class Compiler {
       return Status::Invalid;
     }
 
-    const Count code =
-        static_cast<U8>(source.get_value()) |
-        ((width > 1 && order == Schema::ByteOrder::Big) ? 64 : 0);
-    if (primitive_bodies[code]) {
-      result = primitive_bodies[code] - 1;
+    return source.get_value() == Schema::Value::Pointer &&
+                   order != Schema::ByteOrder::Little
+               ? Status::Invalid
+               : Status::Success;
+  }
+
+  constexpr auto prepare_reference(
+      Schema::Reference reference,
+      Bool argument = False) -> Status {
+    if ((reference.flags & ~TTX_SCHEMA_REFERENCE_POINTER) ||
+        !reference.is_set()) {
+      return Status::Invalid;
+    }
+
+    const auto* source = reference.schema;
+    if (!source) {
       return Status::Success;
     }
 
-    const Element entry(1, 0, width, code);
-    result = intern(
-        width, width, Perimortem::Core::View::Vector<Element>(&entry, 1));
-    primitive_bodies[code] = result + 1;
-    return Status::Success;
+    if (argument && !reference.is_pointer() &&
+        (source->get_kind() == Schema::Kind::Range || !source->get_extent())) {
+      return Status::Invalid;
+    }
+
+    if (source->get_kind() == Schema::Kind::Value &&
+        !(reference.is_pointer() &&
+          source->get_value() == Schema::Value::Pointer)) {
+      return validate_value(*source);
+    }
+
+    // Arguments describe a call boundary rather than inline containment.
+    // Like pointer targets, their bodies can be completed after the caller.
+    if (reference.is_pointer() || argument) {
+      source_slot(source);
+      return Status::Success;
+    }
+
+    Count body = 0;
+    return prepare(*source, body);
   }
 
-  constexpr auto collect_composite(const Schema& source, Elements& output)
-      -> Status {
+  // References already passed preparation. Describing one cannot append a
+  // child body while its parent is emitting contiguous content.
+  constexpr auto describe(Schema::Reference reference) -> Element {
+    const auto* source = reference.schema;
+    if (!source) {
+      return Element(1, 0, 8, 0, Element::Pointer);
+    }
+
+    if (source->get_kind() == Schema::Kind::Value &&
+        !(reference.is_pointer() &&
+          source->get_value() == Schema::Value::Pointer)) {
+      const auto type = source->get_value();
+      const Bool pointer =
+          reference.is_pointer() || type == Schema::Value::Pointer;
+      const Count size = pointer ? 8 : source->get_extent();
+      const Count code =
+          type == Schema::Value::Pointer
+              ? 0
+              : static_cast<U8>(type) |
+                    ((source->get_extent() > 1 &&
+                      source->get_byte_order() == Schema::ByteOrder::Big)
+                         ? 64
+                         : 0);
+      return Element(1, 0, size, code, pointer ? Element::Pointer : 0);
+    }
+
+    const Count slot = find_source(source);
+    const Bool callable = source->get_kind() == Schema::Kind::Callable;
+    return Element(
+        1, 0, reference.get_extent(), slot,
+        (callable ? Element::Callable | Element::Pointer : Element::Struct) |
+            (reference.is_pointer() ? Element::Pointer : 0));
+  }
+
+  constexpr auto prepare(const Schema& source, Count& result) -> Status {
+    const Count slot = source_slot(&source);
+    if (bodies[slot].size == Active) {
+      return Status::Invalid;
+    }
+
+    result = slot;
+    if (bodies[slot].size != Unseen) {
+      return Status::Success;
+    }
+
+    if (!source.get_alignment() ||
+        (source.get_alignment() & (source.get_alignment() - 1))) {
+      return Status::Invalid;
+    }
+
+    bodies[slot].size = Active;
+    Status status = Status::Invalid;
+    switch (source.get_kind()) {
+    case Schema::Kind::Value:
+      status = validate_value(source);
+      if (status == Status::Success) {
+        const Count first = begin(source.get_extent(), source.get_alignment());
+        records.insert(describe(source));
+        seal(first, result);
+      }
+
+      break;
+    case Schema::Kind::Composite:
+      status = composite(source, result);
+      break;
+    case Schema::Kind::Range:
+      status = range(source, result);
+      break;
+    case Schema::Kind::Callable:
+      status = callable(source, result);
+      break;
+    }
+
+    return status;
+  }
+
+  constexpr auto begin(Count size, Count alignment) -> Count {
+    const Count first = records.get_size();
+    records.insert(Element(0, size, alignment));
+    return first;
+  }
+
+  // One pending run serves arguments, ordinary fields and refinement keys.
+  // Zero distance expresses argument repetition. Storage runs preserve actual
+  // starts and may consume only a matching prefix of the next source run.
+  struct Run {
+    Element current;
+    Count width = 0;
+    Bool ordered = True;
+
+    template <typename Emit>
+    constexpr auto push(Element next, Count size, Emit emit) -> void {
+      const Count last =
+          current.offset +
+          (current.count ? current.count - 1 : 0) * current.distance;
+      const Bool follows = !current.count || next.offset >= last + width;
+      ordered &= follows;
+      if (follows && current.count && current.type == next.type &&
+          current.attributes == next.attributes) {
+        // The first pair establishes a distance. Later occurrences continue
+        // the run when their start is one distance beyond its previous start.
+        const Count distance = next.offset - last;
+        if (current.count == 1 || distance == current.distance) {
+          current.distance = distance;
+          ++current.count;
+          --next.count;
+          if (!next.count) {
+            return;
+          }
+
+          next.offset += next.distance;
+          if (next.distance == distance) {
+            current.count += next.count;
+            return;
+          }
+        }
+      }
+
+      flush(emit);
+      current = next;
+      width = size;
+    }
+
+    template <typename Emit>
+    constexpr auto flush(Emit emit) -> void {
+      if (current.count) {
+        if (current.count == 1) {
+          current.distance = width;
+        }
+
+        emit(current);
+        current.count = 0;
+      }
+    }
+  };
+
+  // Ranges contribute their existing runs and structs contribute a reference.
+  // Feeding both into the pending run lets adjacent fields compact before
+  // allocating their output records.
+  constexpr auto append(
+      Schema::Reference reference,
+      Count offset,
+      Count count,
+      Count distance,
+      Run& run) -> void {
+    if (!count || !reference.get_extent()) {
+      return;
+    }
+
+    const auto emit = [&](Element entry) { records.insert(entry); };
+    if (!reference.is_pointer() &&
+        reference.schema->get_kind() == Schema::Kind::Range) {
+      const auto child = bodies[find_source(reference.schema)];
+      const auto first = records[child.first + 1];
+      const Bool joins =
+          first.count == 1 || distance == first.count * first.distance;
+      if (child.size == 2 && (count == 1 || joins)) {
+        auto entry = first;
+        entry.offset += offset;
+        if (entry.count == 1 && count > 1) {
+          entry.distance = distance;
+        }
+
+        entry.count *= count;
+        run.push(entry, width(entry), emit);
+      } else {
+        for (Count repeat = 0; repeat < count; ++repeat) {
+          for (Count i = 1; i < child.size; ++i) {
+            auto entry = records[child.first + i];
+            entry.offset += offset + repeat * distance;
+            run.push(entry, width(entry), emit);
+          }
+        }
+      }
+    } else {
+      auto entry = describe(reference);
+      entry.offset = offset;
+      entry.count = count;
+      if (count > 1) {
+        entry.distance = distance;
+      }
+
+      run.push(entry, width(entry), emit);
+    }
+  }
+
+  constexpr auto composite(const Schema& source, Count& result) -> Status {
     const auto positions = source.get_positions();
     if (positions.get_size() && !positions.get_data()) {
       return Status::Invalid;
     }
 
     for (const auto position : positions) {
-      const auto* child = position.get_schema();
-      if (!child || position.get_offset() > source.get_extent()) {
+      const auto reference = position.get_reference();
+      if (position.offset > source.get_extent() ||
+          reference.get_extent() > source.get_extent() - position.offset) {
         return Status::Invalid;
       }
 
-      if (child->get_extent() > source.get_extent() - position.get_offset()) {
-        return Status::Invalid;
-      }
-
-      Count body = 0;
-      const auto status = prepare(*child, body);
+      const auto status = prepare_reference(reference);
       if (status != Status::Success) {
         return status;
       }
-
-      append(*child, body, position.get_offset(), output);
     }
 
-    return Status::Success;
+    const Count first = begin(source.get_extent(), source.get_alignment());
+    Run run;
+    for (const auto position : positions) {
+      append(position.get_reference(), position.offset, 1, 0, run);
+    }
+
+    return finish(first, run, result);
   }
 
-  // A real Composite remains a referenced body. Value and Range source nodes
-  // contribute occurrences directly, so authored batching cannot add a new
-  // boundary to the resulting format.
-  constexpr auto append(
-      const Schema& source,
-      Count body,
-      Count offset,
-      Elements& output) const -> void {
-    const auto& ready = bodies[body];
-    if (!ready.size) {
-      return;
-    }
-
-    if (source.get_kind() == Schema::Kind::Composite) {
-      output.insert(Element(1, offset, ready.extent, body, True));
-      return;
-    }
-
-    for (Count i = 0; i < ready.size; ++i) {
-      auto entry = elements[ready.first + i];
-      entry.offset += offset;
-      output.insert(entry);
-    }
-  }
-
-  constexpr auto collect_range(const Schema& source, Elements& output)
-      -> Status {
-    const auto range = source.get_range();
-    const auto* child = range.get_element();
-    if (!child) {
-      return Status::Invalid;
-    }
-
-    Count body = 0;
-    const auto status = prepare(*child, body);
+  constexpr auto range(const Schema& source, Count& result) -> Status {
+    const auto& value = source.get_range();
+    const auto reference = value.get_element();
+    const auto status = prepare_reference(reference);
     if (status != Status::Success) {
       return status;
     }
 
-    const Count count = range.get_count();
-    const auto ready = bodies[body];
-    if (!count || !ready.size) {
-      return source.get_extent() ? Status::Invalid : Status::Success;
-    }
-
-    // Check the last instance rather than count times stride. A final stride
-    // is not occupied storage, and its padding need not be present in extent.
-    if (ready.extent > source.get_extent()) {
+    const Count count = value.get_count();
+    const Count size = reference.get_extent();
+    const Count distance = value.get_distance();
+    if ((!count || !size) && source.get_extent()) {
       return Status::Invalid;
     }
 
-    const Count stride = range.get_stride();
-    if (count > 1) {
-      if (!stride || stride < ready.extent) {
+    if (size && count) {
+      if (size > source.get_extent() || (count > 1 && distance < size)) {
         return Status::Invalid;
       }
 
-      if (count - 1 > (source.get_extent() - ready.extent) / stride) {
-        return count - 1 > (Count(-1) - ready.extent) / stride
-                   ? Status::Overflow
-                   : Status::Invalid;
+      if (count > 1 && count - 1 > (source.get_extent() - size) / distance) {
+        return count - 1 > (Count(-1) - size) / distance ? Status::Overflow
+                                                         : Status::Invalid;
       }
     }
 
-    if (child->get_kind() == Schema::Kind::Composite) {
-      output.insert(
-          Element(count, 0, count == 1 ? ready.extent : stride, body, True));
-      return Status::Success;
-    }
-
-    if (count == 1) {
-      append(*child, body, 0, output);
-      return Status::Success;
-    }
-
-    // A repeated progression can stay one descriptor when the next batch
-    // starts at its next expected element. Otherwise each batch contributes
-    // its own runs, as required by the canonical format rather than by the
-    // number of nodes in the authored Schema.
-    if (ready.size == 1) {
-      auto entry = elements[ready.first];
-      if (entry.count == 1) {
-        entry.count = count;
-        entry.stride = stride;
-        output.insert(entry);
-        return Status::Success;
-      }
-
-      // The next batch must start where another element of this run would
-      // start. Admission above already fitted at least two whole batches,
-      // which also bounds this one past the end stride calculation.
-      const Count next_batch = entry.count * entry.stride;
-      if (stride == next_batch) {
-        entry.count *= count;
-        output.insert(entry);
-        return Status::Success;
-      }
-    }
-
-    for (Count i = 0; i < count; ++i) {
-      append(*child, body, i * stride, output);
-    }
-
-    return Status::Success;
+    const Count first = begin(source.get_extent(), source.get_alignment());
+    Run run;
+    append(reference, 0, count, distance, run);
+    return finish(first, run, result);
   }
 
-  constexpr auto width(const Element& value) const -> Count {
-    return value.composite ? bodies[value.type].extent
-                           : Schema::get_width(Schema::Value(value.type & 63));
+  constexpr auto callable(const Schema& source, Count& result) -> Status {
+    if (source.get_extent() != 8 || source.get_alignment() != 8) {
+      return Status::Invalid;
+    }
+
+    const auto& value = source.get_callable();
+    if (value.get_result().flags & ~TTX_SCHEMA_REFERENCE_POINTER) {
+      return Status::Invalid;
+    }
+
+    const auto abi = value.get_convention();
+    if (abi != Schema::Abi::SystemVAMD64 &&
+        abi != Schema::Abi::SystemVAMD64Variadic) {
+      return Status::Invalid;
+    }
+
+    const auto arguments = value.get_arguments();
+    if (arguments.get_size() && !arguments.get_data()) {
+      return Status::Invalid;
+    }
+
+    if (value.get_result().is_set()) {
+      const auto status = prepare_reference(value.get_result(), True);
+      if (status != Status::Success) {
+        return status;
+      }
+    }
+
+    Element head = value.get_result().is_set() ? describe(value.get_result())
+                                               : Element(0, 0, 0, 0, Void);
+    head.count = 0;
+    head.offset = static_cast<U32>(abi);
+    head.distance = 0;
+    const Count first = records.get_size();
+    records.insert(head);
+    Run run;
+    const auto emit = [&](Element entry) { records.insert(entry); };
+    for (const auto& argument : arguments) {
+      if (!argument.count) {
+        return Status::Invalid;
+      }
+
+      if (argument.count > Count(-1) - records[first].count) {
+        return Status::Overflow;
+      }
+
+      const auto status = prepare_reference(argument.get_reference(), True);
+      if (status != Status::Success) {
+        return status;
+      }
+
+      records[first].count += argument.count;
+      auto entry = describe(argument.get_reference());
+      entry.count = argument.count;
+      entry.offset = entry.distance = 0;
+      run.push(entry, 0, emit);
+    }
+
+    return finish(first, run, result);
   }
 
-  // A small heap merges run starts. It also handles interleaved primitive
-  // ranges without expanding an entire range just to find the next member.
-  // A consumed prefix leaves its remainder in the same inventory.
-  static constexpr auto descend(Elements& heap, Count root) -> void {
-    for (Count child = root * 2 + 1; child < heap.get_size();
-         child = root * 2 + 1) {
+  static constexpr auto descend(Elements& heap, Count parent) -> void {
+    for (Count child = parent * 2 + 1; child < heap.get_size();
+         child = parent * 2 + 1) {
       if (child + 1 < heap.get_size() &&
           heap[child + 1].offset < heap[child].offset) {
         ++child;
       }
 
-      if (heap[root].offset <= heap[child].offset) {
+      if (heap[parent].offset <= heap[child].offset) {
         return;
       }
 
-      Perimortem::Core::Data::swap(heap[root], heap[child]);
-      root = child;
+      Perimortem::Core::Data::swap(heap[parent], heap[child]);
+      parent = child;
     }
   }
 
-  static constexpr auto take(Elements& heap) -> Element {
-    const auto result = heap[0];
-    heap[0] = heap[heap.get_size() - 1];
-    heap.resize(heap.get_size() - 1);
-    descend(heap, 0);
-    return result;
-  }
-
-  static constexpr auto insert(Elements& heap, Element value) -> void {
-    Count index = heap.get_size();
-    heap.insert(value);
-    while (index) {
-      const Count parent = (index - 1) / 2;
-      if (heap[parent].offset <= heap[index].offset) {
-        return;
-      }
-
-      Perimortem::Core::Data::swap(heap[parent], heap[index]);
-      index = parent;
+  // Discovery has already compacted ordered fields. Only a source whose runs
+  // interleave needs this merge. Splitting at the next start preserves compact
+  // ranges while exposing any actual overlap as an admission failure.
+  constexpr auto reorder(Count first) -> Status {
+    Elements heap;
+    for (Count i = first + 1; i < records.get_size(); ++i) {
+      heap.insert(records[i]);
     }
-  }
 
-  constexpr auto normalize(Elements& pending, Elements& result) const
-      -> Status {
-    // Authored records commonly arrive in wire order. Consume that sequence
-    // directly. The heap is needed only if a later run starts before the
-    // preceding run ends, including otherwise valid interleaved progressions.
+    for (Count i = heap.get_size() / 2; i; --i) {
+      descend(heap, i - 1);
+    }
+
+    records.resize(first + 1);
+    Run run;
     Count end = 0;
-    Bool ordered = True;
-    for (Count i = 0; i < pending.get_size(); ++i) {
-      const auto entry = pending[i];
-      if (entry.offset < end) {
-        ordered = False;
-        break;
-      }
-
-      end = entry.offset + (entry.count - 1) * entry.stride + width(entry);
-      merge(result, entry);
-    }
-
-    if (ordered) {
-      return Status::Success;
-    }
-
-    result.resize(0);
-    for (Count i = pending.get_size() / 2; i; --i) {
-      descend(pending, i - 1);
-    }
-
-    end = 0;
-    while (!pending.is_empty()) {
-      auto current = take(pending);
-      if (!pending.is_empty() && current.count > 1) {
-        const Count next = pending[0].offset;
-        if (next > current.offset) {
-          const Count delta = next - current.offset;
-          const Count prefix =
-              delta / current.stride + (delta % current.stride != 0);
-          if (prefix < current.count) {
-            auto remaining = current;
-            remaining.offset += prefix * current.stride;
-            remaining.count -= prefix;
-            current.count = prefix;
-            insert(pending, remaining);
-          }
+    const auto emit = [&](Element entry) { records.insert(entry); };
+    while (!heap.is_empty()) {
+      auto entry = heap[0];
+      if (heap.get_size() > 1 && entry.count > 1) {
+        const Count next =
+            heap.get_size() > 2
+                ? Perimortem::Core::Math::min(heap[1].offset, heap[2].offset)
+                : heap[1].offset;
+        const Count gap = next - entry.offset;
+        const Count prefix = gap / entry.distance + (gap % entry.distance != 0);
+        if (prefix && prefix < entry.count) {
+          entry.count = prefix;
         }
       }
 
-      if (current.offset < end) {
+      // Advancing this run in place leaves its remainder in the heap. Restoring
+      // heap order then selects the next start without reinserting that run.
+      heap[0].count -= entry.count;
+      if (heap[0].count) {
+        heap[0].offset += entry.count * entry.distance;
+      } else {
+        heap[0] = heap[heap.get_size() - 1];
+        heap.resize(heap.get_size() - 1);
+      }
+
+      descend(heap, 0);
+
+      if (entry.offset < end) {
         return Status::Invalid;
       }
 
-      end = current.offset + (current.count - 1) * current.stride +
-            width(current);
-      merge(result, current);
+      end = entry.offset + (entry.count - 1) * entry.distance + width(entry);
+      run.push(entry, width(entry), emit);
     }
 
+    run.flush(emit);
     return Status::Success;
   }
 
-  // Greedy runs follow occurrence order, not authored range boundaries. When
-  // only the first member of an incoming run fits, consume that member and
-  // retain the rest as the next candidate. This is what makes 0,4 | 8,16 agree
-  // with 0,4,8 | 16 without expanding either input progression.
-  constexpr auto merge(Elements& output, Element current) const -> void {
-    if (!output.is_empty()) {
-      auto& previous = output[output.get_size() - 1];
-      const Count stride = previous.count == 1
-                               ? current.offset - previous.offset
-                               : previous.stride;
-      const Bool same = previous.type == current.type &&
-                        previous.composite == current.composite;
-      const Count distance = current.offset - previous.offset;
-      if (same && stride && distance / stride == previous.count &&
-          distance % stride == 0) {
-        previous.stride = stride;
-        ++previous.count;
-        --current.count;
-        if (!current.count) {
-          return;
-        }
-
-        current.offset += current.stride;
-        if (current.stride == stride) {
-          previous.count += current.count;
-          return;
-        }
+  constexpr auto finish(Count first, Run& run, Count& result) -> Status {
+    run.flush([&](Element entry) { records.insert(entry); });
+    if (!run.ordered) {
+      const auto status = reorder(first);
+      if (status != Status::Success) {
+        return status;
       }
     }
 
-    if (current.count == 1) {
-      current.stride = width(current);
+    if (records[first].distance && records.get_size() == first + 1) {
+      if (records[first].offset) {
+        return Status::Invalid;
+      }
+
+      records[first].distance = 1;
     }
 
-    output.insert(current);
+    seal(first, result);
+    return Status::Success;
   }
 
-  static constexpr auto hash(U64 previous, Count value) -> U64 {
-    return (previous ^ value) * U64(1099511628211);
+  constexpr auto seal(Count first, Count id) -> void {
+    auto& body = bodies[id];
+    body.first = first;
+    body.size = records.get_size() - first;
+    if (records[first].distance) {
+      records[first].count = body.size - 1;
+    }
   }
 
-  constexpr auto equal(
-      const Body& body,
-      Perimortem::Core::View::Vector<Element> entries) const -> Bool {
-    if (body.size != entries.get_size()) {
-      return False;
+  // Direct settlement and cyclic refinement both share bodies by normalized
+  // content. Hashing that content keeps sharing independent of source addresses.
+  static constexpr auto intern(
+      Count id,
+      Body body,
+      const Elements& data,
+      Perimortem::Memory::Const::Vector<Body>& entries,
+      Indices& buckets) -> Count {
+    entries[id] = body;
+    const auto content = span(data, body.first, body.size);
+    const Count found = find(entries, buckets, body.hash, [&](Count prior) {
+      return entries[prior].block < Active &&
+             equal(
+                 content,
+                 span(data, entries[prior].first, entries[prior].size));
+    });
+    const Count selected = found == Unseen ? id : found;
+    entries[id].block = selected;
+    if (found == Unseen && !buckets.is_empty()) {
+      place(entries, buckets, id);
     }
 
+    return selected;
+  }
+
+  // Settled reference identities can make adjacent runs equal. Acyclic bodies
+  // compact within their own spans. Cyclic rounds write a separate inventory
+  // so every body observes the same previous set of reference identities.
+  constexpr auto project(Count id, auto canonical, Elements& target) const
+      -> Body {
+    const auto body = bodies[id];
+    auto head = records[body.first];
+    if (head.references()) {
+      head.type = canonical(head.type);
+    }
+
+    const Count first = &target == &records ? body.first : target.get_size();
+    Count output = first;
+    const auto emit = [&](Element entry) {
+      if (output == target.get_size()) {
+        target.insert(entry);
+      } else {
+        target[output] = entry;
+      }
+
+      ++output;
+    };
+    emit(head);
+    Run run;
+    for (Count i = 1; i < body.size; ++i) {
+      auto entry = records[body.first + i];
+      const Count size = head.distance ? width(entry) : 0;
+      if (entry.references()) {
+        entry.type = canonical(entry.type);
+      }
+
+      run.push(entry, size, emit);
+    }
+
+    run.flush(emit);
+    if (head.distance) {
+      target[first].count = output - first - 1;
+    }
+
+    const Count size = output - first;
+    return Body(first, size, hash(span(target, first, size)));
+  }
+
+  constexpr auto settle(Count id) -> Bool {
+    if (bodies[id].block != Unseen) {
+      return bodies[id].block != Active;
+    }
+
+    bodies[id].block = Active;
+    const auto body = bodies[id];
+    Bool changed = False;
     for (Count i = 0; i < body.size; ++i) {
-      const auto& a = elements[body.first + i];
-      const auto& b = entries.get_data()[i];
-      if (a.count != b.count || a.offset != b.offset || a.stride != b.stride ||
-          a.type != b.type || a.composite != b.composite) {
-        return False;
+      const auto entry = records[body.first + i];
+      if (entry.references()) {
+        if (!settle(entry.type)) {
+          return False;
+        }
+
+        changed |= entry.type != bodies[entry.type].block;
       }
     }
 
+    // Discovery already normalized these runs. Only a merged target identity
+    // can change that result and require another compaction pass.
+    Body key;
+    if (changed) {
+      key = project(
+          id, [&](Count target) { return bodies[target].block; }, records);
+    } else {
+      key = Body(
+          body.first, body.size, hash(span(records, body.first, body.size)));
+    }
+
+    intern(id, key, records, bodies, buckets);
     return True;
   }
 
-  constexpr auto intern(
-      Count extent,
-      Count alignment,
-      Perimortem::Core::View::Vector<Element> entries) -> Count {
-    U64 fingerprint = hash(hash(14695981039346656037ULL, extent), alignment);
-    for (Count i = 0; i < entries.get_size(); ++i) {
-      const auto& entry = entries.get_data()[i];
-      fingerprint = hash(fingerprint, entry.count);
-      fingerprint = hash(fingerprint, entry.offset);
-      fingerprint = hash(fingerprint, entry.stride);
-      fingerprint = hash(fingerprint, entry.type);
-      fingerprint = hash(fingerprint, entry.composite.value);
-    }
-
-    if (buckets.get_size() <= bodies.get_size()) {
-      const Count size =
-          Perimortem::Core::Math::max(Count(16), buckets.get_size() * 2);
-      buckets.resize(size);
-      for (Count i = 0; i < size; ++i) {
-        buckets[i] = 0;
-      }
-
+  // Acyclic targets settle in place as the dependency walk returns. Only an
+  // actual cycle needs a second content buffer: each round must observe the
+  // previous round's complete classes, independent of traversal order.
+  constexpr auto reconcile(Count& root) -> void {
+    reset(buckets, bodies.get_size() < 8 ? 0 : bodies.get_size() * 2 + 1);
+    if (settle(root)) {
+      root = bodies[root].block;
       for (Count i = 0; i < bodies.get_size(); ++i) {
-        const Count bucket = bodies[i].hash % size;
-        bodies[i].next = buckets[bucket];
-        buckets[bucket] = i + 1;
+        bodies[i].block = Unseen;
       }
+
+      return;
     }
 
-    const Count bucket = fingerprint % buckets.get_size();
-    for (Count id = buckets[bucket]; id; id = bodies[id - 1].next) {
-      const auto& body = bodies[id - 1];
-      if (body.hash == fingerprint && body.extent == extent &&
-          body.alignment == alignment && equal(body, entries)) {
-        return id - 1;
+    Indices classes, next;
+    classes.resize(bodies.get_size());
+    next.resize(bodies.get_size());
+    Elements keys;
+    Perimortem::Memory::Const::Vector<Body> candidates;
+    candidates.resize(bodies.get_size());
+    Bool changed;
+    do {
+      keys.resize(0);
+      reset(buckets, bodies.get_size() * 2 + 1);
+      changed = False;
+      for (Count id = 0; id < bodies.get_size(); ++id) {
+        const auto key =
+            project(id, [&](Count target) { return classes[target]; }, keys);
+        next[id] = intern(id, key, keys, candidates, buckets);
+        changed |= next[id] != classes[id];
       }
+
+      Perimortem::Core::Data::swap(classes, next);
+    } while (changed);
+
+    Perimortem::Core::Data::swap(records, keys);
+    Perimortem::Core::Data::swap(bodies, candidates);
+    for (Count i = 0; i < bodies.get_size(); ++i) {
+      bodies[i].block = Unseen;
     }
 
-    Body body(
-        extent, alignment, elements.get_size(), entries.get_size(),
-        fingerprint);
-    body.next = buckets[bucket];
-    for (Count i = 0; i < entries.get_size(); ++i) {
-      elements.insert(entries[i]);
-    }
-
-    const Count id = bodies.get_size();
-    bodies.insert(body);
-    buckets[bucket] = id + 1;
-    return id;
+    root = classes[root];
   }
 
-  constexpr auto number(Count id) -> Status {
-    if (bodies[id].block != Count(-1)) {
-      return Status::Success;
+  constexpr auto number(Count id, Limits& limits, Count& last) -> void {
+    if (bodies[id].block != Unseen) {
+      return;
     }
 
     const auto body = bodies[id];
-    if (body.size >= Count(-1) - block_count) {
-      return Status::Overflow;
+    bodies[id].block = block_count;
+    block_count += body.size;
+    if (last != Unseen) {
+      bodies[last].next = id + 1;
     }
 
-    bodies[id].block = block_count;
-    block_count += 1 + body.size;
-    order.insert(id);
+    last = id;
+    bodies[id].next = 0;
+    const auto& head = records[body.first];
+    limits.common |= head.count | (head.distance ? head.distance : head.offset);
+    limits.extent |= head.distance ? head.offset : 0;
     for (Count i = 0; i < body.size; ++i) {
-      const auto entry = elements[body.first + i];
-      if (entry.composite) {
-        const auto status = number(entry.type);
-        if (status != Status::Success) {
-          return status;
-        }
+      const auto& entry = records[body.first + i];
+      if (i) {
+        limits.common |= entry.count | entry.offset;
+        limits.distance |= entry.distance;
+      }
+
+      if (entry.references()) {
+        number(entry.type, limits, last);
+        limits.reference |= bodies[entry.type].block;
+      } else {
+        limits.reference |= entry.type;
       }
     }
-
-    return Status::Success;
   }
 
-  constexpr auto choose_depth() -> Status {
-    Count common = 0;
-    Count reference = 0;
-    Count extent = 0;
-    for (Count i = 0; i < order.get_size(); ++i) {
-      const auto& body = bodies[order[i]];
-      common = Perimortem::Core::Math::max(common, body.size);
-      common = Perimortem::Core::Math::max(common, body.alignment);
-      extent = Perimortem::Core::Math::max(extent, body.extent);
-      for (Count j = 0; j < body.size; ++j) {
-        const auto entry = elements[body.first + j];
-        const Count type =
-            entry.composite ? bodies[entry.type].block : entry.type;
-        common = Perimortem::Core::Math::max(common, entry.count);
-        common = Perimortem::Core::Math::max(common, entry.offset);
-        common = Perimortem::Core::Math::max(common, entry.stride);
-        reference = Perimortem::Core::Math::max(reference, type);
-      }
-    }
-
-    // Five fields grow by eight bits per depth. P has one fewer bit, while E
-    // grows by sixteen with four bits reserved for F. Round each requirement
-    // up once, then take the largest. No candidate needs another schema scan.
-    // Perimortem's log2 returns the occupied bit count, including zero for zero.
-    const auto bits = [](Count value) -> Count {
-      return Perimortem::Core::Math::log2(value);
-    };
-    const Count common_depth = (bits(common) + 7) / 8;
-    const Count reference_depth = (bits(reference) + 8) / 8;
-    const Count extent_depth = (bits(extent) + 19) / 16;
-    const Count required = Perimortem::Core::Math::max(
-        common_depth,
-        Perimortem::Core::Math::max(reference_depth, extent_depth));
-    if (required > 15 || block_count > Count(-1) / (4 * required)) {
+  constexpr auto choose_depth(const Limits& limits) -> Status {
+    using Perimortem::Core::Math::log2;
+    using Perimortem::Core::Math::max;
+    Count required = max(Count(1), (log2(limits.common) + 7) / 8);
+    required = max(required, (log2(limits.reference) + 8) / 8);
+    required = max(required, (log2(limits.distance) + 9) / 8);
+    required = max(required, (log2(limits.extent) + 19) / 16);
+    if (required > 15 || block_count > (Count(-1) - 7) / (4 * required)) {
       return Status::Overflow;
     }
 
@@ -837,13 +1242,9 @@ class Compiler {
   }
 
   Perimortem::Memory::Const::Vector<Body> bodies;
-  Elements elements;
-  Perimortem::Memory::Const::Vector<Source> sources;
-  Perimortem::Memory::Const::Vector<Count> buckets;
-  Perimortem::Memory::Const::Vector<Count> order;
-  // The seven bit primitive code includes byte order. Its finite vocabulary
-  // gives scalar normalization a direct lookup independent of source identity.
-  Perimortem::Core::Static::Vector<Count, 128> primitive_bodies;
+  Elements records;
+  Indices buckets;
+  Count first = 0;
   Count block_count = 0;
   U8 depth = 0;
 };

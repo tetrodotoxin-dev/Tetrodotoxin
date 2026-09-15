@@ -16,6 +16,9 @@
 // belong to the containing object, while type and byte order describe the
 // observation at that coordinate. No pointer to a reconstructed child object
 // needs to survive the lookup.
+// Pointer and callable slots both produce a native Pointer observation.
+// Their target descriptions remain in the canonical buffer for agreement,
+// but following those descriptions would read outside this object's payload.
 typedef struct ttx_representation_position {
   Count offset;
   ttx_schema_value type;
@@ -43,6 +46,9 @@ typedef struct ttx_representation_position {
 
 // A Representation borrows a canonical descriptor buffer. Compilation has
 // already established its geometry, normalization and reference invariants.
+// Its complete byte size is a multiple of eight, with zero padding after the
+// last descriptor when necessary. Readers can therefore load whole U64 chunks
+// relative to the buffer start without requiring padding at each block.
 // An independent provider can publish the same format without using our
 // compiler, provided it establishes those same invariants before exposing it.
 //
@@ -69,7 +75,7 @@ typedef struct ttx_representation {
   constexpr auto compatible(const ttx_representation& other) const -> Bool;
 
   static auto compile(
-      const ttx_schema& schema, Perimortem::Memory::Allocator::Arena& arena)
+      ttx_schema_reference schema, Perimortem::Memory::Allocator::Arena& arena)
       -> Perimortem::Utility::Result<const ttx_representation&, Ttx::Data::Status>;
 
   // A byte coordinate selects the first primitive whose start is at or after
@@ -109,7 +115,7 @@ typedef struct ttx_representation_allocator {
 } ttx_representation_allocator;
 
 PERIMORTEM_C ttx_data_status ttx_representation_compile(
-    const ttx_schema* schema, ttx_representation_allocator allocator,
+    ttx_schema_reference schema, ttx_representation_allocator allocator,
     const ttx_representation** result);
 PERIMORTEM_C U8 ttx_representation_compatible(
     const ttx_representation* source, const ttx_representation* destination);
