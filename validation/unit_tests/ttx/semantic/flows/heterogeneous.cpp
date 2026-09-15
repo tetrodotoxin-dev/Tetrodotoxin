@@ -130,7 +130,7 @@ PERIMORTEM_UNIT_TEST(TtxFlow, copy_padding_values) {
     Bool field = False;
     for (const auto& position : fields) {
       field |= i >= position.offset &&
-               i < position.offset + position.schema->get_extent();
+               i < position.offset + position.get_reference().get_extent();
     }
 
     if (!field) {

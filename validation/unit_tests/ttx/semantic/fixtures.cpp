@@ -5,11 +5,12 @@ using namespace Validation::FlowTests;
 Validation::Harness Validation::FlowTests::TtxFlow = {.name = "TTX::Flow"_view};
 
 auto Validation::FlowTests::Reader::query() -> Query {
-  using namespace Ttx::Semantic;
+  using namespace Ttx::Semantic::Negotiation;
+using namespace Ttx::Semantic::Transport;
   return Query(
       {this,
        [](const void* source, perimortem_uuid requested,
-          ttx_binding* result) -> ttx_binding_status {
+          ttx_storage result) -> ttx_binding_status {
          auto& reader =
              *const_cast<Validation::FlowTests::Reader*>(static_cast<const Validation::FlowTests::Reader*>(source));
          const auto schema = +[](const void* source) -> const Representation* {
@@ -38,26 +39,29 @@ auto Validation::FlowTests::Reader::query() -> Query {
            if (!(reader.provides & PROVIDES_DIRECT)) {
              return static_cast<ttx_binding_status>(reader.decline);
            }
-           *result = Binding::provide<Direct::View>(source, direct).get_abi();
+           return static_cast<ttx_binding_status>(Binding::provide<Direct::View>(
+               Direct::View::Api(source, &direct), Ttx::Data::Form::Storage(result)));
          } else if (id == Shared::View::contract_id) {
            ++reader.binds[1];
            if (!(reader.provides & PROVIDES_SHARED)) {
              return static_cast<ttx_binding_status>(reader.decline);
            }
-           *result = Binding::provide<Shared::View>(source, shared).get_abi();
+           return static_cast<ttx_binding_status>(Binding::provide<Shared::View>(
+               Shared::View::Api(source, &shared), Ttx::Data::Form::Storage(result)));
          } else if (id == Block::View::contract_id) {
            ++reader.binds[2];
            if (!(reader.provides & PROVIDES_BLOCK)) {
              return static_cast<ttx_binding_status>(reader.decline);
            }
-           *result = Binding::provide<Block::View>(source, block).get_abi();
+           return static_cast<ttx_binding_status>(Binding::provide<Block::View>(
+               Block::View::Api(source, &block), Ttx::Data::Form::Storage(result)));
          } else if (id == Fragment::View::contract_id) {
            ++reader.binds[3];
            if (!(reader.provides & PROVIDES_FRAGMENT)) {
              return static_cast<ttx_binding_status>(reader.decline);
            }
-           *result =
-               Binding::provide<Fragment::View>(source, fragment).get_abi();
+           return static_cast<ttx_binding_status>(Binding::provide<Fragment::View>(
+               Fragment::View::Api(source, &fragment), Ttx::Data::Form::Storage(result)));
          } else {
            return TTX_BINDING_UNSUPPORTED;
          }

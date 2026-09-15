@@ -22,16 +22,16 @@ class Module {
   ~Module();
   Module(const Module&) = delete;
   auto operator=(const Module&) -> Module& = delete;
-  auto writer(State& state) const -> Ttx::Semantic::Query;
-  auto legacy_writer(State& state) const -> Ttx::Semantic::Query;
-  auto writer(Heterogeneous& state) const -> Ttx::Semantic::Query;
-  auto bootstrap_writer() const -> Ttx::Semantic::Query;
-  auto import_query(const Ttx::Semantic::Flow& bootstrap) const
-      -> Ttx::Semantic::Query;
+  auto writer(State& state) const -> Ttx::Semantic::Negotiation::Query;
+  auto legacy_writer(State& state) const -> Ttx::Semantic::Negotiation::Query;
+  auto writer(Heterogeneous& state) const -> Ttx::Semantic::Negotiation::Query;
+  auto bootstrap_writer() const -> Ttx::Semantic::Negotiation::Query;
+  auto import_query(const Ttx::Semantic::Transport::Flow& bootstrap) const
+      -> Ttx::Semantic::Negotiation::Query;
   auto selection() const -> Ttx::Semantic::Flows::Swizzle::Mapping;
-  auto primitives() const -> Ttx::Semantic::Query;
+  auto primitives() const -> Ttx::Semantic::Negotiation::Query;
   auto primitive_schema() const -> const Ttx::Data::Form::Representation&;
-  auto select(const Ttx::Semantic::Flow& flow, Ttx::Data::Form::Storage target)
+  auto select(const Ttx::Semantic::Transport::Flow& flow, Ttx::Data::Form::Storage target)
       const -> Ttx::Data::Status;
   auto is_set() const -> Bool {
     return api != nullptr || heterogeneous != nullptr;

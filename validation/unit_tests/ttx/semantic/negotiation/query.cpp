@@ -16,12 +16,10 @@ PERIMORTEM_UNIT_TEST(TtxFlow, bootstrap_bind) {
   Module module;
   ASSERT(module.is_set());
 
-  const auto pointer = Schema::primitive(Schema::Value::Pointer);
-  // Both participants already accept the Query ABI through the module entry.
-  // Its callable meaning comes from that bootstrap contract, while Data only
-  // establishes the pointer storage made available by Direct.
-  const Schema::Position fields[] = {{pointer, 0}, {pointer, 8}};
-  const auto query_schema = prepare(Schema::composite({fields, 2}, 16, 8));
+  // Derive the expected callable form from the actual C declaration. The C
+  // provider authors the same form independently, including bind's signature.
+  const auto& query_schema = Ttx::Data::Form::Compiled<
+      Ttx::Data::Form::Native<ttx_semantic_query>::reference>::get_representation();
   Validation::FlowTests::Reader receiver{query_schema, PROVIDES_DIRECT | PROVIDES_SHARED};
 
   Flow bootstrap;

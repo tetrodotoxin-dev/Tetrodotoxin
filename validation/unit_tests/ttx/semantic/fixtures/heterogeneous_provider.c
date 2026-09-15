@@ -4,7 +4,7 @@
 
 #include "validation/unit_tests/ttx/semantic/fixtures/provider_representation.h"
 
-#include "ttx/semantic/fragment.h"
+#include "ttx/semantic/transport/fragment.h"
 #include "validation/unit_tests/ttx/semantic/fixtures/heterogeneous_provider.h"
 
 typedef struct record {
@@ -28,9 +28,9 @@ static const ttx_schema frame = {
   TTX_SCHEMA_VALUE,
   {.value = {TTX_SCHEMA_U32, TTX_SCHEMA_LITTLE_ENDIAN}}};
 static const ttx_schema_position fields[] = {
-  {&tag, offsetof(record, tag)},
-  {&energy, offsetof(record, energy)},
-  {&frame, offsetof(record, frame)},
+  {{&tag, 0}, offsetof(record, tag)},
+  {{&energy, 0}, offsetof(record, energy)},
+  {{&frame, 0}, offsetof(record, frame)},
 };
 
 static const ttx_schema schema = {
@@ -85,24 +85,26 @@ static const ttx_fragment_access_operations access = {
   .get_r64 = get_energy};
 static const ttx_fragment_view_operations view = {describe};
 static ttx_binding_status
-    writer_bind(const void* source, perimortem_uuid id, ttx_binding* result) {
+    writer_bind(const void* source, perimortem_uuid id, ttx_storage requested) {
   if (id.high != TTX_FRAGMENT_ACCESS_ID_HIGH ||
       id.low != TTX_FRAGMENT_ACCESS_ID_LOW) {
     return TTX_BINDING_UNSUPPORTED;
   }
 
-  *result = (ttx_binding){source, &access};
+  const ttx_fragment_access api = {source, &access};
+    return ttx_binding_provide(ttx_fragment_access_representation(), &api, requested);
   return TTX_BINDING_SATISFIED;
 }
 
 static ttx_binding_status
-    reader_bind(const void* source, perimortem_uuid id, ttx_binding* result) {
+    reader_bind(const void* source, perimortem_uuid id, ttx_storage requested) {
   if (id.high != TTX_FRAGMENT_VIEW_ID_HIGH ||
       id.low != TTX_FRAGMENT_VIEW_ID_LOW) {
     return TTX_BINDING_UNSUPPORTED;
   }
 
-  *result = (ttx_binding){source, &view};
+  const ttx_fragment_view api = {source, &view};
+    return ttx_binding_provide(ttx_fragment_view_representation(), &api, requested);
   return TTX_BINDING_SATISFIED;
 }
 

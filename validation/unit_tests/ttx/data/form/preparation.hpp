@@ -15,7 +15,7 @@ namespace Validation::DataTests {
 // detect accidental compilation or allocation during established Flow use.
 class Preparation {
  public:
-  auto operator()(const Ttx::Data::Form::Schema& source)
+  auto operator()(Ttx::Data::Form::Schema::Reference source)
       -> const Ttx::Data::Form::Representation& {
     return Ttx::Data::Form::Representation::compile(source, arena)
         .visit(
@@ -27,7 +27,8 @@ class Preparation {
             });
   }
 
-  auto validate(const Ttx::Data::Form::Schema& source) -> Ttx::Data::Status {
+  auto validate(Ttx::Data::Form::Schema::Reference source)
+      -> Ttx::Data::Status {
     return Ttx::Data::Form::Representation::compile(source, arena)
         .visit(
             [](const Ttx::Data::Form::Representation&) {

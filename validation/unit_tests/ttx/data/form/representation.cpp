@@ -158,7 +158,7 @@ PERIMORTEM_UNIT_TEST(TtxRepresentation, nested_units) {
   Representation::compile(grouped, arena)
       .visit(
           [&](const Representation& value) {
-            EXPECT_EQ(value.get_bytes().get_size(), Count(4));
+            EXPECT_EQ(value.get_bytes().get_size(), Count(8));
             EXPECT_EQ(value.get_extent(), Count(0));
             EXPECT_EQ(value.get_alignment(), Count(1));
           },

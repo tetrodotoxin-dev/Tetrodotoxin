@@ -4,11 +4,11 @@
 #ifndef VALIDATION_DATA_PROVIDER_H
 #define VALIDATION_DATA_PROVIDER_H
 
-#include "ttx/semantic/block.h"
-#include "ttx/semantic/direct.h"
-#include "ttx/semantic/fragment.h"
-#include "ttx/semantic/query.h"
-#include "ttx/semantic/shared.h"
+#include "ttx/semantic/transport/block.h"
+#include "ttx/semantic/transport/direct.h"
+#include "ttx/semantic/transport/fragment.h"
+#include "ttx/semantic/negotiation/query.h"
+#include "ttx/semantic/transport/shared.h"
 #include "ttx/semantic/flows/swizzle.h"
 
 // Fixture flags describe explicit implementations, not inherited abilities.

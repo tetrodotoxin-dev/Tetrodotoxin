@@ -34,21 +34,6 @@ cc_library(
     ],
 )
 
-# TODO: Move to the new `Source` Dialect that drives the TTX frontend.
-cc_library(
-    name = "lexical",
-    srcs = glob([
-        "lexical/**/*.cpp",
-    ]),
-    hdrs = glob([
-        "lexical/**/*.hpp",
-    ]),
-    deps = [
-        ":concept",
-        "//perimortem:headless",
-    ],
-)
-
 cc_library(
     name = "concept",
     srcs = glob([
@@ -65,23 +50,10 @@ cc_library(
 )
 
 cc_library(
-    name = "model",
-    srcs = glob(["model/**/*.cpp"]),
-    hdrs = glob(["model/**/*.hpp"]),
-    deps = [
-        ":concept",
-        ":semantic",
-        "//perimortem:headless",
-    ],
-)
-
-cc_library(
     name = "ttx",
     deps = [
         ":concept",
         ":data",
-        ":lexical",
-        ":model",
         ":semantic",
         "//perimortem:headless",
     ],

@@ -181,7 +181,7 @@ PERIMORTEM_UNIT_TEST(TtxFlow, fresh_bind_results) {
   const Query query({
     &owner,
     [](const void* source, perimortem_uuid id,
-       ttx_binding* answer) -> ttx_binding_status {
+       ttx_storage answer) -> ttx_binding_status {
       auto& owner = *const_cast<Owner*>(static_cast<const Owner*>(source));
       if (owner.calls++) {
         return TTX_BINDING_SATISFIED;
@@ -192,10 +192,10 @@ PERIMORTEM_UNIT_TEST(TtxFlow, fresh_bind_results) {
     },
   });
 
-  query.bind<Ttx::Semantic::Direct::Access>().visit(
+  query.bind<Ttx::Semantic::Transport::Direct::Access>().visit(
       [&](auto) {}, [&](Binding::Failure) { EXPECT(false); });
 
-  query.bind<Ttx::Semantic::Direct::Access>().visit(
+  query.bind<Ttx::Semantic::Transport::Direct::Access>().visit(
       [&](auto) { EXPECT(false); },
       [&](Binding::Failure status) {
         EXPECT(status == Binding::Failure::Rejected);
@@ -236,7 +236,7 @@ PERIMORTEM_UNIT_TEST(TtxFlow, retired_form) {
   const Query legacy(
       {&published,
        [](const void* source, perimortem_uuid requested,
-          ttx_binding* result) -> ttx_binding_status {
+          ttx_storage result) -> ttx_binding_status {
          if (requested.high != 0x4a902fc004e74ccfULL ||
              requested.low != 0x94bfa0d6cd66d43fULL) {
            return TTX_BINDING_UNSUPPORTED;

@@ -8,12 +8,12 @@
 #include "perimortem/core/access/vector.hpp"
 
 #include "ttx/data/form/schema.hpp"
-#include "ttx/semantic/block.hpp"
-#include "ttx/semantic/direct.hpp"
+#include "ttx/semantic/transport/block.hpp"
+#include "ttx/semantic/transport/direct.hpp"
 #include "ttx/semantic/flows/copy.hpp"
 #include "ttx/semantic/flows/swizzle.hpp"
-#include "ttx/semantic/fragment.hpp"
-#include "ttx/semantic/shared.hpp"
+#include "ttx/semantic/transport/fragment.hpp"
+#include "ttx/semantic/transport/shared.hpp"
 #include "validation/unit_tests/ttx/semantic/fixtures/heterogeneous_provider.h"
 #include "validation/unit_tests/ttx/semantic/fixtures/provider.h"
 
@@ -23,9 +23,9 @@ using Ttx::Data::Form::Representation;
 using Ttx::Data::Form::Schema;
 using Ttx::Data::Status;
 using Ttx::Data::Form::Storage;
-using Ttx::Semantic::Binding;
-using Ttx::Semantic::Flow;
-using Ttx::Semantic::Query;
+using namespace Ttx::Semantic::Negotiation;
+using Ttx::Semantic::Transport::Flow;
+using Ttx::Semantic::Negotiation::Query;
 using Ttx::Semantic::Flows::Copy;
 using Ttx::Semantic::Flows::Swizzle;
 using Protocol = Flow::Protocol;

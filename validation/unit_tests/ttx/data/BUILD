@@ -23,6 +23,11 @@ cc_library(
 cc_binary(
     name = "data_tests",
     srcs = [
+        "encoding/block.cpp",
+        "form/callable.cpp",
+        "form/callable.c",
+        "form/callable.h",
+        "form/pointer.cpp",
         "form/compiled.cpp",
         "form/encoding.cpp",
         "form/navigation.cpp",

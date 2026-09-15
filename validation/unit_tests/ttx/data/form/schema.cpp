@@ -40,11 +40,13 @@ PERIMORTEM_UNIT_TEST(TtxSchema, native_record_geometry) {
   ASSERT(prepare.validate(record) == Status::Success);
 
   EXPECT_EQ(record.get_extent(), Count(sizeof(Record)));
-  prepare(record).next(offsetof(Record, frame)).visit(
-      [&](const Representation::Position& value) {
-        EXPECT_EQ(value.offset, Count(offsetof(Record, frame)));
-      },
-      [&](Status) { EXPECT(false); });
+  prepare(record)
+      .next(offsetof(Record, frame))
+      .visit(
+          [&](const Representation::Position& value) {
+            EXPECT_EQ(value.offset, Count(offsetof(Record, frame)));
+          },
+          [&](Status) { EXPECT(false); });
 
   auto truncated = record;
   truncated.extent = offsetof(Record, frame) + sizeof(U32);
@@ -120,11 +122,13 @@ PERIMORTEM_UNIT_TEST(TtxSchema, compact_large_range) {
   EXPECT(prepare(a).compatible(prepare(b)));
   EXPECT(prepare(a).compatible(prepare(a)));
 
-  prepare(a).next(3999999996).visit(
-      [&](const Representation::Position& entry) {
-        EXPECT_EQ(entry.offset, Count(3999999996));
-      },
-      [&](Status) { EXPECT(false); });
+  prepare(a)
+      .next(3999999996)
+      .visit(
+          [&](const Representation::Position& entry) {
+            EXPECT_EQ(entry.offset, Count(3999999996));
+          },
+          [&](Status) { EXPECT(false); });
 }
 
 // Admission catches incorrect fixed facts once. Runtime operations require an
@@ -138,7 +142,7 @@ PERIMORTEM_UNIT_TEST(TtxSchema, schema_validation) {
   entries[1].offset = 4;
   EXPECT(prepare.validate(shape) == Status::Success);
 
-  entries[0].schema = &shape;
+  entries[0].reference = &shape;
   EXPECT(prepare.validate(shape) == Status::Invalid);
 
   const auto huge = Schema::range(integer, Count(-1), 4, Count(-1), 4);

@@ -17,7 +17,8 @@ cc_library(
         "fixtures/heterogeneous_provider.h",
         "fixtures/provider.h",
         "fixtures/provider_representation.h",
-        "fixtures/thunk_provider.h",
+        "fixtures/interface_provider.h",
+        "fixtures/invocation_provider.h",
     ],
     deps = ["//ttx:data", "//ttx:semantic"],
 )
@@ -39,8 +40,16 @@ cc_binary(
 )
 
 cc_binary(
-    name = "libthunk_provider.so",
-    srcs = ["fixtures/thunk_provider.c"],
+    name = "libinterface_provider.so",
+    srcs = ["fixtures/interface_provider.c"],
+    linkshared = True,
+    copts = ["-std=c17", "-Werror", "-Wall", "-Wextra", "-pedantic-errors"],
+    deps = [":provider_contract"],
+)
+
+cc_binary(
+    name = "libinvocation_provider.so",
+    srcs = ["fixtures/invocation_provider.c"],
     linkshared = True,
     copts = ["-std=c17", "-Werror", "-Wall", "-Wextra", "-pedantic-errors"],
     deps = [":provider_contract"],
@@ -49,27 +58,28 @@ cc_binary(
 cc_binary(
     name = "flow_tests",
     srcs = [
-        "block.cpp",
-        "query.cpp",
-        "flow.cpp",
+        "transport/block.cpp",
+        "negotiation/query.cpp",
+        "transport/flow.cpp",
         "flows/compiled_copy.cpp",
         "flows/copy.cpp",
         "flows/heterogeneous.cpp",
         "flows/swizzle.cpp",
         "fixtures.cpp",
         "fixtures.hpp",
-        "fragment.cpp",
+        "transport/fragment.cpp",
         "measurement.cpp",
         "measurement.hpp",
         "module.cpp",
         "module.hpp",
-        "operations/fragment.cpp",
-        "shared.cpp",
-        "simulacra.cpp",
+        "flows/operations/fragment.cpp",
+        "transport/shared.cpp",
+        "realization/simulacra.cpp",
+        "realization/invocation.cpp",
         "//validation:unit_test.cpp",
         "//validation:unit_tests/process/child.cpp",
     ],
-    data = [":libflow_provider.so", ":libheterogeneous_provider.so", ":libthunk_provider.so"],
+    data = [":libflow_provider.so", ":libheterogeneous_provider.so", ":libinterface_provider.so", ":libinvocation_provider.so"],
     linkopts = [
         "-ldl",
         "-Wl,--wrap=memmove",

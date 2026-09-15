@@ -2,7 +2,7 @@
 // Copyright (c) 2023-present Matt Kaes and contributors
 #ifndef VALIDATION_HETEROGENEOUS_PROVIDER_H
 #define VALIDATION_HETEROGENEOUS_PROVIDER_H
-#include "ttx/semantic/query.h"
+#include "ttx/semantic/negotiation/query.h"
 
 // The writer computes observations from a seed. Its state has no record whose
 // layout matches the advertised tag, energy and frame schema.

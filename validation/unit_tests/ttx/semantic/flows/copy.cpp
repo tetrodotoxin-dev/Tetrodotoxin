@@ -4,7 +4,7 @@
 #include "validation/unit_tests/ttx/semantic/fixtures.hpp"
 #include "validation/unit_tests/ttx/semantic/measurement.hpp"
 
-#include "ttx/semantic/flow.hpp"
+#include "ttx/semantic/transport/flow.hpp"
 
 using namespace Validation::FlowTests;
 
