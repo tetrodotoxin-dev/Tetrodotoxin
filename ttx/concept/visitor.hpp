@@ -18,10 +18,9 @@ namespace Ttx::Concept {
 template <typename Value>
 class Visitor {
  public:
-  constexpr Visitor(void* source,
-                    void (*receive)(void*,
-                                    Perimortem::Core::View::Bytes,
-                                    Value))
+  constexpr Visitor(
+      void* source,
+      void (*receive)(void*, Perimortem::Core::View::Bytes, Value))
       : source(source), receive(receive) {}
 
   template <typename Receiver>

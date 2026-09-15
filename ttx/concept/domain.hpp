@@ -4,7 +4,6 @@
 #pragma once
 
 #include "ttx/concept/abstract.hpp"
-#include "ttx/semantic/bound.hpp"
 #include "ttx/concept/domain.h"
 
 namespace Ttx::Concept {
@@ -20,38 +19,38 @@ class Domain {
     TTX_DOMAIN_ID_LOW,
   };
 
+  using Api = ttx_domain;
   using Operations = ttx_domain_ops;
-  using Failure = Semantic::Binding::Failure;
-  using Answer = Perimortem::Utility::Result<Abstract::Handle, Failure>;
+  using Failure = Semantic::Negotiation::Binding::Failure;
+  using Answer = Perimortem::Utility::Result<Abstract, Failure>;
 
-  class Handle : public Semantic::Bound<Operations> {
-   public:
-    using Bound::Bound;
+  explicit constexpr Domain(Api api) : api(api) {}
 
-    auto get_domain() const -> Answer {
-      ttx_abstract result = {};
-      switch (operations.get_domain(source, &result)) {
-      case TTX_BINDING_SATISFIED:
-        if (result.source != nullptr && result.operations != nullptr) {
-          return Abstract::Handle(result);
-        }
-        return Failure::Rejected;
-      case TTX_BINDING_UNSUPPORTED:
-        return Failure::Unsupported;
-      case TTX_BINDING_PENDING:
-        return Failure::Pending;
-      default:
-        return Failure::Rejected;
+  auto get_domain() const -> Answer {
+    ttx_abstract result = {};
+    switch (api.operations->get_domain(api.source, &result)) {
+    case TTX_BINDING_SATISFIED:
+      if (result.source != nullptr && result.operations != nullptr) {
+        return Abstract(result);
       }
+
+      return Failure::Rejected;
+    case TTX_BINDING_UNSUPPORTED:
+      return Failure::Unsupported;
+    case TTX_BINDING_PENDING:
+      return Failure::Pending;
+    default:
+      return Failure::Rejected;
     }
-  };
+  }
 
   template <typename Provider>
-  static auto provide(const Provider& provider) -> Semantic::Binding {
+  static auto provide(const Provider& provider, Data::Form::Storage requested)
+      -> Semantic::Negotiation::Binding::Status {
     static const Operations operations = {
       [](const void* source, ttx_abstract* result) -> ttx_binding_status {
         return static_cast<const Provider*>(source)->get_domain().visit(
-            [&](Abstract::Handle domain) -> ttx_binding_status {
+            [&](Abstract domain) -> ttx_binding_status {
               *result = domain.get_abi();
               return TTX_BINDING_SATISFIED;
             },
@@ -60,8 +59,18 @@ class Domain {
             });
       },
     };
-    return Semantic::Binding::provide<Domain>(&provider, operations);
+    return Semantic::Negotiation::Binding::provide<Domain>(
+        Api(&provider, &operations), requested);
   }
+
+ private:
+  Api api;
 };
 
 }  // namespace Ttx::Concept
+
+TTX_DATA_RECORD(ttx_domain_ops, TTX_DATA_MEMBER(ttx_domain_ops, get_domain));
+TTX_DATA_RECORD(
+    ttx_domain,
+    TTX_DATA_MEMBER(ttx_domain, source),
+    TTX_DATA_MEMBER(ttx_domain, operations));
