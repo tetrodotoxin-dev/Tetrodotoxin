@@ -1,8 +1,8 @@
 // # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
-#ifndef TTX_SEMANTIC_SHARED_H
-#define TTX_SEMANTIC_SHARED_H
+#ifndef TTX_SEMANTIC_TRANSPORT_SHARED_H
+#define TTX_SEMANTIC_TRANSPORT_SHARED_H
 
 #include "ttx/data/protocol/shared.h"
 #define TTX_SHARED_VIEW_ID_HIGH 0x5dbc7f1ffd8f4f58ULL

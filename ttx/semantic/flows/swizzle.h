@@ -5,7 +5,7 @@
 #define TTX_SEMANTIC_FLOWS_SWIZZLE_H
 
 #include "ttx/data/form/storage.h"
-#include "ttx/semantic/flow.h"
+#include "ttx/semantic/transport/flow.h"
 
 // A naming or selection policy chooses a source coordinate for each output.
 // Preparing this selection resolves primitive facts once and groups all uses

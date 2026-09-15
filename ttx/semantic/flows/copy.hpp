@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "ttx/semantic/flow.hpp"
+#include "ttx/semantic/transport/flow.hpp"
 #include "ttx/semantic/flows/copy.h"
 
 namespace Ttx::Semantic::Flows {
@@ -13,20 +13,15 @@ namespace Ttx::Semantic::Flows {
 //
 // Flowing a copy allows making an observation of that representation and
 // storing it in a format provided by the destination receiver. This is often
-// modeled as a `memmov` but the semantics are defined by the TTX transport used
+// modeled as a `memmove` but the semantics are defined by the TTX transport used
 // to perform the flow.
 class Copy {
  public:
-  // Performs the actual semantic representation of the flow's bounded source to
-  // the target storage. If the operation was Successful then the supplied
-  // storage contains the wire form promised by that representation
-  // at the requested observation point.
-  //
-  // Future observations can result in different results and can't be assumed
-  // equivalent:
-  //
-  // Copying into a and then b can produce different values even when both
-  // calls use the same Flow and both return Success.
+  // Records an observation of the Flow's bound source in the target storage.
+  // Success means that storage contains the promised wire form at the requested
+  // observation point. Future observations may differ: copying into a and then
+  // b can produce different values even when both calls use the same Flow and
+  // both return Success.
   //
   // The returned Data status answers whether the whole observation succeeded.
   // On failure the target may have changed, but no partial result is certified.
@@ -39,7 +34,7 @@ class Copy {
   // The form fixes the location and extent of padding, but not its byte values.
   // Direct access copies those bytes with the record, while Fragment writes
   // only primitive positions. Both satisfy the same promised observation.
-  static auto flow(const Flow& flow, Data::Form::Storage target) -> Data::Status;
+  static auto flow(const Transport::Flow& flow, Data::Form::Storage target) -> Data::Status;
 };
 
 }  // namespace Ttx::Semantic::Flows

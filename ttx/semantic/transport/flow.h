@@ -1,11 +1,11 @@
 // # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
-#ifndef TTX_SEMANTIC_FLOW_H
-#define TTX_SEMANTIC_FLOW_H
+#ifndef TTX_SEMANTIC_TRANSPORT_FLOW_H
+#define TTX_SEMANTIC_TRANSPORT_FLOW_H
 
 #include "ttx/data/form/representation.h"
-#include "ttx/semantic/query.h"
+#include "ttx/semantic/negotiation/query.h"
 
 typedef U8 ttx_flow_status;
 #define TTX_FLOW_REJECTED ((ttx_flow_status)32)

@@ -5,14 +5,13 @@
 
 #include "perimortem/core/data.hpp"
 
-#include "ttx/semantic/operations/fragment.hpp"
+#include "ttx/semantic/flows/fragment.hpp"
 
-using namespace Ttx::Semantic;
+
 using namespace Ttx::Semantic::Flows;
 using namespace Ttx::Data;
 using namespace Ttx::Data::Form;
 using Ttx::Data::Protocol::Block;
-using Ttx::Data::Protocol::Fragment;
 
 // Fragment lets the source produce each value when it is observed. Copy owns
 // the other half of that operation: it writes the returned value into the
@@ -20,18 +19,18 @@ using Ttx::Data::Protocol::Fragment;
 // record, while the caller obtains a concrete record satisfying the agreed
 // form. Padding has a fixed location but no promised value, so these writes
 // leave it alone.
-static auto copy_fragments(Fragment::Access source, Storage target)
+static auto copy_fragments(Ttx::Data::Protocol::Fragment::Access source, Storage target)
     -> Status {
   return target.get_representation().visit(
       [&](Representation::Position position) {
-        return Operations::Fragment::read(
+        return Ttx::Semantic::Flows::Fragment::read(
             source, position, position.offset, [&](auto value) {
-              Operations::Fragment::put(target, position, value);
+              Ttx::Semantic::Flows::Fragment::put(target, position, value);
             });
       });
 }
 
-auto Copy::flow(const Flow& flow, Storage target) -> Status {
+auto Copy::flow(const Ttx::Semantic::Transport::Flow& flow, Storage target) -> Status {
   // Each call can supply fresh Storage with an independent descriptor. Its
   // admission already proved capacity and alignment, but it still has to
   // describe the form this Flow agreed to observe.
@@ -61,10 +60,10 @@ auto Copy::flow(const Flow& flow, Storage target) -> Status {
       // Fragment supplies typed observations. Copy cannot infer permission for
       // a whole byte transfer from those getters. Successive observations need
       // not form a snapshot, so overlap can affect the combined result.
-      [&](Fragment::Access source) { return copy_fragments(source, target); });
+      [&](Ttx::Data::Protocol::Fragment::Access source) { return copy_fragments(source, target); });
 }
 
 auto ttx_copy(const ttx_flow* flow, ttx_storage target) -> ttx_data_status {
   return static_cast<ttx_data_status>(
-      Copy::flow(*reinterpret_cast<const Flow*>(flow), Storage(target)));
+      Copy::flow(*reinterpret_cast<const Ttx::Semantic::Transport::Flow*>(flow), Storage(target)));
 }

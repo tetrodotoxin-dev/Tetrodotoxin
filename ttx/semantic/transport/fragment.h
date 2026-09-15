@@ -1,8 +1,8 @@
 // # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
-#ifndef TTX_SEMANTIC_FRAGMENT_H
-#define TTX_SEMANTIC_FRAGMENT_H
+#ifndef TTX_SEMANTIC_TRANSPORT_FRAGMENT_H
+#define TTX_SEMANTIC_TRANSPORT_FRAGMENT_H
 
 #include "ttx/data/protocol/fragment.h"
 #define TTX_FRAGMENT_VIEW_ID_HIGH 0xedd744c1533e4b1dULL

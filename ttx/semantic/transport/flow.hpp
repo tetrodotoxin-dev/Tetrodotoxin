@@ -7,10 +7,10 @@
 #include "ttx/data/protocol/direct.hpp"
 #include "ttx/data/protocol/fragment.hpp"
 #include "ttx/data/protocol/shared.hpp"
-#include "ttx/semantic/flow.h"
-#include "ttx/semantic/query.hpp"
+#include "ttx/semantic/transport/flow.h"
+#include "ttx/semantic/negotiation/query.hpp"
 
-namespace Ttx::Semantic {
+namespace Ttx::Semantic::Transport {
 
 // Flow selects one synchronous access contract and retains its bound state.
 // The reader describes a representation, while the writer decides which of
@@ -49,17 +49,17 @@ class Flow {
   // needs to state which representation it accepts. Both overloads borrow
   // that representation. Later operations choose their own destination storage.
   static auto reader(const Data::Form::Representation& representation)
-      -> Query {
-    return Query(ttx_flow_reader(&representation));
+      -> Negotiation::Query {
+    return Negotiation::Query(ttx_flow_reader(&representation));
   }
 
-  static auto reader(Data::Form::Storage storage) -> Query {
+  static auto reader(Data::Form::Storage storage) -> Negotiation::Query {
     return reader(storage.get_representation());
   }
 
   // A returned success establishes a usable Flow. Another connection requires
   // closing that agreement first so a retained Shared lifetime is not replaced.
-  auto connect(Query reader, Query writer) -> Status;
+  auto connect(Negotiation::Query reader, Negotiation::Query writer) -> Status;
 
   // Close ends the Shared lifetime after all operations using it have returned.
   auto close() -> void;
@@ -118,4 +118,4 @@ class Flow {
   const Data::Form::Representation* representation = nullptr;
   Protocol protocol = Protocol::None;
 };
-}  // namespace Ttx::Semantic
+}  // namespace Ttx::Semantic::Transport

@@ -7,16 +7,15 @@
 
 #include "perimortem/memory/dynamic/map.hpp"
 
-#include "ttx/semantic/operations/fragment.hpp"
+#include "ttx/semantic/flows/fragment.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Semantic;
+
 using namespace Ttx::Semantic::Flows;
 using namespace Ttx::Data;
 using namespace Ttx::Data::Form;
 using Ttx::Data::Protocol::Block;
-using Ttx::Data::Protocol::Fragment;
 
 auto Swizzle::Mapping::create(ttx_swizzle_selection selection)
     -> Perimortem::Utility::Result<Mapping, Status> {
@@ -146,15 +145,15 @@ static auto memory(
 }
 
 static auto fragments(
-    Fragment::Access source,
+    Ttx::Data::Protocol::Fragment::Access source,
     ttx_swizzle_mapping mapping,
     Storage target) -> Status {
   for (Count i = 0; i < mapping.count; ++i) {
     const auto& group = mapping.groups[i];
-    const auto status = Operations::Fragment::read(
+    const auto status = Ttx::Semantic::Flows::Fragment::read(
         source, group.input, group.input.offset, [&](auto value) {
           for (Count j = 0; j < group.count; ++j) {
-            Operations::Fragment::put(target, group.outputs[j], value);
+            Ttx::Semantic::Flows::Fragment::put(target, group.outputs[j], value);
           }
         });
     if (status != Status::Success) {
@@ -166,7 +165,7 @@ static auto fragments(
 }
 
 static auto swizzle(
-    const Flow& flow,
+    const Ttx::Semantic::Transport::Flow& flow,
     ttx_swizzle_mapping mapping,
     Storage target) -> Status {
   if (!flow.get_representation().compatible(*mapping.input) ||
@@ -180,12 +179,12 @@ static auto swizzle(
   return flow.visit(
       copy, copy,
       [](Block::View, Block::Access) { return Status::Unsupported; },
-      [&](Fragment::Access source) {
+      [&](Ttx::Data::Protocol::Fragment::Access source) {
         return fragments(source, mapping, target);
       });
 }
 
-auto Swizzle::flow(const Flow& flow, const Mapping& mapping, Storage target)
+auto Swizzle::flow(const Ttx::Semantic::Transport::Flow& flow, const Mapping& mapping, Storage target)
     -> Status {
   return swizzle(flow, mapping.get_abi(), target);
 }
@@ -195,5 +194,5 @@ auto ttx_swizzle(
     ttx_swizzle_mapping mapping,
     ttx_storage target) -> ttx_data_status {
   return static_cast<ttx_data_status>(
-      swizzle(*reinterpret_cast<const Flow*>(flow), mapping, Storage(target)));
+      swizzle(*reinterpret_cast<const Ttx::Semantic::Transport::Flow*>(flow), mapping, Storage(target)));
 }

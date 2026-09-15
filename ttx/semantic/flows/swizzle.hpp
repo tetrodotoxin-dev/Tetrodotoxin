@@ -5,7 +5,7 @@
 
 #include "perimortem/memory/dynamic/vector.hpp"
 
-#include "ttx/semantic/flow.hpp"
+#include "ttx/semantic/transport/flow.hpp"
 #include "ttx/semantic/flows/swizzle.h"
 
 namespace Ttx::Semantic::Flows {
@@ -79,7 +79,7 @@ class Swizzle {
   // whose byte values remain unspecified. Block needs explicit materialization
   // first. Other protocols reuse their existing agreement without fallback.
   static auto flow(
-      const Flow& flow,
+      const Transport::Flow& flow,
       const Mapping& mapping,
       Data::Form::Storage target) -> Data::Status;
 };

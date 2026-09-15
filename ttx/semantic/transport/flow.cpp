@@ -1,14 +1,16 @@
 // # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
-#include "ttx/semantic/flow.hpp"
+#include "ttx/semantic/transport/flow.hpp"
 
-#include "ttx/semantic/block.hpp"
-#include "ttx/semantic/direct.hpp"
-#include "ttx/semantic/fragment.hpp"
-#include "ttx/semantic/shared.hpp"
+#include "ttx/semantic/transport/block.hpp"
+#include "ttx/semantic/transport/direct.hpp"
+#include "ttx/semantic/transport/fragment.hpp"
+#include "ttx/semantic/transport/shared.hpp"
 
-using namespace Ttx::Semantic;
+using namespace Ttx::Semantic::Transport;
+using namespace Ttx::Semantic::Negotiation;
 using Ttx::Data::Form::Representation;
+using Ttx::Data::Form::Storage;
 
 static auto reader_representation(const void* source)
     -> const ttx_representation* {
@@ -21,29 +23,33 @@ auto ttx_flow_reader(const ttx_representation* required) -> ttx_semantic_query {
   // reader can serve several independently owned results through the same Flow.
   static const Direct::View::Operations direct = {reader_representation};
   static const Shared::View::Operations shared = {reader_representation};
-  static const Fragment::View::Operations fragment = {reader_representation};
   static const Block::View::Operations block = {
     reader_representation,
     [](const void*, ttx_storage target) -> ttx_block_surface {
       return {target.data, target.representation->get_extent()};
     },
   };
+  static const Fragment::View::Operations fragment = {reader_representation};
 
   return {
     required,
-    [](const void* source, perimortem_uuid requested,
-       ttx_binding* result) -> ttx_binding_status {
+    [](const void* source, perimortem_uuid contract,
+       ttx_storage requested) -> ttx_binding_status {
       // This policy accepts each protocol explicitly. The writer still has to
       // supply its own matching role before Flow can establish cooperation.
-      const Perimortem::System::Uuid id(requested);
+      const Perimortem::System::Uuid id(contract);
       if (id == Direct::View::contract_id) {
-        *result = Binding::provide<Direct::View>(source, direct).get_abi();
+        return static_cast<ttx_binding_status>(Binding::provide<Direct::View>(
+            Direct::View::Api(source, &direct), Storage(requested)));
       } else if (id == Shared::View::contract_id) {
-        *result = Binding::provide<Shared::View>(source, shared).get_abi();
+        return static_cast<ttx_binding_status>(Binding::provide<Shared::View>(
+            Shared::View::Api(source, &shared), Storage(requested)));
       } else if (id == Block::View::contract_id) {
-        *result = Binding::provide<Block::View>(source, block).get_abi();
+        return static_cast<ttx_binding_status>(Binding::provide<Block::View>(
+            Block::View::Api(source, &block), Storage(requested)));
       } else if (id == Fragment::View::contract_id) {
-        *result = Binding::provide<Fragment::View>(source, fragment).get_abi();
+        return static_cast<ttx_binding_status>(Binding::provide<Fragment::View>(
+            Fragment::View::Api(source, &fragment), Storage(requested)));
       } else {
         return TTX_BINDING_UNSUPPORTED;
       }
@@ -52,11 +58,11 @@ auto ttx_flow_reader(const ttx_representation* required) -> ttx_semantic_query {
     }};
 }
 
-static auto failure(Binding::Failure status) -> Flow::Status {
+static auto failure(Ttx::Semantic::Negotiation::Binding::Failure status) -> Flow::Status {
   switch (status) {
-  case Binding::Failure::Unsupported:
+  case Ttx::Semantic::Negotiation::Binding::Failure::Unsupported:
     return Flow::Status::Unsupported;
-  case Binding::Failure::Pending:
+  case Ttx::Semantic::Negotiation::Binding::Failure::Pending:
     return Flow::Status::BindingPending;
   default:
     return Flow::Status::Rejected;
@@ -68,7 +74,7 @@ static auto failure(Binding::Failure status) -> Flow::Status {
 // pending or rejected binding preserves the owner's decision. Comparing the
 // ABI here keeps data access and lifetime acquisition after that agreement.
 template <typename Protocol, typename Install>
-static auto cooperate(Query reader, Query writer, Install install)
+static auto cooperate(Ttx::Semantic::Negotiation::Query reader, Ttx::Semantic::Negotiation::Query writer, Install install)
     -> Flow::Status {
   return reader.bind<typename Protocol::View>().visit(
       [&](auto view) {
@@ -86,7 +92,7 @@ static auto cooperate(Query reader, Query writer, Install install)
       },
       failure);
 }
-auto Flow::connect(Query reader, Query writer) -> Status {
+auto Flow::connect(Ttx::Semantic::Negotiation::Query reader, Ttx::Semantic::Negotiation::Query writer) -> Status {
   Status unavailable = Status::Unsupported;
   auto next = [&](Status result) {
     if (result == Status::Incompatible) {
@@ -168,5 +174,5 @@ auto ttx_flow_connect(
     ttx_semantic_query reader,
     ttx_semantic_query writer) -> ttx_flow_status {
   return static_cast<ttx_flow_status>(
-      reinterpret_cast<Flow*>(flow)->connect(Query(reader), Query(writer)));
+      reinterpret_cast<Flow*>(flow)->connect(Ttx::Semantic::Negotiation::Query(reader), Ttx::Semantic::Negotiation::Query(writer)));
 }

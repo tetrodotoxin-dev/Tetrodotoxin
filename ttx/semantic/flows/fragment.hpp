@@ -9,7 +9,7 @@
 #include "ttx/data/protocol/fragment.hpp"
 #include "ttx/data/form/storage.hpp"
 
-namespace Ttx::Semantic::Operations {
+namespace Ttx::Semantic::Flows {
 
 // Copy and Swizzle choose different coordinates but need the same typed
 // observation at each one. Fragment joins that admitted representation leaf to
@@ -49,6 +49,10 @@ class Fragment {
       READ(Value::R32, r32)
       READ(Value::R64, r64)
       READ(Value::Pointer, pointer)
+      READ(Value::V64, v64)
+      READ(Value::V128, v128)
+      READ(Value::V256, v256)
+      READ(Value::V512, v512)
 #undef READ
     default:
       // TODO: Decide whether this template calls an out of line fatal log.
@@ -88,4 +92,4 @@ class Fragment {
   }
 };
 
-}  // namespace Ttx::Semantic::Operations
+}  // namespace Ttx::Semantic::Flows::Operations

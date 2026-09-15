@@ -1,8 +1,8 @@
 // # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
-#ifndef TTX_SEMANTIC_DIRECT_H
-#define TTX_SEMANTIC_DIRECT_H
+#ifndef TTX_SEMANTIC_TRANSPORT_DIRECT_H
+#define TTX_SEMANTIC_TRANSPORT_DIRECT_H
 
 #include "ttx/data/protocol/direct.h"
 #define TTX_DIRECT_VIEW_ID_HIGH 0xa425802b357f4d43ULL
