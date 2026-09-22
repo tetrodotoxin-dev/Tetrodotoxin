@@ -18,9 +18,10 @@ PERIMORTEM_UNIT_TEST(TtxFlow, bootstrap_bind) {
 
   // Derive the expected callable form from the actual C declaration. The C
   // provider authors the same form independently, including bind's signature.
-  const auto& query_schema = Ttx::Data::Form::Compiled<
-      Ttx::Data::Form::Native<ttx_semantic_query>::reference>::get_representation();
-  Validation::FlowTests::Reader receiver{query_schema, PROVIDES_DIRECT | PROVIDES_SHARED};
+  const auto& query_schema = Ttx::Data::Form::Compiled<Ttx::Data::Form::Native<
+      ttx_semantic_query>::reference>::get_representation();
+  Validation::FlowTests::Reader receiver{
+    query_schema, PROVIDES_DIRECT | PROVIDES_SHARED};
 
   Flow bootstrap;
   ASSERT(
@@ -29,6 +30,13 @@ PERIMORTEM_UNIT_TEST(TtxFlow, bootstrap_bind) {
   EXPECT(bootstrap.get_protocol() == Protocol::Direct);
 
   const auto imported = module.import_query(bootstrap);
+  EXPECT(imported.is_set());
+  EXPECT(
+      imported.supports<Ttx::Semantic::Transport::Direct::Access>() ==
+      Ttx::Semantic::Negotiation::Binding::Status::Satisfied);
+  EXPECT(
+      imported.supports<Ttx::Semantic::Transport::Block::Access>() ==
+      Ttx::Semantic::Negotiation::Binding::Status::Unsupported);
   Validation::FlowTests::Reader data{four};
   Flow flow;
   ASSERT(flow.connect(data.query(), imported) == Flow::Status::Success);

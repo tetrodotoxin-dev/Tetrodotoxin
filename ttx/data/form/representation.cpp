@@ -135,3 +135,26 @@ auto ttx_representation::compile(
 
   return *result;
 }
+
+auto ttx_representation::compose(
+    Perimortem::Core::View::Vector<Member> members,
+    Count extent,
+    Count alignment,
+    Perimortem::Memory::Allocator::Arena& arena)
+    -> Perimortem::Utility::Result<const ttx_representation&, Status> {
+  const ttx_representation_allocator allocator = {
+    &arena, [](void* owner, Count bytes, Count) -> void* {
+      return static_cast<Perimortem::Memory::Allocator::Arena*>(owner)
+          ->allocate(bytes)
+          .get_data();
+    }};
+  const ttx_representation* result = nullptr;
+  const auto status = ttx_representation_compose(
+      members.get_data(), members.get_size(), extent, alignment, allocator,
+      &result);
+  if (status != TTX_DATA_SUCCESS) {
+    return static_cast<Status>(status);
+  }
+
+  return *result;
+}

@@ -55,11 +55,6 @@ PERIMORTEM_UNIT_TEST(Abstracts, c_observations) {
   subject.visit_concepts(Abstract::Visitor(receive));
   EXPECT_EQ(visited, Count(1));
   EXPECT(subject.resolve_concept("missing"_view) == Answers::None::get_none());
-
-  // Satisfaction crosses the C boundary and asks the supplied requirement.
-  // The C subject has no native knowledge of the C++ Requirement class.
-  EXPECT(subject.satisfies(Abstract::provide(Requirement{42})));
-  EXPECT_NOT(subject.satisfies(Abstract::provide(Requirement{43})));
 }
 
 PERIMORTEM_UNIT_TEST(Abstracts, local_cast) {
@@ -102,7 +97,7 @@ PERIMORTEM_UNIT_TEST(Abstracts, foreign_same_type) {
                   const Abstract foreign(open());
                   const Subject local;
                   EXPECT_NOT(foreign.cast<Subject>());
-                  EXPECT(foreign.satisfies(Abstract::provide(local)));
+                  EXPECT(foreign.get_data() == local.get_data());
                   EXPECT(foreign.resolve() == foreign);
                   foreign.get_query().bind<Abstract>().visit(
                       [&](Abstract acquired) { EXPECT(acquired == foreign); },
@@ -111,4 +106,26 @@ PERIMORTEM_UNIT_TEST(Abstracts, foreign_same_type) {
                 [&](Core::View::Bytes) { EXPECT(False); });
       },
       [&](Core::View::Bytes) { EXPECT(False); });
+}
+
+// A provider implements the UUID question directly. Acquiring a richer C++
+// view over its publication must not republish the view as a second subject or
+// mistake consumer forwarding methods for provider operations.
+PERIMORTEM_UNIT_TEST(Abstracts, native_supports) {
+  struct Owner {
+    auto get_data() const -> Core::View::Bytes { return "provider"_view; }
+    auto supports(System::Uuid id) const -> Binding::Status {
+      return id == Answers::Constant::contract_id ? Binding::Status::Satisfied
+                                                  : Binding::Status::Rejected;
+    }
+  } owner;
+  const auto subject = Abstract::provide(owner);
+  struct View : Abstract {
+    explicit View(Abstract subject) : Abstract(subject) {}
+  } view(subject);
+  EXPECT(Abstract::provide(view) == subject);
+  EXPECT(view.supports<Answers::Constant>() == Binding::Status::Satisfied);
+  EXPECT(view.supports<Answers::None>() == Binding::Status::Rejected);
+  EXPECT(view.cast<Owner>());
+  EXPECT_NOT(view.cast<View>());
 }

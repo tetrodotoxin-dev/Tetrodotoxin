@@ -108,12 +108,24 @@ static ttx_binding_status
   return TTX_BINDING_SATISFIED;
 }
 
+static ttx_binding_status writer_supports(const void* source, perimortem_uuid id) {
+  (void)source;
+  return id.high == TTX_FRAGMENT_ACCESS_ID_HIGH && id.low == TTX_FRAGMENT_ACCESS_ID_LOW
+             ? TTX_BINDING_SATISFIED : TTX_BINDING_UNSUPPORTED;
+}
+
+static ttx_binding_status reader_supports(const void* source, perimortem_uuid id) {
+  (void)source;
+  return id.high == TTX_FRAGMENT_VIEW_ID_HIGH && id.low == TTX_FRAGMENT_VIEW_ID_LOW
+             ? TTX_BINDING_SATISFIED : TTX_BINDING_UNSUPPORTED;
+}
+
 static ttx_semantic_query source(heterogeneous_state* state) {
-  return (ttx_semantic_query){state, writer_bind};
+  return (ttx_semantic_query){state, writer_bind, writer_supports};
 }
 
 static ttx_semantic_query destination(heterogeneous_state* state) {
-  return (ttx_semantic_query){state, reader_bind};
+  return (ttx_semantic_query){state, reader_bind, reader_supports};
 }
 
 const heterogeneous_provider* heterogeneous_provider_open(provider_compile compiler) {

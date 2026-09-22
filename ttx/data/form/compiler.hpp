@@ -10,6 +10,7 @@
 #include "ttx/data/encoding/callable.hpp"
 #include "ttx/data/encoding/struct.hpp"
 #include "ttx/data/form/schema.hpp"
+#include "ttx/data/form/representation.h"
 #include "ttx/data/status.hpp"
 
 namespace Ttx::Data::Form {
@@ -286,12 +287,7 @@ class Compiler {
   // Preparation owns one content inventory. Source graphs can disappear after
   // success because publication consumes only these normalized records.
   constexpr auto compile(Schema::Reference source) -> Status {
-    bodies.resize(0);
-    records.resize(0);
-    buckets.resize(0);
-    first = 0;
-    block_count = 0;
-    depth = 0;
+    clear();
 
     Count root = 0;
     if ((source.flags & ~TTX_SCHEMA_REFERENCE_POINTER) || !source.is_set()) {
@@ -324,21 +320,15 @@ class Compiler {
       return status;
     }
 
-    // A single body needs no interning. A struct and a callable are also
-    // necessarily distinct, so a form containing just those has nothing to merge.
-    // Larger graphs or two bodies of the same kind need structural settlement.
-    const Count count = bodies.get_size();
-    if (count > 1 &&
-        (count > 2 || bool(header(0).distance) == bool(header(1).distance))) {
-      reconcile(root);
-    }
-
-    Limits limits;
-    Count last = Unseen;
-    first = root + 1;
-    number(root, limits, last);
-    return choose_depth(limits);
+    return publish(root);
   }
+
+  // Existing forms can be assembled without rebuilding their source Schemas.
+  // Admission checks only the new placements. Imported bodies then use the
+  // same interning and numbering as source compilation, including cycles.
+  auto compose(
+      Perimortem::Core::View::Vector<ttx_representation_member> members,
+      Count extent, Count alignment) -> Status;
 
   constexpr auto get_size() const -> Count {
     return Perimortem::Core::Data::align<8>(block_count * 4 * depth);
@@ -427,6 +417,40 @@ class Compiler {
     Count distance = 0;
     Count extent = 0;
   };
+
+  // Runtime composition remaps an admitted body's absolute block references
+  // into this compiler's temporary inventory. These helpers share the same
+  // private record ownership as source compilation, so normalization has one
+  // implementation rather than a second externally mutable record API.
+  auto import_body(const ttx_representation& form, Count block, Bool callable,
+                   Indices& indices) -> Count;
+
+  constexpr auto clear() -> void {
+    bodies.resize(0);
+    records.resize(0);
+    buckets.resize(0);
+    first = 0;
+    block_count = 0;
+    depth = 0;
+  }
+
+  constexpr auto publish(Count root) -> Status {
+    // A single body needs no interning. A struct and a callable are also
+    // necessarily distinct, so a form containing just those has nothing to merge.
+    // Larger graphs or two bodies of the same kind need structural settlement.
+    const Count count = bodies.get_size();
+    if (count > 1 &&
+        (count > 2 || bool(header(0).distance) == bool(header(1).distance))) {
+      reconcile(root);
+    }
+
+    Limits limits;
+    Count last = Unseen;
+    first = root + 1;
+    number(root, limits, last);
+    return choose_depth(limits);
+  }
+
 
   // The runtime view borrows the actual initialized content. Constant
   // evaluation cannot reinterpret an object pointer, so only that path copies

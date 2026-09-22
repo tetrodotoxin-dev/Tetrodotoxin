@@ -11,6 +11,8 @@
 // API record together with its canonical Representation. The requester lends
 // admitted Storage describing the record it can consume. Agreement compares
 // the descriptors before any bytes are transferred or functions are called.
+// Query's separate supports operation establishes only the semantic promise.
+// Even a positive support answer leaves this representation check necessary.
 //
 // The record may contain an opaque receiver and any number of operations.
 // Copying those values grants no access to the receiver's private layout:

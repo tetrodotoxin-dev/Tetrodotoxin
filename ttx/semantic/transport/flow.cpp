@@ -55,10 +55,20 @@ auto ttx_flow_reader(const ttx_representation* required) -> ttx_semantic_query {
       }
 
       return TTX_BINDING_SATISFIED;
+    },
+    [](const void*, perimortem_uuid contract) -> ttx_binding_status {
+      const Perimortem::System::Uuid id(contract);
+      return id == Direct::View::contract_id ||
+                     id == Shared::View::contract_id ||
+                     id == Block::View::contract_id ||
+                     id == Fragment::View::contract_id
+                 ? TTX_BINDING_SATISFIED
+                 : TTX_BINDING_UNSUPPORTED;
     }};
 }
 
-static auto failure(Ttx::Semantic::Negotiation::Binding::Failure status) -> Flow::Status {
+static auto failure(Ttx::Semantic::Negotiation::Binding::Failure status)
+    -> Flow::Status {
   switch (status) {
   case Ttx::Semantic::Negotiation::Binding::Failure::Unsupported:
     return Flow::Status::Unsupported;
@@ -74,8 +84,10 @@ static auto failure(Ttx::Semantic::Negotiation::Binding::Failure status) -> Flow
 // pending or rejected binding preserves the owner's decision. Comparing the
 // ABI here keeps data access and lifetime acquisition after that agreement.
 template <typename Protocol, typename Install>
-static auto cooperate(Ttx::Semantic::Negotiation::Query reader, Ttx::Semantic::Negotiation::Query writer, Install install)
-    -> Flow::Status {
+static auto cooperate(
+    Ttx::Semantic::Negotiation::Query reader,
+    Ttx::Semantic::Negotiation::Query writer,
+    Install install) -> Flow::Status {
   return reader.bind<typename Protocol::View>().visit(
       [&](auto view) {
         return writer.bind<typename Protocol::Access>().visit(
@@ -92,7 +104,9 @@ static auto cooperate(Ttx::Semantic::Negotiation::Query reader, Ttx::Semantic::N
       },
       failure);
 }
-auto Flow::connect(Ttx::Semantic::Negotiation::Query reader, Ttx::Semantic::Negotiation::Query writer) -> Status {
+auto Flow::connect(
+    Ttx::Semantic::Negotiation::Query reader,
+    Ttx::Semantic::Negotiation::Query writer) -> Status {
   Status unavailable = Status::Unsupported;
   auto next = [&](Status result) {
     if (result == Status::Incompatible) {
@@ -173,6 +187,7 @@ auto ttx_flow_connect(
     ttx_flow* flow,
     ttx_semantic_query reader,
     ttx_semantic_query writer) -> ttx_flow_status {
-  return static_cast<ttx_flow_status>(
-      reinterpret_cast<Flow*>(flow)->connect(Ttx::Semantic::Negotiation::Query(reader), Ttx::Semantic::Negotiation::Query(writer)));
+  return static_cast<ttx_flow_status>(reinterpret_cast<Flow*>(flow)->connect(
+      Ttx::Semantic::Negotiation::Query(reader),
+      Ttx::Semantic::Negotiation::Query(writer)));
 }

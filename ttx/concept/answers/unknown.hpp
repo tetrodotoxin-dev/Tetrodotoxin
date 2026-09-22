@@ -22,6 +22,14 @@ class Unknown {
   };
   using Api = void;
   static auto get_unknown() -> Abstract;
+  auto get_data() const -> Perimortem::Core::View::Bytes;
+  auto supports(Perimortem::System::Uuid id) const
+      -> Semantic::Negotiation::Binding::Status;
+  auto bind_interface(
+      Perimortem::System::Uuid id,
+      Data::Form::Storage requested) const
+      -> Semantic::Negotiation::Binding::Status;
+  auto resolve_concept(Perimortem::Core::View::Bytes route) const -> Abstract;
 };
 
 }  // namespace Ttx::Concept::Answers

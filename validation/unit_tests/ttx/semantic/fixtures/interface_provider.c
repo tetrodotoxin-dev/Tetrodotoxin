@@ -60,6 +60,18 @@ static void reset(ttx_binding_status status, U8 omit, U8 stateless) {
   state.stateless = stateless;
 }
 
+// Support observes the semantic promise without constructing the counter API.
+// A caller can keep using this fact even if its callable layout has drifted.
+static ttx_binding_status supports(const void* source, perimortem_uuid id) {
+  (void)source;
+  if (state.status != TTX_BINDING_SATISFIED) {
+    return state.status;
+  }
+
+  return id.high == COUNTER_ID_HIGH && id.low == COUNTER_ID_LOW
+             ? TTX_BINDING_SATISFIED : TTX_BINDING_UNSUPPORTED;
+}
+
 static counter_statistics statistics(void) { return state.statistics; }
 
 counter_fixture interface_provider_open(interface_compile compiler) {
@@ -89,5 +101,5 @@ counter_fixture interface_provider_open(interface_compile compiler) {
   }
 
   reset(TTX_BINDING_SATISFIED, 0, 0);
-  return (counter_fixture){{&state, bind}, reset, statistics};
+  return (counter_fixture){{&state, bind, supports}, reset, statistics};
 }

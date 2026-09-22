@@ -17,15 +17,28 @@
 // contracts from a Query provider (thinking binding an Abstract Plugin that
 // provides a `bind` interface for managing other surfaces).
 //
-// Each call asks for one UUID and supplies the concrete form the caller can
-// consume. Success populates that admitted Storage with the promised API.
+// A caller sometimes needs to know what a subject promises without acquiring
+// any operations. Supports answers that semantic question using only the UUID.
+// For example, an unsigned policy can exclude negative values without exposing
+// a callable interface. The answer transfers no bytes and requires no agreed
+// Representation. Pending preserves missing evidence and Rejected preserves
+// a policy's refusal, just as they do during binding.
+//
+// Bind asks the stronger question: can this provider supply the promised API
+// in the concrete form the caller can consume? Success populates that admitted
+// Storage. Supports may succeed while every requested binding is rejected,
+// since a shared semantic promise does not repair an incompatible API format.
+// A support answer therefore grants no permission to call or cast anything.
+// Callers needing operations can bind directly without a preliminary probe.
+//
 // The canonical descriptor builds off of the TTX::Data protocol and includes
 // callable signatures along with their calling conventions, so this exchange
 // checks how to call the supplied API as well as how to store it. This is why
 // alternative `bind` providers remains useful but having a Query provider in
 // the systems native calling conventions makes bootstrapping vastly easier than
-// trial and erroring the entire surface. Marker contracts use empty Storage
-// because their answer consists only of a status. Binding's status and
+// trial and erroring the entire surface. Marker bindings still agree on an
+// empty API, while supports avoids that representation exchange altogether.
+// Binding's status and
 // borrowing rules are described in ttx/semantic/negotiation/binding.h.
 //
 // Actually accessing `source` inside of TTX is undefined behavior as far as
@@ -43,6 +56,7 @@ typedef struct ttx_semantic_query {
       const void* source,
       perimortem_uuid contract,
       ttx_storage requested);
+  ttx_binding_status (*supports)(const void* source, perimortem_uuid contract);
 } ttx_semantic_query;
 
 #endif

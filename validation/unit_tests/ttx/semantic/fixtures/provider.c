@@ -139,8 +139,24 @@ static ttx_binding_status
   return TTX_BINDING_SATISFIED;
 }
 
+static ttx_binding_status supports(const void* source, perimortem_uuid id) {
+  const provider_state* state = source;
+  U8 protocol = 0;
+  if (matches(id, TTX_DIRECT_ACCESS_ID_HIGH, TTX_DIRECT_ACCESS_ID_LOW)) {
+    protocol = PROVIDES_DIRECT;
+  } else if (matches(id, TTX_SHARED_ACCESS_ID_HIGH, TTX_SHARED_ACCESS_ID_LOW)) {
+    protocol = PROVIDES_SHARED;
+  } else if (matches(id, TTX_BLOCK_ACCESS_ID_HIGH, TTX_BLOCK_ACCESS_ID_LOW)) {
+    protocol = PROVIDES_BLOCK;
+  } else if (matches(id, TTX_FRAGMENT_ACCESS_ID_HIGH, TTX_FRAGMENT_ACCESS_ID_LOW)) {
+    protocol = PROVIDES_FRAGMENT;
+  }
+
+  return state->provides & protocol ? TTX_BINDING_SATISFIED : TTX_BINDING_UNSUPPORTED;
+}
+
 static ttx_semantic_query writer(provider_state* state) {
-  return (ttx_semantic_query){state, bind};
+  return (ttx_semantic_query){state, bind, supports};
 }
 
 // The loader already knows this C entry contract. It can obtain the data
@@ -181,20 +197,24 @@ static const ttx_schema_argument bind_arguments[] = {
 static const ttx_schema query_bind = {
   8, 8, TTX_SCHEMA_CALLABLE,
   {.callable = {bind_arguments, 3, {&query_byte, 0}, TTX_SCHEMA_SYSTEM_V_AMD64}}};
+static const ttx_schema query_supports = {
+  8, 8, TTX_SCHEMA_CALLABLE,
+  {.callable = {bind_arguments, 2, {&query_byte, 0}, TTX_SCHEMA_SYSTEM_V_AMD64}}};
 static const ttx_schema_position query_fields[] = {
   {{NULL, TTX_SCHEMA_REFERENCE_POINTER}, offsetof(ttx_semantic_query, source)},
   {{&query_bind, 0}, offsetof(ttx_semantic_query, bind)},
+  {{&query_supports, 0}, offsetof(ttx_semantic_query, supports)},
 };
 
 static const ttx_schema query_schema = {
   sizeof(ttx_semantic_query),
   _Alignof(ttx_semantic_query),
   TTX_SCHEMA_COMPOSITE,
-  {.composite = {query_fields, 2}}};
+  {.composite = {query_fields, 3}}};
 static provider_state static_state = {
   .provides = PROVIDES_DIRECT,
   .values = {1, 2, 3, 4}};
-static const ttx_semantic_query published = {&static_state, bind};
+static const ttx_semantic_query published = {&static_state, bind, supports};
 static const ttx_representation* bootstrap_schema(const void* source) {
   (void)source;
   return query_representation;
@@ -219,8 +239,14 @@ static ttx_binding_status bootstrap_bind(
   return ttx_binding_provide(ttx_direct_access_representation(), &api, requested);
 }
 
+static ttx_binding_status bootstrap_supports(const void* source, perimortem_uuid id) {
+  (void)source;
+  return matches(id, TTX_DIRECT_ACCESS_ID_HIGH, TTX_DIRECT_ACCESS_ID_LOW)
+             ? TTX_BINDING_SATISFIED : TTX_BINDING_UNSUPPORTED;
+}
+
 static ttx_semantic_query bootstrap_writer(void) {
-  return (ttx_semantic_query){NULL, bootstrap_bind};
+  return (ttx_semantic_query){NULL, bootstrap_bind, bootstrap_supports};
 }
 
 // This policy selects position three, then position zero. The provider
@@ -489,8 +515,14 @@ static ttx_binding_status primitive_bind(
   return TTX_BINDING_SATISFIED;
 }
 
+static ttx_binding_status primitive_supports(const void* source, perimortem_uuid id) {
+  (void)source;
+  return matches(id, TTX_FRAGMENT_ACCESS_ID_HIGH, TTX_FRAGMENT_ACCESS_ID_LOW)
+             ? TTX_BINDING_SATISFIED : TTX_BINDING_UNSUPPORTED;
+}
+
 static ttx_semantic_query primitives(void) {
-  return (ttx_semantic_query){NULL, primitive_bind};
+  return (ttx_semantic_query){NULL, primitive_bind, primitive_supports};
 }
 
 // The fixture recognizes its retired identity only. Current transport requests
@@ -504,8 +536,14 @@ static ttx_binding_status legacy_bind(
              ? TTX_BINDING_REJECTED : TTX_BINDING_UNSUPPORTED;
 }
 
+static ttx_binding_status legacy_supports(const void* source, perimortem_uuid id) {
+  (void)source;
+  return matches(id, 0x51214d6ff9654e48ULL, 0x886b7c136306884aULL)
+             ? TTX_BINDING_SATISFIED : TTX_BINDING_UNSUPPORTED;
+}
+
 static ttx_semantic_query legacy_writer(provider_state* state) {
-  return (ttx_semantic_query){state, legacy_bind};
+  return (ttx_semantic_query){state, legacy_bind, legacy_supports};
 }
 
 const provider_api* flow_provider_open(provider_compile compiler) {

@@ -10,31 +10,38 @@
 using namespace Ttx;
 using namespace Perimortem;
 
-// An unanswered name remains unanswered. Using a leaf's default None answer
-// here would turn missing evidence into completed absence, so both navigation
-// and capability requests preserve the provisional answer.
-class UnknownProvider {
- public:
-  auto get_data() const -> Core::View::Bytes { return "Unknown"_view; }
-  auto bind_interface(System::Uuid id, Data::Form::Storage requested) const
-      -> Semantic::Negotiation::Binding::Status {
-    if (id == Concept::Answers::Unknown::contract_id) {
-      return Semantic::Negotiation::Binding::marker(requested);
-    }
+using namespace Ttx::Concept;
+using namespace Ttx::Concept::Answers;
 
-    return Semantic::Negotiation::Binding::Status::Pending;
-  }
-
-  auto resolve_concept(Core::View::Bytes) const -> Concept::Abstract {
-    return Concept::Abstract::provide(*this);
-  }
-};
-
-PERIMORTEM_C ttx_abstract ttx_unknown(void) {
-  static const UnknownProvider provider;
-  return Concept::Abstract::provide(provider).get_abi();
+auto Unknown::get_data() const -> Core::View::Bytes {
+  return "Unknown"_view;
 }
 
-auto Concept::Answers::Unknown::get_unknown() -> Abstract {
-  return Abstract(ttx_unknown());
+auto Unknown::supports(System::Uuid id) const
+    -> Semantic::Negotiation::Binding::Status {
+  return id == Unknown::contract_id
+             ? Semantic::Negotiation::Binding::Status::Satisfied
+             : Semantic::Negotiation::Binding::Status::Pending;
+}
+
+auto Unknown::bind_interface(System::Uuid id, Data::Form::Storage requested)
+    const -> Semantic::Negotiation::Binding::Status {
+  if (id == Unknown::contract_id) {
+    return Semantic::Negotiation::Binding::marker(requested);
+  }
+
+  return Semantic::Negotiation::Binding::Status::Pending;
+}
+
+auto Unknown::resolve_concept(Core::View::Bytes) const -> Abstract {
+  return get_unknown();
+}
+
+auto Unknown::get_unknown() -> Abstract {
+  static const Unknown subject;
+  return Abstract::provide(subject);
+}
+
+PERIMORTEM_C ttx_abstract ttx_unknown(void) {
+  return Unknown::get_unknown().get_abi();
 }

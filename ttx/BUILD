@@ -6,6 +6,7 @@ TTX language core.
 """
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -57,4 +58,31 @@ cc_library(
         ":semantic",
         "//perimortem:headless",
     ],
+)
+
+# Native hosts and independently loaded C++ providers can share these existing
+# TTX and Perimortem owners without linking a particular application's models.
+# Providers still control their publications and release them through their
+# own operations. The shared runtime is a C++ deployment choice, not a TTX
+# requirement that foreign implementations use the same allocator.
+cc_shared_library(
+    name = "runtime",
+    shared_lib_name = "libttx_runtime.so",
+    # Link roots retain each compiled library's public symbols, including
+    # operations used only by an external provider rather than TTX itself.
+    deps = [
+        ":ttx",
+        ":concept",
+        ":semantic",
+        ":data",
+        "//perimortem:abi",
+        "//perimortem:core",
+        "//perimortem:memory",
+        "//perimortem:system",
+        "//perimortem:serialization",
+        "//perimortem:compression",
+        "//perimortem:graphics",
+    ],
+    exports_filter = ["//ttx:__pkg__", "//perimortem:__pkg__"],
+    user_link_flags = ["-Wl,-z,defs"],
 )

@@ -10,32 +10,38 @@
 using namespace Ttx;
 using namespace Perimortem;
 
-// Completed absence stays absent along every named route. Keeping ordinary
-// navigation available lets a consumer continue its walk without inventing a
-// value, while the marker itself needs no borrowed operations.
-class NoneProvider {
- public:
-  auto get_data() const -> Core::View::Bytes { return "None"_view; }
-  auto bind_interface(System::Uuid id, Data::Form::Storage requested) const
-      -> Semantic::Negotiation::Binding::Status {
-    if (id == Concept::Answers::None::contract_id ||
-        id == Concept::Answers::Constant::contract_id) {
-      return Semantic::Negotiation::Binding::marker(requested);
-    }
+using namespace Ttx::Concept;
+using namespace Ttx::Concept::Answers;
 
-    return Semantic::Negotiation::Binding::Status::Unsupported;
-  }
-
-  auto resolve_concept(Core::View::Bytes) const -> Concept::Abstract {
-    return Concept::Abstract::provide(*this);
-  }
-};
-
-PERIMORTEM_C ttx_abstract ttx_none(void) {
-  static const NoneProvider provider;
-  return Concept::Abstract::provide(provider).get_abi();
+auto None::get_data() const -> Core::View::Bytes {
+  return "None"_view;
 }
 
-auto Concept::Answers::None::get_none() -> Abstract {
-  return Abstract(ttx_none());
+auto None::supports(System::Uuid id) const
+    -> Semantic::Negotiation::Binding::Status {
+  return id == None::contract_id || id == Constant::contract_id
+             ? Semantic::Negotiation::Binding::Status::Satisfied
+             : Semantic::Negotiation::Binding::Status::Unsupported;
+}
+
+auto None::bind_interface(System::Uuid id, Data::Form::Storage requested) const
+    -> Semantic::Negotiation::Binding::Status {
+  if (id == None::contract_id || id == Constant::contract_id) {
+    return Semantic::Negotiation::Binding::marker(requested);
+  }
+
+  return Semantic::Negotiation::Binding::Status::Unsupported;
+}
+
+auto None::resolve_concept(Core::View::Bytes) const -> Abstract {
+  return get_none();
+}
+
+auto None::get_none() -> Abstract {
+  static const None subject;
+  return Abstract::provide(subject);
+}
+
+PERIMORTEM_C ttx_abstract ttx_none(void) {
+  return None::get_none().get_abi();
 }

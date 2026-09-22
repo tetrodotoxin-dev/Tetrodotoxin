@@ -6,13 +6,23 @@
 using namespace Perimortem;
 using namespace Ttx::Semantic::Negotiation;
 
-auto Query::bind(System::Uuid contract, Ttx::Data::Form::Storage requested) const
-    -> Binding::Status {
+auto Query::supports(System::Uuid contract) const -> Binding::Status {
+  if (!value.supports) {
+    return Binding::Status::Rejected;
+  }
+
+  const auto status = value.supports(value.source, contract);
+  return status <= TTX_BINDING_REJECTED ? static_cast<Binding::Status>(status)
+                                        : Binding::Status::Rejected;
+}
+
+auto Query::bind(System::Uuid contract, Ttx::Data::Form::Storage requested)
+    const -> Binding::Status {
   if (!value.bind) {
     return Binding::Status::Rejected;
   }
 
   const auto status = value.bind(value.source, contract, requested.get_abi());
   return status <= TTX_BINDING_REJECTED ? static_cast<Binding::Status>(status)
-                                       : Binding::Status::Rejected;
+                                        : Binding::Status::Rejected;
 }

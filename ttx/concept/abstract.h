@@ -22,9 +22,9 @@
 //
 // The supplying boundary establishes the exact Abstract contract before the
 // table is used, since an unknown table cannot safely describe how to call
-// itself. That agreement includes byte queries, data observation, binding,
-// resolution, synchronous visitation and satisfaction. This representation
-// uses the platform C ABI and has been exercised on Linux with 64 bit pointers.
+// itself. That agreement includes capability queries, interface binding, byte
+// observations, resolution and synchronous visitation. This representation uses
+// the platform C ABI and has been exercised on Linux with 64 bit pointers.
 //
 // This contract chooses one opaque receiver and one typed table pointer.
 // Its canonical Representation includes the table's callable signatures and
@@ -48,10 +48,21 @@ typedef struct ttx_abstract {
 // before visitation returns and cannot retain this receiver for later work.
 typedef struct ttx_concept_visitor {
   void* source;
-  void (*receive)(void* source, perimortem_view_bytes route, ttx_abstract value);
+  void (
+      *receive)(void* source, perimortem_view_bytes route, ttx_abstract value);
 } ttx_concept_visitor;
 
 typedef struct ttx_abstract_ops {
+  // Checks if the source provides the contract interface in some form. It
+  // doesn't promise any exact representation which is useful for asking
+  // semantic questions that don't need the additional overhead of negotating
+  // actual storage.
+  //
+  // It's important to note that binding can still fail due to storage and ABI
+  // disagreements even if the contract is supported in another form. Support is
+  // a seperate semantic question about capabilities.
+  ttx_binding_status (*supports)(const void* source, perimortem_uuid contract);
+
   // Separating selection from value production lets a consumer obtain an
   // interface without triggering its computation or data transfers. Bind
   // therefore selects an implementation without invoking its value operations.
@@ -81,12 +92,6 @@ typedef struct ttx_abstract_ops {
   ttx_abstract (
       *resolve_concept)(const void* source, perimortem_view_bytes route);
   void (*visit_concepts)(const void* source, ttx_concept_visitor visitor);
-
-  // Satisfaction is the provider's projection relation, not native type
-  // equality. The requirement is another admitted Abstract whose operations
-  // remain callable for this synchronous observation. Zero means the relation
-  // was not established in this observation, not a permanent absence proof.
-  U8 (*satisfies)(const void* source, ttx_abstract requirement);
 } ttx_abstract_ops;
 
 PERIMORTEM_C const ttx_representation* ttx_abstract_representation(void);

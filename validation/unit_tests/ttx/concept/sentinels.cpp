@@ -17,6 +17,49 @@ static_assert(__is_empty(Concept::Answers::None));
 static_assert(__is_empty(Concept::Answers::Unknown));
 static_assert(__is_empty(Concept::Answers::Constant));
 
+// Marker properties can be observed without negotiating even an Empty API.
+// Unknown knows what it is, but other property questions remain provisional.
+PERIMORTEM_UNIT_TEST(Sentinels, support_properties) {
+  using Semantic::Negotiation::Binding::Status;
+  const auto unknown = Concept::Answers::Unknown::get_unknown();
+  const auto none = Concept::Answers::None::get_none();
+
+  EXPECT(unknown.supports<Concept::Abstract>() == Status::Satisfied);
+  EXPECT(unknown.supports<Concept::Answers::Unknown>() == Status::Satisfied);
+  EXPECT(unknown.supports<Concept::Answers::Constant>() == Status::Pending);
+  EXPECT(none.supports<Concept::Answers::Constant>() == Status::Satisfied);
+  EXPECT(none.supports<Concept::Answers::Unknown>() == Status::Unsupported);
+}
+
+// A policy supplies both questions independently. Navigation may reveal another
+// subject, but support stays on the encountered layer rather than resolving
+// around a refusal or probing the underlying binding.
+PERIMORTEM_UNIT_TEST(Sentinels, support_policy) {
+  using Semantic::Negotiation::Binding::Status;
+  struct Policy {
+    Concept::Abstract target;
+    Status answer;
+    mutable Count binds = 0;
+    auto get_data() const -> Core::View::Bytes { return {}; }
+    auto resolve() const -> Concept::Abstract { return target; }
+    auto supports(System::Uuid id) const -> Status {
+      return answer == Status::Unsupported ? target.supports(id) : answer;
+    }
+    auto bind_interface(System::Uuid, Data::Form::Storage) const -> Status {
+      ++binds;
+      return Status::Rejected;
+    }
+  } policy(Concept::Answers::None::get_none(), Status::Pending);
+  const auto subject = Concept::Abstract::provide(policy);
+
+  EXPECT(subject.supports<Concept::Answers::Constant>() == Status::Pending);
+  policy.answer = Status::Rejected;
+  EXPECT(subject.supports<Concept::Answers::Constant>() == Status::Rejected);
+  policy.answer = Status::Unsupported;
+  EXPECT(subject.supports<Concept::Answers::Constant>() == Status::Satisfied);
+  EXPECT_EQ(policy.binds, Count(0));
+}
+
 // Keep the outer record and every table slot the same size. Only get_data's
 // result differs, so rejection proves that agreement follows the typed table
 // pointer rather than treating the Abstract as two opaque pointer slots.
@@ -26,7 +69,7 @@ struct WrongAbstractOperations {
   decltype(ttx_abstract_ops::resolve) resolve;
   decltype(ttx_abstract_ops::resolve_concept) resolve_concept;
   decltype(ttx_abstract_ops::visit_concepts) visit_concepts;
-  decltype(ttx_abstract_ops::satisfies) satisfies;
+  decltype(ttx_abstract_ops::supports) supports;
 };
 
 struct WrongAbstract {
@@ -41,7 +84,7 @@ TTX_DATA_RECORD(
     TTX_DATA_MEMBER(WrongAbstractOperations, resolve),
     TTX_DATA_MEMBER(WrongAbstractOperations, resolve_concept),
     TTX_DATA_MEMBER(WrongAbstractOperations, visit_concepts),
-    TTX_DATA_MEMBER(WrongAbstractOperations, satisfies));
+    TTX_DATA_MEMBER(WrongAbstractOperations, supports));
 TTX_DATA_RECORD(
     WrongAbstract,
     TTX_DATA_MEMBER(WrongAbstract, source),
@@ -120,6 +163,9 @@ PERIMORTEM_UNIT_TEST(Sentinels, empty_table_admission) {
           ttx_storage output) -> ttx_binding_status {
          (void)output;
          return TTX_BINDING_SATISFIED;
+       },
+       [](const void*, perimortem_uuid) -> ttx_binding_status {
+         return TTX_BINDING_SATISFIED;
        }});
   query.bind<Concept::Answers::Constant>().visit(
       [&](Concept::Answers::Constant) {},
@@ -137,6 +183,12 @@ PERIMORTEM_UNIT_TEST(Sentinels, empty_table_admission) {
 PERIMORTEM_UNIT_TEST(Sentinels, native_publication) {
   struct Leaf {
     auto get_data() const -> Core::View::Bytes { return "value"_view; }
+    auto supports(System::Uuid id) const
+        -> Semantic::Negotiation::Binding::Status {
+      using Semantic::Negotiation::Binding::Status;
+      return id == Concept::Answers::Constant::contract_id ? Status::Satisfied
+                                                           : Status::Rejected;
+    }
     auto bind_interface(System::Uuid id, Data::Form::Storage requested) const
         -> Semantic::Negotiation::Binding::Status {
       if (id == Concept::Answers::Constant::contract_id) {

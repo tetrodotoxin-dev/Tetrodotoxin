@@ -21,6 +21,9 @@ static Validation::Harness Modules = {.name = "TTX::Concept::Module"_view};
 // more permissive root while adapting the lifetime carrier.
 struct Policy {
   mutable Count bindings = 0;
+  auto supports(System::Uuid) const -> Binding::Status {
+    return Binding::Status::Rejected;
+  }
   auto get_data() const -> Core::View::Bytes { return "policy"_view; }
   auto resolve() const -> Ttx::Concept::Abstract {
     return Ttx::Concept::Answers::None::get_none();
@@ -84,6 +87,9 @@ PERIMORTEM_UNIT_TEST(Modules, direct_policy) {
     const Ttx::Semantic::Negotiation::Query host(
         {&service,
          [](const void*, perimortem_uuid, ttx_storage) -> ttx_binding_status {
+           return TTX_BINDING_UNSUPPORTED;
+         },
+         [](const void*, perimortem_uuid) -> ttx_binding_status {
            return TTX_BINDING_UNSUPPORTED;
          }});
     module.open(host).visit(

@@ -44,14 +44,17 @@ static void visit(const void* source, ttx_concept_visitor visitor) {
   visitor.receive(visitor.source, bytes, resolve(source));
 }
 
-static U8 satisfies(const void* source, ttx_abstract requirement) {
+
+
+static ttx_binding_status supports(const void* source, perimortem_uuid id) {
   (void)source;
-  const perimortem_view_bytes wanted = requirement.operations->get_data(requirement.source);
-  return wanted.size == 1 && wanted.data[0] == 42;
+  return (id.high == TTX_ABSTRACT_ID_HIGH && id.low == TTX_ABSTRACT_ID_LOW) ||
+                 (id.high == TTX_CONSTANT_ID_HIGH && id.low == TTX_CONSTANT_ID_LOW)
+             ? TTX_BINDING_SATISFIED : TTX_BINDING_UNSUPPORTED;
 }
 
 ttx_abstract observation_abstract(observation_subject* subject) {
-  static const ttx_abstract_ops operations = {bind, data, resolve, lookup, visit, satisfies};
+  static const ttx_abstract_ops operations = {supports, bind, data, resolve, lookup, visit};
   const ttx_abstract result = {subject, &operations};
   return result;
 }

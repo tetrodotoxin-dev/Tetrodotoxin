@@ -16,9 +16,7 @@ struct Subject {
   auto get_data() const -> Perimortem::Core::View::Bytes {
     return "subject"_view;
   }
-  auto satisfies(const Ttx::Concept::Abstract& requirement) const -> Bool {
-    return requirement.get_data() == get_data();
-  }
+
 };
 
 }  // namespace Validation::ConceptTests

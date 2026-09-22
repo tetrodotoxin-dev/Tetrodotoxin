@@ -138,6 +138,22 @@ static ttx_binding_status writer(const void* self, perimortem_uuid id,
 
 static invocation_statistics statistics(void) { return state.statistics; }
 
+static ttx_binding_status supports(const void* self, perimortem_uuid id) {
+  (void)self;
+  if (state.status != TTX_BINDING_SATISFIED) {
+    return state.status;
+  }
+
+  const perimortem_uuid contracts[] = {
+    {TTX_DIRECT_ACCESS_ID_HIGH, TTX_DIRECT_ACCESS_ID_LOW},
+    {TTX_SHARED_ACCESS_ID_HIGH, TTX_SHARED_ACCESS_ID_LOW},
+    {TTX_BLOCK_ACCESS_ID_HIGH, TTX_BLOCK_ACCESS_ID_LOW},
+    {TTX_FRAGMENT_ACCESS_ID_HIGH, TTX_FRAGMENT_ACCESS_ID_LOW}};
+  return state.protocol < 4 && id.high == contracts[state.protocol].high &&
+                 id.low == contracts[state.protocol].low
+             ? TTX_BINDING_SATISFIED : TTX_BINDING_UNSUPPORTED;
+}
+
 static void configure(U8 protocol, ttx_binding_status status, U8 fail_transfer) {
   state.protocol = protocol;
   state.status = status;
@@ -162,5 +178,5 @@ invocation_fixture invocation_provider_open(
   state.bias = 2.0;
   state.invocation = (ttx_invocation){&state.bias, &state.inputs, &state.outputs, invoke};
   configure(0, TTX_BINDING_SATISFIED, 0);
-  return (invocation_fixture){{&state.bias, writer}, statistics, configure};
+  return (invocation_fixture){{&state.bias, writer, supports}, statistics, configure};
 }

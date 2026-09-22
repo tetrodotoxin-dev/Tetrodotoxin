@@ -44,6 +44,20 @@ typedef struct ttx_representation_position {
 #endif
 } ttx_representation_position;
 
+// Composition places complete admitted forms inside a new struct. Each child
+// retains its extent, padding and struct boundary. The source buffers need
+// survive only composition because the new publication contains its own copies.
+typedef struct ttx_representation_member {
+  const struct ttx_representation* representation;
+  Count offset;
+#ifdef __cplusplus
+  constexpr ttx_representation_member() : representation(nullptr), offset(0) {}
+  constexpr ttx_representation_member(
+      const ttx_representation& representation, Count offset)
+      : representation(&representation), offset(offset) {}
+#endif
+} ttx_representation_member;
+
 // A Representation borrows a canonical descriptor buffer. Compilation has
 // already established its geometry, normalization and reference invariants.
 // Its complete byte size is a multiple of eight, with zero padding after the
@@ -60,6 +74,7 @@ typedef struct ttx_representation {
   Count size;
 #ifdef __cplusplus
   using Position = ttx_representation_position;
+  using Member = ttx_representation_member;
   using Value = ttx_schema::Value;
   using ByteOrder = ttx_schema::ByteOrder;
 
@@ -76,6 +91,11 @@ typedef struct ttx_representation {
 
   static auto compile(
       ttx_schema_reference schema, Perimortem::Memory::Allocator::Arena& arena)
+      -> Perimortem::Utility::Result<const ttx_representation&, Ttx::Data::Status>;
+
+  static auto compose(
+      Perimortem::Core::View::Vector<Member> members, Count extent,
+      Count alignment, Perimortem::Memory::Allocator::Arena& arena)
       -> Perimortem::Utility::Result<const ttx_representation&, Ttx::Data::Status>;
 
   // A byte coordinate selects the first primitive whose start is at or after
@@ -116,6 +136,10 @@ typedef struct ttx_representation_allocator {
 
 PERIMORTEM_C ttx_data_status ttx_representation_compile(
     ttx_schema_reference schema, ttx_representation_allocator allocator,
+    const ttx_representation** result);
+PERIMORTEM_C ttx_data_status ttx_representation_compose(
+    const ttx_representation_member* members, Count count, Count extent,
+    Count alignment, ttx_representation_allocator allocator,
     const ttx_representation** result);
 PERIMORTEM_C U8 ttx_representation_compatible(
     const ttx_representation* source, const ttx_representation* destination);

@@ -190,6 +190,11 @@ PERIMORTEM_UNIT_TEST(TtxFlow, fresh_bind_results) {
       const auto native = static_cast<ttx_semantic_query>(owner.query);
       return native.bind(native.source, id, answer);
     },
+    [](const void* source, perimortem_uuid id) -> ttx_binding_status {
+      return static_cast<ttx_binding_status>(
+          static_cast<const Owner*>(source)->query.supports(
+              Perimortem::System::Uuid(id)));
+    },
   });
 
   query.bind<Ttx::Semantic::Transport::Direct::Access>().visit(
@@ -247,6 +252,12 @@ PERIMORTEM_UNIT_TEST(TtxFlow, retired_form) {
          const perimortem_uuid current = {
            TTX_DIRECT_ACCESS_ID_HIGH, TTX_DIRECT_ACCESS_ID_LOW};
          return query.bind(query.source, current, result);
+       },
+       [](const void*, perimortem_uuid id) -> ttx_binding_status {
+         return id.high == 0x4a902fc004e74ccfULL &&
+                        id.low == 0x94bfa0d6cd66d43fULL
+                    ? TTX_BINDING_SATISFIED
+                    : TTX_BINDING_UNSUPPORTED;
        }});
 
   Validation::FlowTests::Reader reader{four, PROVIDES_DIRECT};

@@ -2,8 +2,6 @@
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "ttx/semantic/realization/invocation.hpp"
-#include "ttx/semantic/transport/flow.hpp"
-#include "ttx/semantic/flows/copy.hpp"
 
 #include "validation/unit_test.hpp"
 #include "validation/unit_tests/ttx/semantic/measurement.hpp"
@@ -13,6 +11,8 @@
 #include <unistd.h>
 
 #include "ttx/data/form/compiled.hpp"
+#include "ttx/semantic/flows/copy.hpp"
+#include "ttx/semantic/transport/flow.hpp"
 #include "validation/unit_tests/ttx/semantic/fixtures/invocation_provider.h"
 
 using namespace Perimortem;
@@ -80,28 +80,40 @@ class ForeignInvocation {
     return Ttx::Data::Form::Compiled<real>::get_representation();
   }
   auto query() -> Query {
-    return Query({this, [](const void* source, perimortem_uuid id,
-                           ttx_storage requested) -> ttx_binding_status {
-      const auto& self = *static_cast<const ForeignInvocation*>(source);
-      if (System::Uuid(id) != operation) {
-        return TTX_BINDING_UNSUPPORTED;
-      }
+    return Query(
+        {this,
+         [](const void* source, perimortem_uuid id,
+            ttx_storage requested) -> ttx_binding_status {
+           const auto& self = *static_cast<const ForeignInvocation*>(source);
+           if (System::Uuid(id) != operation) {
+             return TTX_BINDING_UNSUPPORTED;
+           }
 
-      // This provider policy composes ordinary Flow and Copy. The C module
-      // chooses its transport; binding contains no callable-specific path.
-      // The copied receiver belongs to the module, so releasing a Shared loan
-      // of the API record does not invalidate that receiver.
-      Flow flow;
-      const auto status = flow.connect(Flow::reader(*requested.representation),
-                                       Query(self.api.query));
-      if (status == Flow::Status::Unsupported) return TTX_BINDING_UNSUPPORTED;
-      if (status == Flow::Status::BindingPending) return TTX_BINDING_PENDING;
-      if (status != Flow::Status::Success) return TTX_BINDING_REJECTED;
-      const auto copied = Ttx::Semantic::Flows::Copy::flow(
-          flow, Ttx::Data::Form::Storage(requested));
-      return copied == Ttx::Data::Status::Success ? TTX_BINDING_SATISFIED
-                                                 : TTX_BINDING_REJECTED;
-    }});
+           // This provider policy composes ordinary Flow and Copy. The C module
+           // chooses its transport; binding contains no callable-specific path.
+           // The copied receiver belongs to the module, so releasing a Shared
+           // loan of the API record does not invalidate that receiver.
+           Flow flow;
+           const auto status = flow.connect(
+               Flow::reader(*requested.representation), Query(self.api.query));
+           if (status == Flow::Status::Unsupported) {
+             return TTX_BINDING_UNSUPPORTED;
+           }
+           if (status == Flow::Status::BindingPending) {
+             return TTX_BINDING_PENDING;
+           }
+           if (status != Flow::Status::Success) {
+             return TTX_BINDING_REJECTED;
+           }
+           const auto copied = Ttx::Semantic::Flows::Copy::flow(
+               flow, Ttx::Data::Form::Storage(requested));
+           return copied == Ttx::Data::Status::Success ? TTX_BINDING_SATISFIED
+                                                       : TTX_BINDING_REJECTED;
+         },
+         [](const void*, perimortem_uuid id) -> ttx_binding_status {
+           return System::Uuid(id) == operation ? TTX_BINDING_SATISFIED
+                                                : TTX_BINDING_UNSUPPORTED;
+         }});
   }
 
   auto connect(Invocation& call) -> Binding::Status {
@@ -156,8 +168,7 @@ PERIMORTEM_UNIT_TEST(InvocationTests, refusal_and_retry) {
   // the same extent does not make S64 and R64 interchangeable payloads.
   EXPECT(
       call.connect(
-          foreign.query(), operation,
-          ForeignInvocation::input_form(),
+          foreign.query(), operation, ForeignInvocation::input_form(),
           Ttx::Data::Form::Compiled<integer>::get_representation()) ==
       Binding::Status::Rejected);
   EXPECT_EQ(foreign.api.statistics().calls, U64(0));
@@ -171,7 +182,9 @@ PERIMORTEM_UNIT_TEST(InvocationTests, refusal_and_retry) {
     EXPECT(foreign.connect(call) == expected[i]);
     // Unsupported allows the provider's ordinary Flow to try every protocol;
     // a pending or rejected policy stops after the first request.
-    EXPECT_EQ(foreign.api.statistics().binds, U64(failures[i] == TTX_BINDING_UNSUPPORTED ? 4 : 1));
+    EXPECT_EQ(
+        foreign.api.statistics().binds,
+        U64(failures[i] == TTX_BINDING_UNSUPPORTED ? 4 : 1));
   }
 
   // A failed materialization never publishes a callable record. A corrected
