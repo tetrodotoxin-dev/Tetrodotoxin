@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "validation/process/child.hpp"
@@ -132,7 +132,7 @@ static Harness ProcessTests = {
   .name = "Validation::Process"_view,
 };
 
-PERIMORTEM_UNIT_TEST(ProcessTests, exact_process_contract) {
+PERIMORTEM_UNIT_TEST(ProcessTests, process_contract) {
   Dynamic::Bytes executable = executable_path();
   ASSERT_NOT(executable.is_empty());
 
@@ -152,7 +152,7 @@ PERIMORTEM_UNIT_TEST(ProcessTests, exact_process_contract) {
       Process::compare(observation, expectation) == Process::Difference::None);
 }
 
-PERIMORTEM_UNIT_TEST(ProcessTests, deadline_terminates_child) {
+PERIMORTEM_UNIT_TEST(ProcessTests, deadline_termination) {
   Dynamic::Bytes executable = executable_path();
   ASSERT_NOT(executable.is_empty());
 
@@ -168,7 +168,7 @@ PERIMORTEM_UNIT_TEST(ProcessTests, deadline_terminates_child) {
       Process::compare(observation, completed) == Process::Difference::Timeout);
 }
 
-PERIMORTEM_UNIT_TEST(ProcessTests, difference_classification) {
+PERIMORTEM_UNIT_TEST(ProcessTests, result_differences) {
   Process::Observation observation = {
     .launched = True,
     .exit_status = 7,

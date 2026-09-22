@@ -1,103 +1,58 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/flow/local.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "perimortem/core/diagnostics/log.hpp"
 
 #include "tetrodotoxin/library/language/diagnostics.hpp"
-#include "tetrodotoxin/library/language/expressions/initializer.hpp"
-#include "tetrodotoxin/library/language/model/parser/pack.hpp"
-#include "tetrodotoxin/library/llvm/builder.hpp"
-#include "ttx/concept/invalid.hpp"
+#include "tetrodotoxin/library/language/expression.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
-auto Language::Flow::Local::interpret(Cursor& cursor, Block& host)
-    -> Core::Option<Local&> {
-  Memory::Allocator::Arena& domain = cursor.get_arena();
-  Token evaluation = cursor.current();
-  Writability writability = Writability::Full;
-  switch (evaluation.get_code().get_type()) {
-  case Code::Type::State:
-    cursor.consume();
-    break;
-  case Code::Type::Const:
-    cursor.consume();
-    writability = Writability::Constant;
-    break;
-  default:
-    cursor.create_token_error(
-        "Library Local declarations require `state` or `const`."_view);
-    return {};
-  }
-
-  Token name = cursor.require(
-      Code::Type::Addressable,
-      "Library Local declarations require one addressable name."_view);
-  BAIL_IF(!name);
-  BAIL_IF(!cursor.require(
-      Code::Type::Define,
-      "Library Local declarations require `:` after their name."_view));
-
-  Core::Option<TypeReference> type_reference;
-  Core::Option<Model::Pack&> initializer;
-  if (cursor.matches(Code::Type::Assign)) {
-    cursor.consume();
-    if (Expressions::Initializer::is_next(cursor)) {
-      auto object_initializer = Expressions::Initializer::parse(host, cursor);
-      BAIL_IF(!object_initializer);
-      initializer = *object_initializer;
-    } else {
-      initializer = Model::Parser::Pack::parse(host, cursor);
-    }
-    BAIL_IF(!initializer);
-  } else {
-    auto declared_type = TypeReference::parse(host, cursor);
-    BAIL_IF(!declared_type);
-    type_reference = *declared_type;
-
-    if (cursor.matches(Code::Type::Assign)) {
-      cursor.consume();
-      if (Expressions::Initializer::is_next(cursor)) {
-        auto object_initializer = Expressions::Initializer::parse(host, cursor);
-        BAIL_IF(!object_initializer);
-        initializer = *object_initializer;
-      } else {
-        initializer = Model::Parser::Pack::parse(host, cursor);
-        BAIL_IF(!initializer);
-      }
-    }
-  }
-
-  if (writability == Writability::Constant && !initializer) {
-    cursor.create_token_error(
-        "Library const Locals require one compile-time initializer."_view);
-    return {};
-  }
-
-  Token terminator = cursor.require(
-      Code::Type::EndStatement,
-      "Library Local declarations require one terminating `;`."_view);
-  BAIL_IF(!terminator);
-
-  Core::View::Bytes spelling = name.caculate_text(cursor.get_source_text());
-  Anchor anchor = Anchor::create(name, Span(evaluation, terminator));
-  Local& local = domain.construct_from<Local>([&]() -> Local {
+auto Language::Flow::Local::create_authored(
+    Perimortem::Memory::Allocator::Arena& domain,
+    Block& host,
+    Token name_token,
+    Core::View::Bytes name,
+    Writability writability,
+    Core::Option<TypeReference> type_reference,
+    Core::Option<Model::Pack&> initializer,
+    Anchor anchor) -> Local& {
+  return domain.construct_from<Local>([&]() -> Local {
     return Local(
-        domain, host, name, spelling, writability, type_reference, initializer,
-        anchor);
+        domain, host, name_token, name, writability, type_reference,
+        initializer, anchor);
   });
-  cursor.get_associations().create(anchor, local);
-  return local;
+}
+
+auto Language::Flow::Local::get_type() const -> const Abstract& {
+  if (type) {
+    return type->get();
+  }
+  if (!type_reference) {
+    return Unknown::get_unknown();
+  }
+
+  Core::Option<const Abstract&> selected;
+  type_reference->resolve_lexical(host).visit(
+      [&](const Abstract& answer) { selected = answer; },
+      [](const TypeReference::Failure&) {});
+  auto selected_type = selected ? selected->select<Language::Model::Type>()
+                                : Core::Option<const Language::Model::Type&>();
+  return selected_type ? static_cast<const Abstract&>(*selected_type)
+                       : static_cast<const Abstract&>(Unknown::get_unknown());
 }
 
 auto Language::Flow::Local::link(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Language::Model::Type& access_scope) -> Bool {
   if (type && initializer_linked) {
     return True;
@@ -155,7 +110,7 @@ auto Language::Flow::Local::link(
   BAIL_IF(!selected_initializer->link(cursor, host, access_scope));
   // Linking a Type name is valid when a later access consumes its identity.
   // Local is a value owner, so it proves real Pack flow before reading Layout.
-  if (&selected_initializer->resolve() != &*selected_initializer) {
+  if (!selected_initializer->is_complete()) {
     cursor.create_expression_error(
         anchor, "Local initializer did not produce value flow."_view,
         "Use a Type result only as an access receiver."_view);
@@ -218,93 +173,25 @@ auto Language::Flow::Local::link(
 
 auto Language::Flow::Local::resolve() const -> const Abstract& {
   if (!type || !initializer_linked) {
-    return Invalid::get_invalid();
+    return Unknown::get_unknown();
   }
 
   return *this;
 }
 
-auto Language::Flow::Local::resolve_access(
-    const Abstract& access_host,
-    Core::View::Bytes route) const -> const Abstract& {
-  return type.visit(
-      []() -> const Abstract& { return Invalid::get_invalid(); },
-      [&](const Reference<const Language::Model::Type>& selected)
-          -> const Abstract& {
-        return selected.get().resolve_type_access(
-            access_host, route, Language::Model::Type::Access::Self);
-      });
-}
-
-auto Language::Flow::Local::resolve_call(
-    const Abstract& access_host,
-    Core::View::Bytes route) const -> const Abstract& {
-  return type.visit(
-      []() -> const Abstract& { return Invalid::get_invalid(); },
-      [&](const Reference<const Language::Model::Type>& selected)
-          -> const Abstract& {
-        return selected.get().resolve_type_call(
-            access_host, route, Language::Model::Type::Access::Self);
-      });
-}
-
-auto Language::Flow::Local::get_documentation() const -> const Documentation& {
+auto Language::Flow::Local::get_documentation() const -> const Tetrodotoxin::Source::Documentation& {
   for (const Language::Statement& statement : host.get_statements()) {
     if (&statement.get_root() == this) {
       return statement.get_documentation();
     }
   }
 
-  return Documentation::get_empty();
+  return Tetrodotoxin::Source::Documentation::get_empty();
 }
 
 auto Language::Flow::Local::finalize(Cursor& cursor) -> void {
   initializer.visit(
       []() {}, [&](Model::Pack& selected) { selected.finalize(cursor); });
-}
-
-auto Language::Flow::Local::lower(Llvm::Builder& body) const -> Bool {
-  if (writability == Writability::Constant) {
-    if (!body.has_full_debug()) {
-      return True;
-    }
-
-    auto value = get_constant();
-    return value && value->lower(body) &&
-           body.constant_local(*this, *value, anchor);
-  }
-
-  Bool type_ready = get_type().reserve_value(body.get_program()) &&
-                    get_type().complete_value(body.get_program());
-  if (!type_ready) {
-    return False;
-  }
-
-  Core::Option<const Model::Pack&> value = get_initializer();
-  if (!value) {
-    auto created = get_type().create_default(body.get_program().get_arena());
-    if (!created) {
-      return False;
-    }
-
-    value = *created;
-  }
-
-  Bool lowered = value->lower(body);
-  if (!lowered) {
-    Perimortem::Core::Diagnostics::Log::error(
-        "Library LLVM lowering could not emit one Local initializer."_view);
-    return False;
-  }
-
-  Bool bound = body.bind_local(*this, *value);
-  if (!bound) {
-    Perimortem::Core::Diagnostics::Log::error(
-        "Library LLVM lowering could not bind one Local value."_view);
-    return False;
-  }
-
-  return body.local(*this, anchor);
 }
 
 auto Language::Flow::Local::get_constant() const -> Core::Option<Model::Pack&> {
@@ -314,9 +201,8 @@ auto Language::Flow::Local::get_constant() const -> Core::Option<Model::Pack&> {
 
   return constant.visit(
       []() -> Core::Option<Model::Pack&> { return {}; },
-      [](const Reference<Model::Pack>& selected) -> Core::Option<Model::Pack&> {
-        return selected.get();
-      });
+      [](const Tetrodotoxin::Source::PackReference<Model::Pack>& selected)
+          -> Core::Option<Model::Pack&> { return selected.get(); });
 }
 
 auto Language::Flow::Local::link_constant(Cursor& cursor) const -> Bool {
@@ -343,28 +229,32 @@ auto Language::Flow::Local::cache_constant() const -> Bool {
   }
 
   constant_state = ConstantState::Folding;
+  auto local_type = get_type().select<Model::Type>();
+  BAIL_IF(!local_type);
   // Target owned fitting runs before ordinary folding because the receiving
   // Type may construct a value whose Layout differs from the authored source.
   auto fitted = initializer.visit(
       []() -> Core::Option<Model::Pack&> { return {}; },
       [&](Model::Pack& source) {
-        return get_type().create_fitted(domain, source);
+        return local_type->create_fitted(domain, source);
       });
   if (fitted) {
-    constant = Reference<Model::Pack>(*fitted);
+    constant = Tetrodotoxin::Source::PackReference<Model::Pack>(*fitted);
     constant_state = ConstantState::Folded;
     return True;
   }
 
-  auto expression = initializer.visit(
-      []() -> Core::Option<Expression&> { return {}; },
-      [](Model::Pack& selected) { return selected.select<Expression>(); });
-  if (!expression) {
+  auto source = initializer.visit(
+      []() -> Core::Option<Model::Pack&> { return {}; },
+      [](Model::Pack& selected) -> Core::Option<Model::Pack&> {
+        return selected;
+      });
+  if (!source) {
     constant_state = ConstantState::Failed;
     return False;
   }
 
-  expression->fold().visit(
+  Expression::fold(*source).visit(
       [&](const Core::Option<Model::Pack&>& folded) {
         // Dynamic absence may become constant after another declaration closes,
         // so it returns to Unresolved rather than poisoning future attempts.
@@ -372,7 +262,7 @@ auto Language::Flow::Local::cache_constant() const -> Bool {
           constant_state = ConstantState::Unresolved;
           return;
         }
-        constant = Reference<Model::Pack>(*folded);
+        constant = Tetrodotoxin::Source::PackReference<Model::Pack>(*folded);
         constant_state = ConstantState::Folded;
       },
       [&](const Expression::Error&) {

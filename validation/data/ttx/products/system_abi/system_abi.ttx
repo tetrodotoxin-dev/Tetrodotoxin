@@ -1,0 +1,22 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+// Perimortem System ABI integration.
+dialect : Library;
+
+foreign "C" {
+  public func perimortem_system_terminal_read_line[] -> Option[Dynamic::Bytes];
+  public func perimortem_system_terminal_write_line[.line : Dynamic::Bytes] -> Bool;
+}
+
+public system_roundtrip : func = [] -> Bool {
+  state line := foreign -> perimortem_system_terminal_read_line()!;
+  return foreign -> perimortem_system_terminal_write_line(line);
+}
+
+public Dynamic : struct {
+  public Bytes : struct {
+    private state data : Object[U8];
+    private state size : U64;
+  }
+}

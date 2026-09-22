@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/system/file.hpp"
@@ -654,7 +654,7 @@ PERIMORTEM_UNIT_TEST(SystemFileRoot, regular_file_root) {
   EXPECT_NOT(root);
 }
 
-PERIMORTEM_UNIT_TEST(SystemFileRoot, relative_regular_file) {
+PERIMORTEM_UNIT_TEST(SystemFileRoot, relative_file) {
   TemporaryRoot temporary;
   ASSERT(temporary);
 
@@ -799,9 +799,7 @@ PERIMORTEM_UNIT_TEST(SystemFileRoot, missing_member) {
   capture_next_file_log();
   auto source = (*root).read("missing"_view);
   EXPECT_NOT(source);
-  EXPECT(file_warning_contains(
-      "System::File::Root read failed. path=missing "
-      "stage=open errno="_view));
+  EXPECT_EQ(captured_file_log_size, Count(0));
 }
 
 PERIMORTEM_UNIT_TEST(SystemFileRoot, directory_member) {
@@ -836,7 +834,7 @@ PERIMORTEM_UNIT_TEST(SystemFileRoot, absolute_member) {
   EXPECT_NOT(source);
 }
 
-PERIMORTEM_UNIT_TEST(SystemFileRoot, direct_lexical_escape) {
+PERIMORTEM_UNIT_TEST(SystemFileRoot, direct_escape) {
   TemporaryRoot temporary;
   ASSERT(temporary);
 
@@ -847,7 +845,7 @@ PERIMORTEM_UNIT_TEST(SystemFileRoot, direct_lexical_escape) {
   EXPECT_NOT(source);
 }
 
-PERIMORTEM_UNIT_TEST(SystemFileRoot, nested_lexical_escape) {
+PERIMORTEM_UNIT_TEST(SystemFileRoot, nested_escape) {
   TemporaryRoot temporary;
   ASSERT(temporary);
 
@@ -916,7 +914,7 @@ PERIMORTEM_UNIT_TEST(SystemFileRoot, write_symlink_escape) {
   EXPECT_TEXT(*outside_source, test_contents);
 }
 
-PERIMORTEM_UNIT_TEST(SystemFileRoot, remove_symlink_escape) {
+PERIMORTEM_UNIT_TEST(SystemFileRoot, remove_escape) {
   TemporaryRoot temporary;
   ASSERT(temporary);
 
@@ -939,7 +937,7 @@ PERIMORTEM_UNIT_TEST(SystemFileRoot, remove_symlink_escape) {
   EXPECT_TEXT(*outside_source, test_contents);
 }
 
-PERIMORTEM_UNIT_TEST(SystemFileRoot, exists_symlink_escape) {
+PERIMORTEM_UNIT_TEST(SystemFileRoot, exists_escape) {
   TemporaryRoot temporary;
   ASSERT(temporary);
 
@@ -1021,7 +1019,7 @@ PERIMORTEM_UNIT_TEST(SystemFileRoot, magic_link_escape) {
   EXPECT_NOT(source);
 }
 
-PERIMORTEM_UNIT_TEST(SystemFileRoot, retained_root_identity) {
+PERIMORTEM_UNIT_TEST(SystemFileRoot, stable_root) {
   TemporaryRoot temporary;
   ASSERT(temporary);
 
@@ -1107,7 +1105,7 @@ PERIMORTEM_UNIT_TEST(SystemFileRoot, move_ownership) {
   EXPECT_EQ(count_open_descriptors(), starting_descriptors);
 }
 
-PERIMORTEM_UNIT_TEST(SystemFileRoot, invalid_route_storage) {
+PERIMORTEM_UNIT_TEST(SystemFileRoot, invalid_routes) {
   TemporaryRoot temporary;
   ASSERT(temporary);
 

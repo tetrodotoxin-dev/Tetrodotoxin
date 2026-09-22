@@ -1,52 +1,58 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/dialect.hpp"
 
-#include "tetrodotoxin/library/archive/reader.hpp"
-#include "tetrodotoxin/library/archive/writer.hpp"
+#include "tetrodotoxin/source/documentation.hpp"
+
+#include "tetrodotoxin/library/interpreter/source/library.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
+#include "tetrodotoxin/library/simulacra.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using Ttx::Semantic::Negotiation::Binding;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
+
+auto Library::Dialect::bind_interface(Perimortem::System::Uuid requested) const
+    -> Perimortem::Utility::Result<Binding, Binding::Failure> {
+  if (requested != Simulacra::contract_id) {
+    return Tetrodotoxin::Language::Dialect::bind_interface(requested);
+  }
+
+  static const Simulacra::Operations operations = {
+    [](const void*, Abstract::Handle source)
+        -> Perimortem::Utility::Result<Simulacra, Simulacra::Failure> {
+      return Simulacra::project(source);
+    },
+  };
+
+  return Binding::provide<Simulacra>(this, operations);
+}
 
 auto Library::Dialect::interpret(
     Cursor& cursor,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     const Anchor& source_anchor,
     Abstract& context) -> Option<Tetrodotoxin::Language::Monograph&> {
   auto& monograph = Language::Monograph::create_authored(
-      cursor, documentation, source_anchor, *this, context);
-  BAIL_IF(!monograph.parse(cursor));
+      cursor.get_arena(), documentation, source_anchor, *this, context);
+  Interpreter::Source::Library::parse(monograph.get_source(), cursor);
   return monograph;
 }
 
-auto Library::Dialect::encode(
-    const Abstract& monograph,
-    Tetrodotoxin::Language::Persistence::Profile profile) const
+auto Library::Dialect::encode(const Abstract& monograph) const
     -> Option<Dynamic::Bytes> {
-  auto library = monograph.select<Language::Monograph>();
-  BAIL_IF(!library);
-
-  Archive::Writer writer(profile);
-  BAIL_IF(!library->persist(writer));
-  return writer.take();
+  // Library projections have no byte container until Package supplies one.
+  return {};
 }
 
-auto Library::Dialect::restore(
+auto Library::Dialect::decode(
     Allocator::Arena& arena,
     View::Bytes payload,
-    Tetrodotoxin::Language::Persistence::Profile profile,
-    const Documentation&,
-    Abstract& context) -> Option<Tetrodotoxin::Language::Monograph&> {
-  auto reader = Archive::Reader::open(payload, profile);
-  BAIL_IF(!reader);
-
-  auto restored =
-      Language::Monograph::restore(*reader, arena, profile, *this, context);
-  return restored ? Option<Tetrodotoxin::Language::Monograph&>(*restored)
-                  : Option<Tetrodotoxin::Language::Monograph&>();
+    Abstract& context) -> Option<Tetrodotoxin::Source::Abstract&> {
+  // The source reconstruction format is not the stored Library contract.
+  return {};
 }

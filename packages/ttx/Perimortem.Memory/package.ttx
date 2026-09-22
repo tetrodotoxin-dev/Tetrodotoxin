@@ -1,4 +1,12 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
 // Perimortem Memory Package.
 dialect : Package;
+package(.name = "Perimortem.Memory", .version = "1.0");
 
-source Dynamic from "dynamic.ttx";
+private DynamicSource : alias = source("dynamic.ttx");
+
+public Dynamic : namespace {
+  public Bytes : alias = DynamicSource::Bytes;
+}

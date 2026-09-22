@@ -1,7 +1,9 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/operations/multiply.hpp"
+
+#include "tetrodotoxin/source/documentation.hpp"
 
 #include "validation/unit_test.hpp"
 #include "validation/unit_tests/tetrodotoxin/library/language/fixture.hpp"
@@ -23,15 +25,15 @@
 #include "tetrodotoxin/library/language/types/u16.hpp"
 #include "tetrodotoxin/library/language/types/u64.hpp"
 #include "tetrodotoxin/library/language/types/u8.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Utility;
 using namespace Tetrodotoxin::Library::Language;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Validation;
 
 static Harness LibraryMultiply = {
@@ -41,10 +43,10 @@ static Harness LibraryMultiply = {
 static auto link_operation(Operation& operation, const Abstract& context)
     -> Bool {
   Allocator::Arena transaction;
-  Ttx::Lexical::Errors errors;
-  Ttx::Lexical::Tokenizer tokenizer(transaction, {}, "<operation>"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
-  Ttx::Lexical::Cursor cursor(tokenizer, errors, associations);
+  Tetrodotoxin::Source::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Tokenizer tokenizer(transaction, {}, "<operation>"_view);
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Cursor cursor(tokenizer, errors, associations);
   return operation.link(cursor, context);
 }
 
@@ -54,8 +56,8 @@ class MultiplyExpression : public Expression {
       : Expression({}), name(name), type(type) {}
 
   auto get_name() const -> View::Bytes override { return name; }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
   auto get_type() const -> const Abstract& override { return type; }
 
@@ -68,25 +70,26 @@ class MultiplyFoldInput : public Operation {
  public:
   MultiplyFoldInput(
       Allocator::Arena& domain,
-      Expression& input,
-      Constant& result,
+      Model::Pack& input,
+      Tetrodotoxin::Library::Language::Constant& result,
       const Model::Type& type)
       : Operation(
             domain,
-            Static::Vector<Reference<Expression>, 1>{{input}},
+            Static::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>, 1>{{input}},
             {}),
         result(result),
         type(type) {}
 
   auto get_name() const -> View::Bytes override { return "Fold input"_view; }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
   auto get_evaluations() const -> Count { return evaluations; }
 
  protected:
-  auto evaluate_constants(Allocator::Arena&)
-      -> Result<Option<Constant&>, Expression::Error> override {
+  auto evaluate_constants(Allocator::Arena&) -> Result<
+      Option<Tetrodotoxin::Library::Language::Constant&>,
+      Expression::Error> override {
     evaluations++;
     return result;
   }
@@ -97,40 +100,47 @@ class MultiplyFoldInput : public Operation {
   }
 
  private:
-  Constant& result;
+  Tetrodotoxin::Library::Language::Constant& result;
   const Model::Type& type;
   Count evaluations = 0;
 };
 
 static auto selected(
     const Result<Option<Model::Pack&>, Expression::Error>& result)
-    -> Option<Expression&> {
+    -> Option<Tetrodotoxin::Library::Language::Constant&> {
   return result.visit(
-      [](const Option<Model::Pack&>& folded) -> Option<Expression&> {
+      [](const Option<Model::Pack&>& folded)
+          -> Option<Tetrodotoxin::Library::Language::Constant&> {
         return folded.visit(
-            []() -> Option<Expression&> { return {}; },
-            [](Model::Pack& selected) -> Option<Expression&> {
-              return selected.select<Expression>();
+            []() -> Option<Tetrodotoxin::Library::Language::Constant&> {
+              return {};
+            },
+            [](Model::Pack& selected)
+                -> Option<Tetrodotoxin::Library::Language::Constant&> {
+              return selected
+                  .select_identity<Tetrodotoxin::Library::Language::Constant>();
             });
       },
-      [](const Expression::Error&) -> Option<Expression&> { return {}; });
+      [](const Expression::Error&)
+          -> Option<Tetrodotoxin::Library::Language::Constant&> { return {}; });
 }
 
 static auto reports(
     const Result<Option<Model::Pack&>, Expression::Error>& result,
     Expression::Error::Type expected,
-    const Expression& origin) -> Bool {
+    const Abstract& origin) -> Bool {
   return result.visit(
       [](const Option<Model::Pack&>&) { return False; },
       [&](const Expression::Error& error) {
-        return error.get_type() == expected &&
-                       &error.get_expression() == &origin
+        return error.get_type() == expected && &error.get_subject() == &origin
                    ? True
                    : False;
       });
 }
 
-static auto get_unsigned(const Expression& expression) -> Option<U64> {
+static auto get_unsigned(
+    const Tetrodotoxin::Library::Language::Constant& expression)
+    -> Option<U64> {
   return expression.visit<Constants::Unsigned>(
       [](const Constants::Unsigned& selected) -> Option<U64> {
         return selected.get_value();
@@ -138,7 +148,9 @@ static auto get_unsigned(const Expression& expression) -> Option<U64> {
       [](const Abstract&) -> Option<U64> { return {}; });
 }
 
-static auto get_signed(const Expression& expression) -> Option<S64> {
+static auto get_signed(
+    const Tetrodotoxin::Library::Language::Constant& expression)
+    -> Option<S64> {
   return expression.visit<Constants::Signed>(
       [](const Constants::Signed& selected) -> Option<S64> {
         return selected.get_value();
@@ -146,7 +158,9 @@ static auto get_signed(const Expression& expression) -> Option<S64> {
       [](const Abstract&) -> Option<S64> { return {}; });
 }
 
-static auto get_real(const Expression& expression) -> Option<R64> {
+static auto get_real(
+    const Tetrodotoxin::Library::Language::Constant& expression)
+    -> Option<R64> {
   return expression.visit<Constants::Real>(
       [](const Constants::Real& selected) -> Option<R64> {
         return selected.get_value();
@@ -167,7 +181,7 @@ PERIMORTEM_UNIT_TEST(LibraryMultiply, type_selection) {
   MultiplyExpression left("left"_view, u8);
   MultiplyExpression same("same"_view, u8);
   MultiplyExpression other("other"_view, u16);
-  MultiplyExpression unresolved("unresolved"_view, Invalid::get_invalid());
+  MultiplyExpression unresolved("unresolved"_view, Unknown::get_unknown());
   auto& wide_constant = Constants::Unsigned::create_synthetic(domain, u64, 12);
   auto& other_constant = Constants::Unsigned::create_synthetic(domain, u16, 12);
   auto& truth = Constants::True::create_synthetic(domain, boolean);
@@ -185,7 +199,7 @@ PERIMORTEM_UNIT_TEST(LibraryMultiply, type_selection) {
   auto& invalid =
       Operations::Multiply::create_synthetic(domain, unresolved, same);
 
-  EXPECT(exact.get_type().resolve().is<Invalid>());
+  EXPECT(exact.get_type().resolve().is<Unknown>());
   EXPECT_NOT(exact.get_anchor());
   EXPECT(link_operation(exact, source));
   EXPECT(!link_operation(mixed_left, source));
@@ -198,16 +212,16 @@ PERIMORTEM_UNIT_TEST(LibraryMultiply, type_selection) {
   auto exact_result = selected(exact.fold());
 
   EXPECT(&exact.get_type() == &u8);
-  EXPECT(mixed_left.get_type().resolve().is<Invalid>());
+  EXPECT(mixed_left.get_type().resolve().is<Unknown>());
   EXPECT_NOT(exact_result);
-  EXPECT(mismatch.get_type().resolve().is<Invalid>());
-  EXPECT(mixed_constants.get_type().resolve().is<Invalid>());
-  EXPECT(flags.get_type().resolve().is<Invalid>());
-  EXPECT(byte_values.get_type().resolve().is<Invalid>());
-  EXPECT(invalid.get_type().resolve().is<Invalid>());
+  EXPECT(mismatch.get_type().resolve().is<Unknown>());
+  EXPECT(mixed_constants.get_type().resolve().is<Unknown>());
+  EXPECT(flags.get_type().resolve().is<Unknown>());
+  EXPECT(byte_values.get_type().resolve().is<Unknown>());
+  EXPECT(invalid.get_type().resolve().is<Unknown>());
 }
 
-PERIMORTEM_UNIT_TEST(LibraryMultiply, checked_integer_widths) {
+PERIMORTEM_UNIT_TEST(LibraryMultiply, integer_widths) {
   Allocator::Arena domain;
   Tetrodotoxin::Library::Dialect producer;
   auto& source = create_library_monograph(domain, producer);
@@ -241,7 +255,7 @@ PERIMORTEM_UNIT_TEST(LibraryMultiply, checked_integer_widths) {
   auto& signed_overflow =
       Operations::Multiply::create_synthetic(domain, minimum, negative_one);
 
-  EXPECT(unsigned_success.get_type().resolve().is<Invalid>());
+  EXPECT(unsigned_success.get_type().resolve().is<Unknown>());
   EXPECT(link_operation(unsigned_success, source));
   EXPECT(link_operation(unsigned_overflow, source));
   EXPECT(link_operation(zero_product, source));
@@ -297,7 +311,7 @@ PERIMORTEM_UNIT_TEST(LibraryMultiply, ieee_real_domains) {
       Operations::Multiply::create_synthetic(domain, infinity, one);
   auto& unordered = Operations::Multiply::create_synthetic(domain, nan, one);
 
-  EXPECT(narrow.get_type().resolve().is<Invalid>());
+  EXPECT(narrow.get_type().resolve().is<Unknown>());
   EXPECT(link_operation(narrow, source));
   EXPECT(link_operation(wide, source));
   EXPECT(link_operation(infinite, source));
@@ -323,7 +337,7 @@ PERIMORTEM_UNIT_TEST(LibraryMultiply, ieee_real_domains) {
   EXPECT(unordered_number && __builtin_isnan(*unordered_number));
 }
 
-PERIMORTEM_UNIT_TEST(LibraryMultiply, recursive_exact_is_idempotent) {
+PERIMORTEM_UNIT_TEST(LibraryMultiply, stable_folding) {
   Allocator::Arena domain;
   Tetrodotoxin::Library::Dialect producer;
   auto& source = create_library_monograph(domain, producer);
@@ -337,7 +351,7 @@ PERIMORTEM_UNIT_TEST(LibraryMultiply, recursive_exact_is_idempotent) {
   auto& multiply =
       Operations::Multiply::create_synthetic(domain, factor, child);
 
-  EXPECT(multiply.get_type().resolve().is<Invalid>());
+  EXPECT(multiply.get_type().resolve().is<Unknown>());
   EXPECT(link_operation(multiply, source));
   EXPECT(link_operation(multiply, source));
   EXPECT(&multiply.get_type() == &selected_type);
@@ -348,7 +362,7 @@ PERIMORTEM_UNIT_TEST(LibraryMultiply, recursive_exact_is_idempotent) {
 
   ASSERT(first && second);
   EXPECT(&*first == &*second);
-  EXPECT(first->is<Constants::Unsigned>());
+  EXPECT(first->is_identity<Constants::Unsigned>());
   EXPECT(&first->get_type() == &selected_type);
   EXPECT(value && *value == 12);
   EXPECT(child.get_evaluations() == 1);

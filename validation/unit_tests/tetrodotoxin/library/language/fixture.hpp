@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -9,10 +9,10 @@
 #include "tetrodotoxin/library/language/model/types/signed.hpp"
 #include "tetrodotoxin/library/language/model/types/unsigned.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/span.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/span.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 namespace Validation {
 
@@ -23,13 +23,13 @@ inline auto create_library_monograph(
     Perimortem::Memory::Allocator::Arena& arena,
     Tetrodotoxin::Library::Dialect& dialect)
     -> Tetrodotoxin::Library::Language::Monograph& {
-  Ttx::Lexical::Errors errors;
-  Ttx::Lexical::Tokenizer tokenizer(arena, {}, {});
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
-  Ttx::Lexical::Cursor cursor(tokenizer, errors, associations);
+  Tetrodotoxin::Source::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Tokenizer tokenizer(arena, {}, {});
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Cursor cursor(tokenizer, errors, associations);
   return Tetrodotoxin::Library::Language::Monograph::create_authored(
-      cursor, Ttx::Concept::Documentation::get_empty(),
-      Ttx::Lexical::Anchor::create(Ttx::Lexical::Span()), dialect, dialect);
+      cursor.get_arena(), Tetrodotoxin::Source::Documentation::get_empty(),
+      Tetrodotoxin::Source::Lexical::Anchor::create(Tetrodotoxin::Source::Lexical::Span()), dialect, dialect);
 }
 
 inline auto resolve_library_flag(
@@ -37,7 +37,7 @@ inline auto resolve_library_flag(
     -> const Tetrodotoxin::Library::Language::Model::Types::Flag& {
   return static_cast<
       const Tetrodotoxin::Library::Language::Model::Types::Flag&>(
-      monograph.resolve_context("Bool"_view));
+      monograph.resolve_concept("Bool"_view));
 }
 
 inline auto resolve_library_unsigned(
@@ -46,7 +46,7 @@ inline auto resolve_library_unsigned(
     -> const Tetrodotoxin::Library::Language::Model::Types::Unsigned& {
   return static_cast<
       const Tetrodotoxin::Library::Language::Model::Types::Unsigned&>(
-      monograph.resolve_context(name));
+      monograph.resolve_concept(name));
 }
 
 inline auto resolve_library_signed(
@@ -55,7 +55,7 @@ inline auto resolve_library_signed(
     -> const Tetrodotoxin::Library::Language::Model::Types::Signed& {
   return static_cast<
       const Tetrodotoxin::Library::Language::Model::Types::Signed&>(
-      monograph.resolve_context(name));
+      monograph.resolve_concept(name));
 }
 
 inline auto resolve_library_real(
@@ -64,7 +64,7 @@ inline auto resolve_library_real(
     -> const Tetrodotoxin::Library::Language::Model::Types::Real& {
   return static_cast<
       const Tetrodotoxin::Library::Language::Model::Types::Real&>(
-      monograph.resolve_context(name));
+      monograph.resolve_concept(name));
 }
 
 inline auto resolve_library_type(
@@ -72,7 +72,7 @@ inline auto resolve_library_type(
     Perimortem::Core::View::Bytes name)
     -> const Tetrodotoxin::Library::Language::Model::Type& {
   return static_cast<const Tetrodotoxin::Library::Language::Model::Type&>(
-      monograph.resolve_context(name));
+      monograph.resolve_concept(name));
 }
 
 }  // namespace Validation

@@ -1,14 +1,14 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
 
 #include "tetrodotoxin/library/language/model/callable.hpp"
-#include "tetrodotoxin/library/language/parameter.hpp"
 #include "tetrodotoxin/library/language/types/enumeration.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/model/documentations/comment.hpp"
-#include "ttx/model/layouts/ranged.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/documentations/comment.hpp"
+#include "tetrodotoxin/source/layouts/addressable.hpp"
+#include "tetrodotoxin/source/layouts/ranged.hpp"
 
 namespace Tetrodotoxin::Library::Builtin::Enum {
 
@@ -26,23 +26,15 @@ class Name : public Language::Model::Callable {
 
   TTX_NAME(name);
   TTX_DOCUMENTATION(documentation);
-  TTX_CONSTEXPR_INVALID_CONTEXT;
 
   constexpr auto get_parameters() const
-      -> const Ttx::Concept::Layout& override {
+      -> const Tetrodotoxin::Source::Layout& override {
     return parameters;
   }
 
-  constexpr auto get_results() const -> const Ttx::Concept::Layout& override {
+  constexpr auto get_results() const -> const Tetrodotoxin::Source::Layout& override {
     return results;
   }
-
-  auto lower_call(
-      Llvm::Builder& body,
-      const Ttx::Model::Pack& result,
-      Perimortem::Core::View::Vector<LLVMValueRef> inputs,
-      Perimortem::Core::Option<const Ttx::Model::Pack&> receiver_source) const
-      -> Bool override;
 
   auto fold_call(
       Perimortem::Memory::Allocator::Arena& domain,
@@ -52,7 +44,7 @@ class Name : public Language::Model::Callable {
 
  private:
   constexpr Name(
-      Language::Parameter& self,
+      Tetrodotoxin::Source::Layouts::Addressable& self,
       const Language::Types::Enumeration& enumeration,
       const Language::Model::Type& result)
       : enumeration(enumeration),
@@ -62,10 +54,10 @@ class Name : public Language::Model::Callable {
 
   const Language::Types::Enumeration& enumeration;
   const Language::Model::Type& result_type;
-  Ttx::Model::Layouts::Ranged parameters;
-  Ttx::Model::Layouts::Ranged results;
+  Tetrodotoxin::Source::Layouts::Ranged parameters;
+  Tetrodotoxin::Source::Layouts::Ranged results;
 
-  static constexpr Ttx::Model::Documentations::Comment documentation{
+  static constexpr Tetrodotoxin::Source::Documentations::Comment documentation{
     "Returns the authored name of this Enumeration value or an empty View."_view,
   };
 };

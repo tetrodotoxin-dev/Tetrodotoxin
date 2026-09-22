@@ -1,19 +1,27 @@
 # Library
 
-Library is Tetrodotoxin's language for reusable CPU code. It provides scalar
-Types, values, expressions, Functions, Structs, Objects, Enumerations, and
-Generic containers. Packages, applications, Scenes, tools, and native compilers
-all work with those same language objects instead of translating them through a
-separate intermediate model.
+Library is the reusable execution language inside a larger Tetrodotoxin
+project. It is where code, data structures, algorithms, native interfaces, and
+the behavior hosted by Apps, Scenes, or Shaders come together.
 
-Every Library Type follows one language-owned Type protocol that refines the
-host-neutral TTX Type contract once. Library's Value, Flag, Real, Signed, and
-Unsigned families, composite Types, Generic materializations, access policy,
-and default construction all branch beneath that protocol. Library
-Addressables similarly refine the TTX Addressable edge once so an instance can
-ask its exact Library Type a Self question. TTX retains the common identities,
-Layouts, Packs, Addressables, and Callables without acquiring Library's scalar
-or receiver rules.
+You can write scalar expressions, Functions, Structs, shared Objects,
+Enumerations, and Generic containers without leaving the semantic world used by
+the rest of the platform. A Package refers to the real Library Type, the editor
+navigates to it, and an LLVM or Vulkan Terminal can consume it from the context
+that owns its execution. There is no translated Library shaped IR between those
+experiences.
+
+Library keeps its own rules for values, access, receivers, construction, and
+Generic materialization. It shares exact identities, Layouts, Packs,
+Addressables, and Callables through TTX wherever another language or tool needs
+to participate.
+
+Three cooperating parts keep that meaning reusable. The Language model owns
+the graph people and tools query. The Interpreter reads Library source into
+that model. The Archive producer walks a completed Monograph and records the
+facts needed to reconstruct a fresh one later. Embedding Library in Scene or
+Shader therefore reuses its Types, Functions, and value flow without importing
+its source reader or choosing its persistent format.
 
 Canonical grammar reference: [Library.g4](grammar/Library.g4).
 
@@ -25,6 +33,12 @@ public twice : func = [.value : U64] -> U64 {
   return value * 2;
 }
 ```
+
+The guide starts with the expressions and Types you meet while reading Library
+source, then grows outward into declarations, control flow, Packages,
+persistence, and native compilation. If you are looking for one feature, the
+headings are designed to work as a reference. If you are meeting the language
+for the first time, following them in order builds the model gradually.
 
 ## Names and access
 
@@ -110,7 +124,7 @@ Option[Graphics::Image]
 
 It evaluates its receiver and asks that exact semantic result for the next
 context. Package, Monograph, and namespace results may continue through another
-`::`; a Static invocation requires the terminal result to be one Library Type.
+`::`. A Static invocation requires the terminal result to be one Library Type.
 A Package Source Alias continues to retain its real Monograph. When that source
 publishes a root Type matching the authored Source route, expression Type access
 selects that Type without changing what Package and `using` queries observe.
@@ -245,7 +259,7 @@ writes through an engaged address and leaves the receiver unchanged otherwise.
 A ranged selection produces one writable Ranged target with exactly `count`
 element slots. Its bounds decision is atomic: either the complete interval is
 engaged and assignment writes every supplied value in order, or no value is
-written. The receiving target owns complete-Pack compatibility, so Assignment
+written. The receiving target owns complete Pack compatibility, so Assignment
 does not inspect Index, Slice, View, Fixed, or another concrete carrier.
 `+=` and `-=` remain scalar operations. Use `:[...]` when missing elements
 should instead produce defaults.
@@ -270,7 +284,7 @@ a valid position selects the same safe default. A range count that does not
 fold to a constant or cannot represent a supported nonnegative count is a semantic
 error, as is another operand Type.
 
-## Built-in Types
+## Built in Types
 
 Library provides these scalar families:
 
@@ -289,12 +303,25 @@ inactive. `Bool` supplies Library's standard Flag Layout and Constant
 representation, but control flow and logical operations query the Flag
 protocol. They do not select `Bool` or inspect its storage.
 
-Library has no zero-value Type. An authored `[]` is the empty result Layout and
+Library has no zero value Type. An authored `[]` is the empty result Layout and
 an empty Composite is a Static namespace rather than an instantiable value.
 
 Scalar operations require the exact resolved Type identity expected by that
 operation. Library does not silently widen, narrow, retag, or reinterpret a
 Constant to make an operation legal.
+
+Use `new[Target](value)` when a program intends to cross between Signed,
+Unsigned, and Real scalar Types:
+
+```ttx
+state width := new[S64](image_size.width);
+state sample := new[R32](pixel.red);
+```
+
+This conversion is total. Integer results saturate at the target bounds. Real
+to integer conversion truncates toward zero and maps NaN to zero. Integer to
+real and real to real conversion use the destination precision. Keeping this
+operation explicit lets ordinary arithmetic continue to require exact Types.
 
 Generic formulas describe reusable Type families. A formula is not itself a
 Type. Applying its ordered arguments materializes one exact Library Type. Type
@@ -306,6 +333,7 @@ Fixed[U8, 64]
 View[U8]
 View[Fixed[U8, 4]]
 Access[U8]
+Implementation[Graphics::Pipeline::TexturedQuad2D]
 Range[U64]
 Option[View[U8]]
 Result[View[U8], ParseError]
@@ -315,13 +343,20 @@ Result[View[U8], ParseError]
 value known during linking. Every generated container Type requires an element
 Type with a nonempty Layout. `View` is a borrowed contiguous view.
 `Access` additionally carries the language's writable contiguous capability.
+`Implementation[Requirement]` accepts a real Library Object when that Object's
+semantic owner satisfies the exact requirement through a higher order TTX
+Interface relation. It retains that Object through one explicit erased value.
+Native Terminals derive an immutable Projection for the accepted Object and
+requirement, while code that keeps the concrete Object uses direct lowering.
+The empty Implementation value is the ordinary unconfigured state and adds no
+allocation.
 `Range` describes a lazy ascending integer sequence. `Option[T]` represents a
 value that may be absent in an otherwise nonnullable language. The Option Type
 always has a nonempty Layout. Its state either carries one exact `T` or carries
 no payload. Native Library targets normally use the Perimortem value carrier:
 one inline payload slot followed by its selected state. An Option over one
 nonnull authored Object uses the invalid null handle as its absent state and
-therefore remains one word. Empty-capable `Object[T]` retains the ordinary tag.
+therefore remains one word. Empty capable `Object[T]` retains the ordinary tag.
 The payload is live only when selected, and Option adds no allocation,
 reference count, or shared identity.
 `Result[T, E]` stores exactly one live value or error alternative in an inline
@@ -338,7 +373,7 @@ Callables through one callable surface. A Generic installs its required
 Callables when it materializes the exact Type, so lookup, reflection, and
 completion enumerate the same identities regardless of their origin.
 `view -> get_size()` and `access -> get_size()` return the runtime element count
-as exact `U64`; `is_empty()` reports whether that count is zero and
+as exact `U64`. `is_empty()` reports whether that count is zero and
 folds for immutable Views. `fixed -> get_view()` borrows the complete Fixed
 storage without changing its read only authority. Byte literals remain Fixed
 values and therefore use this explicit conversion when a View is required. A
@@ -354,23 +389,23 @@ operation. This borrowed subview is distinct from `:[start, count]`, which
 produces exactly `count` independent values and supplies defaults outside the
 receiver.
 
-`Object[T]` is the empty-capable worker-local managed buffer formula. Its
-one-word handle retains one Bibliotheca allocation while capacity remains
+`Object[T]` is the empty capable worker local managed buffer formula. Its
+one word handle retains one Bibliotheca allocation while capacity remains
 recoverable from that allocation. `object -> get_capacity()` returns the
 allocated element count. `get_view()` borrows every allocated element, while
 `get_access()` borrows the same writable buffer observed by every alias.
-`reserve(count)` is a no-op when the current capacity is sufficient; otherwise
+`reserve(count)` is a no operation when the current capacity is sufficient. Otherwise
 it replaces that receiver handle with a larger copied buffer and returns Access
 covering the new capacity. Other aliases retain the old Object. `is_shared()`
 reports whether another owned handle retains the current buffer, and `clone()`
 explicitly replaces a writable receiver with an independent buffer copy. Empty
 Object storage returns zero capacity and empty bounds without exposing its
 internal null representation. Buffer element Types may be scalar or Structures
-whose recursive Fields own no Objects. This restriction belongs to buffer-wide
-destruction; authored nonnull Objects still destroy their contained Object
+whose recursive Fields own no Objects. This restriction belongs to buffer wide
+destruction. Authored nonnull Objects still destroy their contained Object
 Fields recursively.
 
-`Dynamic::Bytes` is the worker-local copy-on-write byte value. Its native
+`Dynamic::Bytes` is the worker local copy on write byte value. Its native
 carrier is `Object[U8]` plus one logical size. Copying the value retains
 the Object, while a writable operation detaches shared storage before exposing
 it. Capacity remains owned by Bibliotheca rather than duplicated in Bytes.
@@ -380,11 +415,11 @@ as View. Bytes is an inline value whose Self Callables receive its address.
 Transformations update that receiver and return the same reference with the
 scalar result `self`, enabling chains without copying the Bytes carrier. Before
 writing, Bytes reserves the required capacity. Growth already produces a
-private Object; when existing capacity is sufficient, `is_shared()` selects
-`clone()` before writable Access escapes. Copy-on-write policy therefore
+private Object. When existing capacity is sufficient, `is_shared()` selects
+`clone()` before writable Access escapes. Copy on write policy therefore
 belongs to Bytes rather than Object.
 The Memory Package owns `copy`, append, concat, resize, shrink, clear, and
-reserve behavior directly over Object; it exposes no Access that could bypass
+reserve behavior directly over Object. It exposes no Access that could bypass
 the logical size. Static `Dynamic::Bytes -> concat(left, right)` and receiver
 `bytes -> concat(view)` may share one spelling because they have distinct
 receiver roles. Byte Views and Dynamic::Bytes are standard interchange
@@ -392,8 +427,8 @@ carriers, so receiving those exact contracts across Library source roots does
 not depend on the roots sharing one Generic materialization cache.
 
 Structure ownership is derived recursively from its exact Fields. Object Fields
-retain and release their Core handles, so a runtime-backed value needs no
-native lifecycle Attribute or compiler-specific hook.
+retain and release their Core handles, so a runtime backed value needs no
+native lifecycle Attribute or compiler specific hook.
 
 Each Library root Generic owns its canonical materialized identities in that
 root's source transaction Arena. The Monograph reaches them through its root
@@ -401,7 +436,7 @@ vocabulary and releases the whole graph with that Arena. Materialization
 therefore owns no source, parser, diagnostic, or general interpretation
 context, and the installed Dialect retains no semantic identity cache.
 
-Generic rejection is a typed, source-free result owned by the formula. The
+Generic rejection is a typed, source free result owned by the formula. The
 authored TypeReference maps that result to the exact retained argument Anchor
 and reports it through the operation Cursor. Silent resolution is reserved for
 repeated Alias probing. Every committed consumer uses the reporting path.
@@ -432,10 +467,10 @@ This is Pack fitting rather than Layout fitting. `[]` does not fit
 `Option[T]`, and Option never acquires an empty Layout. Its absent state can
 produce `()` only through the flow control owned by postfix `?`.
 
-Option and Result are built-in Library Generic Types rather than standard
+Option and Result are built in Library Generic Types rather than standard
 Packages. Option represents recoverable absence without making Objects nullable.
 Result represents one handled error Type that cannot be discarded by
-propagation. A user-defined fallible operation is a Static factory returning the
+propagation. A user defined fallible operation is a Static factory returning the
 appropriate sum. Object initialization itself never publishes a partly
 initialized value.
 
@@ -456,25 +491,26 @@ state block := new[Fixed[U8, 8]];
 state session := new[Session];
 ```
 
-The selected Type must be source-admissible and have a nonempty Layout. Bare
+The selected Type must be source admissible and have a nonempty Layout. Bare
 `new` is invalid. An explicit empty argument list is also invalid, so `()` does
 not become a second spelling for default construction. The language defines
 each default independently of the storage chosen by a compiler:
 
-- `Bool` is false and numeric Types use zero.
-- An Enumeration uses its underlying zero value even when no case names
+* `Bool` is false and numeric Types use zero.
+* An Enumeration uses its underlying zero value even when no case names
   zero.
-- `View[T]` and `Access[T]` use empty read-only and writable views respectively.
-- `Range[T]` uses the empty range.
-- `Option[T]` uses the state with no payload and does not construct `T`.
-- `Result[T, E]` uses the value state containing the default of `T`.
-- `Fixed[T, count]` contains `count` default `T` values.
-- A Structure initializes state Fields in source order from each Field's
+* `View[T]` and `Access[T]` use empty read only and writable views respectively.
+* `Implementation[Requirement]` contains no selected Object.
+* `Range[T]` uses the empty range.
+* `Option[T]` uses the state with no payload and does not construct `T`.
+* `Result[T, E]` uses the value state containing the default of `T`.
+* `Fixed[T, count]` contains `count` default `T` values.
+* A Structure initializes state Fields in source order from each Field's
   authored initializer when present and otherwise from that Field Type's
   default.
-- An Object default is one new nonnull Object initialized by the same Field
+* An Object default is one new nonnull Object initialized by the same Field
   rules.
-- A route ending in an Alias resolves it first and asks the represented Library
+* A route ending in an Alias resolves it first and asks the represented Library
   Type. Alias itself owns no default behavior.
 
 Type selection remains outside value flow. `Descriptor` is consequently an
@@ -604,22 +640,24 @@ source, host, or parent edge.
 
 ### Embedded Library layers
 
-A top-level Library source is already a Library layer. Scene and Shader can also
-contain a Library child built by the same Library language installed in the
-Workspace. Reusing that language keeps Generic Types such as `Option[T]`,
-`Fixed[T, count]`, and `View[T]` consistent everywhere they appear.
+A top level Library source is already a Library layer. Scene can also contain a
+Library child because Scene source directly authors Library state and behavior.
+Shader contains a Library child for the same reason: its Stages directly author
+Library Functions, expressions, Blocks, and Flow. Reusing the installed language
+keeps Generic Types such as `Option[T]`, `Fixed[T, count]`, and `View[T]`
+consistent everywhere they appear.
 
-The child has its own Source context for imports, Foreign declarations, and
-Package access. A Scene places its Object, state Fields, helpers, and lifecycle
-Functions there. A Shader uses its child for CPU helpers and marshaling. Only
-the outer Scene or Shader appears as a Package member, but Library tools can
-inspect the real child directly. Nothing is copied into a second Type or member
-list.
+Each child has its own Source context and intrinsic vocabulary. Scene places its
+Object, state Fields, helpers, and lifecycle Functions there. Shader places its
+executable Program Types and Stage Functions there. Only the outer Dialect
+appears as a Package member, while Library tools and Terminals can inspect the
+real child directly. Shader Bridges retain exact Library Type edges without
+copying them.
 
 Scene and Shader remain responsible for the parts of their languages that are
-not Library code. For example, Scene owns `emit` while the expressions and
-ordinary statements around it still follow Library rules. This lets the Library
-compiler handle the CPU code without making Library depend on Scene or Shader.
+not Library code. Scene owns `emit`, while Shader owns Pipeline contracts, storage
+roles, and Bridges. Expressions and ordinary statements still follow Library
+rules without making Library depend on either outer Dialect.
 
 ## Definitions
 
@@ -723,7 +761,7 @@ value rather than a separate initializer inventory.
 A declaration written as `name := expression` has no declared Type to fit. The
 Field retains the exact completed Type of that initializer without widening or
 retagging it. `new[T]` carries its exact result Type, so an inferred declaration
-may use any source-admissible Library default.
+may use any source admissible Library default.
 
 ## Structs
 
@@ -920,7 +958,7 @@ packet -> area()
 ```
 
 The reserved scalar result `self` returns that same reference. It is the
-canonical shorthand for the explicit one-entry `[self]` Layout and enables
+canonical shorthand for the explicit one entry `[self]` Layout and enables
 effectful chaining without copying the receiver:
 
 ```ttx
@@ -932,7 +970,7 @@ packet -> clear() -> reset();
 ```
 
 Reaching the end of a `self`-returning Function returns that reference
-implicitly. `return self;` remains the explicit early-exit form.
+implicitly. `return self;` remains the explicit early exit form.
 
 Static and Self Callables may share a name because their receiver roles
 distinguish the invocation. A Composite rejects a second Callable with the same
@@ -946,9 +984,9 @@ Library expressions retain authored value dependencies and expose both their
 exact semantic result and output Type. The result preserves the identity
 selected by an access. The output Type states which value operations apply, and
 a selected Type has no value output. Every Expression implements the Pack
-contract, so its Layout remains safe to inspect. A Type result exposes an empty
-inspection shape but resolves Invalid as value flow. Only a Pack that resolves
-to itself supplies an empty Layout as completed zero-value flow. Scalar
+support contract, so its Layout remains safe to inspect. Pack has no identity
+or resolution behavior; its Layout points directly at the real semantic
+producers, and an empty Layout is completed zero value flow. Scalar
 expression consumers require one exact produced value and output Type, while
 calls, swizzles, and slices may preserve empty output or output with several
 values without inventing a group Type.
@@ -973,16 +1011,16 @@ operation. Safe
 Postfix `?` makes a chain of fallible operations concise. Its exact receiver Type
 owns both the continuation and escape flow:
 
-- `Option[T]` continues with `T` when present and otherwise escapes with empty
+* `Option[T]` continues with `T` when present and otherwise escapes with empty
   flow.
-- An active Flag such as Bool continues with that exact Flag value, while an
+* An active Flag such as Bool continues with that exact Flag value, while an
   inactive value escapes with empty flow.
-- `Result[T, E]` continues with `T` for its value state and escapes with exact
+* `Result[T, E]` continues with `T` for its value state and escapes with exact
   `E` for its error state.
 
 The enclosing Function must receive the complete escape Pack. Empty flow fits
 `[]` or one `Option[R]`. A Result error fits exact `E` or a receiving
-`Result[R, E]`; it cannot disappear into `[]` or Option. Different error Types
+`Result[R, E]`. It cannot disappear into `[]` or Option. Different error Types
 do not convert:
 
 ```ttx
@@ -1007,8 +1045,8 @@ available to tools.
 ## Statements and control flow
 
 A Function body is a Library semantic object, not a lowered control flow graph.
-Each Block retains an ordered sequence of identity-free Statement records. A
-Statement keeps one borrowed root together with its one leading source-backed
+Each Block retains an ordered sequence of identity free Statement records. A
+Statement keeps one borrowed root together with its one leading source backed
 Documentation and the fixed lifecycle operations selected by grammar. For an
 expression Statement, that root is the complete outermost Pack returned by the
 Expression parser. Otherwise it is the exact Local, control owner, or nested
@@ -1028,9 +1066,9 @@ private classify : func = [.value : U64] -> U64 : return value;
 if ready : total += 1; else : total = 0;
 ```
 
-The formatter selects `:` for one directly retained non-control Statement and
+The formatter selects `:` for one directly retained non control Statement and
 braces for several Statements or a nested control Statement whose braces
-preserve unambiguous `else` binding. An empty-result Function omits redundant
+preserve unambiguous `else` binding. An empty result Function omits redundant
 trailing bare returns. If no other Statement remains, its canonical body is
 `: return;`. This is a mechanical presentation rule: nested returns and text
 following an earlier return remain authored content. An empty body for any
@@ -1060,21 +1098,21 @@ must be absent from its complete reachable lexical context. A nested Block
 therefore cannot shadow a preceding Local, Function parameter, loop entry,
 match payload, or another enclosing binding. A standalone `{ ... }` is itself
 one Statement and retains that exact nested Block rather than fabricating a
-control-flow owner.
+control flow owner.
 
 Diagnostic recovery does not change that transaction boundary. When an
 explicit Local Type has settled but its initializer fails, later Statements in
 the same rejected transaction may still query that Local's name, Type, and
-member surface. Its value remains incomplete, the Local continues to resolve
-Invalid, and the failed Monograph is never published. An inferred Local has no
+member surface. Its value remains incomplete, the Local continues to answer
+Unknown, and the failed Monograph is never published. An inferred Local has no
 such recovery binding until its initializer establishes one exact Type.
 
-`=`, `+=`, and `-=` are distinct lowest-precedence Library Expression
-operators selected by unambiguous TTX Tokens. They parse right-associatively
+`=`, `+=`, and `-=` are distinct lowest precedence Library Expression
+operators selected by unambiguous TTX Tokens. They parse right associatively
 after the complete tighter expression on their left and ask that exact
 Expression for explicit write authority over the complete right Pack.
 AddAssignment and SubtractAssignment each own their exact scalar
-read-modify-write rule rather than being modes of Assignment or hidden nested
+read modify write rule rather than being modes of Assignment or hidden nested
 arithmetic Expressions. Indexed writes occur only when the selected optional
 reference is engaged. No write falls through from Address access to Type or
 Callable lookup.
@@ -1082,7 +1120,7 @@ Callable lookup.
 Each write operator produces completed empty flow because it records an effect,
 not a new value. It can therefore occupy an ordinary expression Statement
 without a special Block parse path, but it cannot feed another operator. For
-example, `a = b = value` has the conventional right-associated parse and is
+example, `a = b = value` has the conventional right associated parse and is
 rejected because the inner Assignment supplies no value to the outer one.
 
 `return` retains one Pack and fits its complete output Layout against the
@@ -1127,13 +1165,13 @@ match value {
 The first case makes the stored `T` available only inside that branch. The
 discard case observes the state with no payload and introduces no binding.
 Option element Types always have nonempty Layouts. General runtime Type patterns
-require a real sum or dynamic-Type domain. They are not meaningful for ordinary
+require a real sum or dynamic Type domain. They are not meaningful for ordinary
 values that already have one known static Type.
 
 Any complete Pack or Expression followed by `;` is a Statement. Block
 membership discards that output after preserving its semantic identity and
 source order, so Calls, pure expressions, and assignment use one path instead
-of requiring an invocation-only statement category.
+of requiring an invocation only statement category.
 
 ## Imports and resources
 
@@ -1145,16 +1183,16 @@ using Core;
 using Graphics::Utilities;
 ```
 
-The route follows ordinary `::` contextual access one name at a time. Alias
+The route follows ordinary `::` concept access one name at a time. Alias
 selection resolves to its target before the next query. Once the route is
-complete, unresolved `resolve_context`, `resolve_access`, and `resolve_call`
-queries fall through to that exact borrowed context. Library never enumerates
-or copies its declarations, constructs forwarding Aliases, or requires the
-selected object to be a Package or Library Monograph.
+complete, unanswered `resolve_concept` queries fall through to that exact
+borrowed context. Library never enumerates or copies its declarations,
+constructs forwarding Aliases, or requires the selected object to be a Package
+or Library Monograph.
 
 Linking asks every admitted fallback about each locally declared name and
 rejects a second answer. If multiple fallback contexts answer some other later
-query with different identities, that query resolves to Invalid. Language
+query with different identities, that query resolves to Unknown. Language
 extensions therefore compose as localized query contexts without a shared
 registry or imported declaration table.
 
@@ -1176,22 +1214,32 @@ never discovers, links, finalizes, or owns a provider closure.
 
 ## Attributes and native publication
 
-Semantic publication and native publication answer different questions. A
-public Callable can be selected by another Monograph without promising an
-unmangled platform symbol. Definition keeps every authored Attribute as ordered
-source data and assigns no Attribute a Library wide meaning. A native compiler
-may consume Function publication requests such as:
+Public Library declarations already say which parts of a completed graph may
+be used by another source. A native Terminal can follow those same semantic
+routes to create its host interface. When a Function and each Type that hosts
+it are public or exposed, the ABI Terminal publishes it automatically. Ordinary
+TTX code therefore needs no ABI Attribute and no authored native symbol.
+
+The generated C++ API keeps the Package, Type, and Function names that were
+authored in TTX. Its implementation crosses a generated C boundary privately,
+which gives C and C++ consumers one carrier agreement without making encoded C
+symbols part of the friendly interface.
+
+Definition still keeps every authored Attribute as ordered source data and
+assigns no Attribute a Library wide meaning. An embedding boundary can consume
+an Attribute when it genuinely needs to meet an existing platform contract.
+For example, a legacy C host may require one exact symbol:
 
 ```ttx
-@abi("C")
+@abi("C") @symbol("library_native")
 public library_native : func = [] -> U64 {
   return 42;
 }
 ```
 
-The compiler may generate a native name for that interface. An embedding
-boundary that must match an existing platform spelling may additionally request
-the exact override `@symbol("library_native")`.
+That override adapts the generated Terminal to a name owned outside the Package.
+It is not required for publication and should not be repeated for ordinary TTX
+APIs.
 
 The consumer decides whether `abi`, `symbol`, `retain`, or `release` is relevant,
 which values and repetitions it supports, and whether the selected declaration
@@ -1200,86 +1248,74 @@ preconfirm those choices because another compiler or an embedding Dialect may
 assign the same authored facts different policy. Unknown keys remain available
 to future consumers without changing the declaration.
 
-When a Library CPU compiler chooses to honor a C ABI request, it checks that
-every parameter and result Type has a valid C representation for the selected
-target and rejects any unsupported local request at that consumption boundary.
-Ordinary TTX calls require no ABI Attribute. Their target calling convention is
-compiler policy rather than authored Library semantics. A C request may select
-different aggregate carriers from an internal TTX call. Linker checks that the
-resulting exported symbol names are unique before it emits native bytes. Function
-decides neither target representation nor complete program symbol policy.
+The native ABI Terminal checks that every published parameter and result Type
+has a valid representation for the selected target. Internal TTX calls may use
+a different aggregate convention from the generated host boundary. Linker
+checks the completed symbol set before it emits native bytes. Function decides
+neither target representation nor complete program symbol policy.
 
-A public Callable without `@abi` is still available to language lookup. The
-compiler gives it a stable internal symbol when native code needs one. Private
-Callables never enter the exported symbol list.
-[Linker](../linker/README.md) owns the resulting Symbol records and native
+Private Callables stay internal unless an embedding contract explicitly names
+one. [Linker](../linker/README.md) owns the resulting Symbol records and native
 bytes.
 
 ## Persistence
 
-Library can be stored in a Package Archive and reconstructed without its source
-file. A Complete payload keeps its public and private Types, Fields, Function
-signatures, folded constants, Foreign declarations, ABI requests, and native
-artifact locations. An Interface payload keeps the public closure of those
-facts. Neither retains Function bodies, expressions, control flow, or access
-operations.
+Library can be stored in a Package product and reconstructed without its source
+file. The complete payload keeps its public and private Types, Fields, Function
+signatures, folded constants, Foreign declarations, and Attributes. It retains
+foreign symbol requirements but no native provider or artifact locations,
+Function bodies, expressions, control flow, or access operations.
 
-The restored Library is a TTX wrapper over its compiled artifacts, analogous to
-a Foreign block whose ABI is TTX. It answers the Type, Addressable, Callable,
-and constant queries required for composition while stable native symbols reach
-the provider implementation. A source build or live Workspace performs another
-lowering.
+The restored Library answers the Type, Addressable, Callable, and Constant
+queries required for composition. A later build tool links ordinary native
+libraries for the retained foreign symbols. A source build or live Workspace
+performs another lowering.
 
-Neither profile stores parser state, process addresses, compiler caches, LLVM
-IR, native bytes, live Object references, or source-level debugging data.
+The payload stores no parser state, process addresses, compiler caches, LLVM
+IR, native bytes, live Object references, or source level debugging data.
+
+Archive is a Terminal producer rather than a capability injected into Library
+objects. Its writer walks completed semantic identities and owns Format 2 tag
+selection. Its reader validates bounded records, then calls the same
+Cursor independent Language factories available to any trusted producer. The
+Language model contains no Archive reader, writer, tag, or persistence callback.
 
 Restoring an Archive creates new Library objects and completes them through the
 same rules used for source. The result preserves all names, categories,
 relationships, ordering, Layout behavior, and other visible facts promised by
-the selected profile. Its in-memory arrangement does not need to match the old
-process. A Library child inside Scene or Shader uses the same Complete or
-Interface profile as its parent.
+the product. Its in memory arrangement does not need to match the old process.
+A Library child inside Scene or Shader belongs to the same complete graph as
+its parent.
 
 ## Compilation boundary
 
-The Library compiler accepts either a top level Library or the Library child
-inside Scene or Shader. App may select one Static Callable as the program entry,
-but App itself does not become Library code.
+Library ends with completed meaning. It exposes its real Sources, Types,
+Callables, Blocks, Expressions, Packs, and retained semantic edges without
+knowing which product will consume them. There is no compiler transaction,
+lowering callback, native handle, or Terminal capability in the Dialect.
 
-Lowering is a forward operation on the completed Library graph. Monograph,
-Source, Type, Function, Block, Statement, Expression, and their concrete owners
-visit the exact edges they already retain and write target facts into one
-`Library::Llvm::Program` transaction. Operation exposes its complete input
-View, while each concrete Operation decides how those inputs lower. No backend
-walks a copied Library model or maintains a second category dispatcher.
+A Terminal begins from that completed graph. It walks the concrete Library
+owners it supports and derives physical facts for one configured target. Those
+facts may use original Abstract identities as request local keys, but they never
+become another semantic model and never flow back into Library.
 
-Program receives the caller Arena, source reporting conduit, and one target
-configuration. Program owns module-wide carrier, Callable, and Static facts.
-Each Function or Static initializer creates one concrete Builder over its
-scoped Body transaction. Neither transaction inherits a target capability
-interface or constructs a copied intermediate representation.
-Every physical fact remains keyed by the original Library identity that
-produced it. Lowering returns the completed Program only after every reachable
-owner has contributed successfully.
+The LLVM Terminal currently produces CPU objects and reviewable LLVM IR from a
+top level Library or a real Library child selected by another Dialect. The
+Vulkan Terminal walks the same Library execution graph from Shader while using
+the outer Pipeline contracts, storage roles, and Bridges to choose GPU operations
+and their matching CPU bindings.
 
-Program accumulates module wide Types, symbols, Static state, and Callable
-relationships before its `compile` operation emits Terminal products. Builder
-owns addresses, values, blocks, and ownership for one executable Body. Branch,
-Match, Slice, Option, and logical owners retain their transient lowering handles
-locally. Those facts end with the Body and never persist as a current Function
-mode on Program.
-
-The internal lowering interface may exchange only the opaque handles declared
-by `llvm-c/Types.h`. LLVM operations, C++ headers, target-machine APIs, direct
-assembler types, registers, and object formats remain inside the compiler
-implementation. Library owners preserve evaluation order, control flow,
-fitting, and graph identity. Puffer selects the target configuration, asks
-Library to lower, and requests compilation from the returned Program.
+The ABI Terminal owns the shared C representation, exported symbols, and native
+publication surface. LLVM consumes that agreement while owning instruction
+choice, target data layout, calling convention realization, and debug
+representation. Puffer supplies the target configuration and coordinates those
+sibling products. Library keeps evaluation order, control flow, fitting, and
+graph identity as semantic facts.
 
 The CPU target chooses the instruction set, data layout, and calling convention.
-x86-64 System V and x86-64 Win64 are separate targets. Tetrodotoxin lowers CPU
-facts through LLVM and produces an object module for Linker. LLVM does not own
-Package locations, operating system startup, or linking rules.
+x86-64 System V and x86-64 Win64 are separate targets. The LLVM Terminal produces
+an object module for Linker without owning Package locations, operating system
+startup, or linking rules.
 
 Linux and Windows hosts provide process entry, runtime and System services,
 loader inputs, and the executable format around the CPU code. Linker owns ELF,

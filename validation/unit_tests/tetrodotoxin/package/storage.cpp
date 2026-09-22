@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/package/storage.hpp"
@@ -12,6 +12,7 @@
 #include <unistd.h>
 
 #include "perimortem/core/static/bytes.hpp"
+#include "perimortem/core/bibliotheca.hpp"
 #include "perimortem/core/data.hpp"
 #include "perimortem/core/null_terminated.hpp"
 
@@ -437,7 +438,7 @@ PERIMORTEM_UNIT_TEST(PackageStorage, retry_after_failure) {
   EXPECT_TEXT(available->get_contents(), "available"_view);
 }
 
-PERIMORTEM_UNIT_TEST(PackageStorage, cache_growth_and_move) {
+PERIMORTEM_UNIT_TEST(PackageStorage, cache_growth) {
   TemporaryPackage temporary;
   ASSERT(temporary);
   ASSERT(temporary.write("stable.bin"_view, "stable"_view));
@@ -498,7 +499,7 @@ PERIMORTEM_UNIT_TEST(PackageStorage, opened_root_identity) {
   EXPECT_TEXT(identity->get_contents(), "original root"_view);
 }
 
-PERIMORTEM_UNIT_TEST(PackageStorage, snapshots_survive_storage_transactions) {
+PERIMORTEM_UNIT_TEST(PackageStorage, persistent_snapshots) {
   TemporaryPackage temporary;
   ASSERT(temporary);
   ASSERT(temporary.write("snapshot.bin"_view, "first"_view));
@@ -553,6 +554,20 @@ PERIMORTEM_UNIT_TEST(PackageStorage, snapshots_survive_storage_transactions) {
     ASSERT(content != nullptr);
     EXPECT_TEXT(content->get_contents(), "second"_view);
   }
+}
+
+PERIMORTEM_UNIT_TEST(PackageStorage, releases_snapshot_values) {
+  Count memory_before = Bibliotheca::allocated_memory();
+  {
+    Dynamic::Bytes contents;
+    contents.append('A', 1 << 16);
+    Dynamic::Record<Package::Snapshots> snapshots;
+    ASSERT(snapshots->overlay(
+        "/tmp/tetrodotoxin-snapshot-lifetime"_view, "source.ttx"_view,
+        contents));
+  }
+
+  EXPECT_EQ(Bibliotheca::allocated_memory(), memory_before);
 }
 
 PERIMORTEM_UNIT_TEST(PackageStorage, route_rejections) {

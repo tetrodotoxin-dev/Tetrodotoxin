@@ -1,22 +1,29 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/constants/bytes.hpp"
 
-#include "tetrodotoxin/library/llvm/builder.hpp"
+#include "tetrodotoxin/source/none.hpp"
 
-using namespace Tetrodotoxin::Library;
+using namespace Perimortem;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Library::Language;
 
-auto Language::Constants::Bytes::persist(Archive::Writer& writer) const
-    -> Bool {
-  auto record = writer.begin(Archive::Tag::ConstantBytes);
-  BAIL_IF(
-      !writer.write(get_type().get_name()) || !writer.write(get_value()) ||
-      !writer.finish(record));
-  return True;
+auto Constants::Bytes::resolve_concept(Core::View::Bytes name) const
+    -> const Abstract& {
+  if (name != "resource"_view) {
+    return None::get_none();
+  }
+  return resource.visit(
+      []() -> const Abstract& { return None::get_none(); },
+      [](const Reference<const Tetrodotoxin::Language::Resource>& selected)
+          -> const Abstract& { return selected.get(); });
 }
 
-auto Language::Constants::Bytes::lower(Llvm::Builder& body) const -> Bool {
-  return prepare_carrier(body) &&
-         body.bytes_value(get_type(), *this, get_value());
+auto Constants::Bytes::visit_concepts(
+    Tetrodotoxin::Source::Abstract::Visitor visitor) const -> void {
+  auto selected = get_resource();
+  if (selected) {
+    visitor("resource"_view, *selected);
+  }
 }

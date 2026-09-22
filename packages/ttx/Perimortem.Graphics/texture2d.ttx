@@ -1,0 +1,118 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+// One sampled view of shared decoded image content.
+//
+dialect : Library;
+
+public Math : alias = package(.name = "Perimortem.Math", .version = "1.0");
+public Image : alias = source("image.ttx")::Image;
+public Sampler2D : alias = source("sampler2d.ttx")::Sampler2D;
+
+// Texture2D is an inline binding rather than another allocation identity. Many
+// values can select one Image with independent addressing and filtering policy.
+public Texture2D : struct {
+  public state image   : Image;
+  public state sampler : Sampler2D;
+
+  // Samples normalized coordinates. CPU execution observes the shared Image
+  // directly, while Shader Terminals preserve this operation as target image
+  // sampling with the same Sampler2D policy.
+  @intrinsic("sample_2d")
+  public sample : func = [
+    self,
+    .uv : Math::Vec2D,
+  ] -> Math::Vec4D {
+    state width  := new[S64](self.image.size.width);
+    state height := new[S64](self.image.size.height);
+    if width == new[S64](0) or height == new[S64](0) : return new[Math::Vec4D];
+    if self.sampler.filtering == Sampler2D::Filtering::nearest : return self -> sample_pixel(
+      .x = new[S64](uv.x * new[R32](self.image.size.width)),
+      .y = new[S64](uv.y * new[R32](self.image.size.height)),
+    );
+
+    const half     : R32 = new[R32](0.5);
+    const one      : R32 = new[R32](1.0);
+    state source_x := uv.x * new[R32](self.image.size.width) - half;
+    state source_y := uv.y * new[R32](self.image.size.height) - half;
+    state left     := new[S64](source_x);
+    state top      := new[S64](source_y);
+    if new[R32](left) > source_x : left -= new[S64](1);
+    if new[R32](top) > source_y : top -= new[S64](1);
+
+    state horizontal    := source_x - new[R32](left);
+    state vertical      := source_y - new[R32](top);
+    state top_left      := self -> sample_pixel(.x = left, .y = top);
+    state top_right     := self -> sample_pixel(.x = left + new[S64](1), .y = top);
+    state bottom_left   := self -> sample_pixel(.x = left, .y = top + new[S64](1));
+    state bottom_right  := self -> sample_pixel(
+      .x = left + new[S64](1),
+      .y = top + new[S64](1),
+    );
+    state left_weight   := one - horizontal;
+    state top_weight    := one - vertical;
+    state right_weight  := horizontal;
+    state bottom_weight := vertical;
+    return (
+      .x = top_left.x * left_weight * top_weight + top_right.x * right_weight * top_weight +
+          bottom_left.x * left_weight * bottom_weight + bottom_right.x * right_weight *
+          bottom_weight,
+      .y = top_left.y * left_weight * top_weight + top_right.y * right_weight * top_weight +
+          bottom_left.y * left_weight * bottom_weight + bottom_right.y * right_weight *
+          bottom_weight,
+      .z = top_left.z * left_weight * top_weight + top_right.z * right_weight * top_weight +
+          bottom_left.z * left_weight * bottom_weight + bottom_right.z * right_weight *
+          bottom_weight,
+      .w = top_left.w * left_weight * top_weight + top_right.w * right_weight * top_weight +
+          bottom_left.w * left_weight * bottom_weight + bottom_right.w * right_weight *
+          bottom_weight,
+    );
+  }
+
+  private clamp_coordinate : func = [
+    .coordinate : S64,
+    .extent : S64,
+  ] -> S64 {
+    if coordinate < new[S64](0) : return new[S64](0);
+    if coordinate >= extent : return extent - new[S64](1);
+
+    return coordinate;
+  }
+
+  private wrap_coordinate : func = [
+    .coordinate : S64,
+    .extent : S64,
+  ] -> S64 {
+    state wrapped := coordinate % extent;
+    if wrapped < new[S64](0) : return wrapped + extent;
+
+    return wrapped;
+  }
+
+  private sample_pixel : func = [self, .x : S64, .y : S64] -> Math::Vec4D {
+    state width    := new[S64](self.image.size.width);
+    state height   := new[S64](self.image.size.height);
+    state sample_x := x;
+    state sample_y := y;
+    if self.sampler.addressing == Sampler2D::Addressing::zero and (x < new[S64](0) or
+        x >= width or y < new[S64](0) or y >= height) : return new[Math::Vec4D];
+    if self.sampler.addressing == Sampler2D::Addressing::clamp {
+      sample_x = Texture2D -> clamp_coordinate(x, width);
+      sample_y = Texture2D -> clamp_coordinate(y, height);
+    }
+
+    if self.sampler.addressing == Sampler2D::Addressing::wrap {
+      sample_x = Texture2D -> wrap_coordinate(x, width);
+      sample_y = Texture2D -> wrap_coordinate(y, height);
+    }
+
+    state pixel     := self.image -> get_pixels():[new[U64](sample_y * width + sample_x)];
+    const normalize : R32 = new[R32](1.0 / 255.0);
+    return (
+      .x = new[R32](pixel.red) * normalize,
+      .y = new[R32](pixel.green) * normalize,
+      .z = new[R32](pixel.blue) * normalize,
+      .w = new[R32](pixel.alpha) * normalize,
+    );
+  }
+}

@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/type_reference.hpp"
@@ -8,252 +8,183 @@
 #include "perimortem/memory/dynamic/vector.hpp"
 #include "perimortem/memory/managed/vector.hpp"
 
+#include "tetrodotoxin/language/import.hpp"
+#include "tetrodotoxin/language/monograph.hpp"
 #include "tetrodotoxin/library/language/constants/false.hpp"
 #include "tetrodotoxin/library/language/constants/signed.hpp"
 #include "tetrodotoxin/library/language/constants/true.hpp"
 #include "tetrodotoxin/library/language/constants/unsigned.hpp"
 #include "tetrodotoxin/library/language/expression.hpp"
 #include "tetrodotoxin/library/language/generic.hpp"
-#include "tetrodotoxin/library/language/model/parser/layout.hpp"
 #include "tetrodotoxin/library/language/model/type.hpp"
 #include "tetrodotoxin/library/language/model/types/flag.hpp"
 #include "tetrodotoxin/library/language/model/types/signed.hpp"
 #include "tetrodotoxin/library/language/model/types/unsigned.hpp"
-#include "tetrodotoxin/library/language/parser/literal.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/model/alias.hpp"
-#include "ttx/model/layouts/fluid.hpp"
+#include "ttx/concept/domain.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/layouts/fluid.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using Ttx::Semantic::Negotiation::Binding;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 
-static auto resolve_alias(const Abstract& binding) -> const Abstract& {
-  return binding.visit<Ttx::Model::Alias>(
-      [](const Ttx::Model::Alias& alias) -> const Abstract& {
-        return alias.resolve();
-      },
-      [](const Abstract& direct) -> const Abstract& { return direct; });
+auto Language::TypeReference::get_interface() const -> Abstract::Handle {
+  static const Abstract::Operations operations = {
+    [](const void* source, perimortem_uuid requested,
+       ttx_binding* result) -> ttx_binding_status {
+      if (requested.high == TTX_ABSTRACT_ID_HIGH &&
+          requested.low == TTX_ABSTRACT_ID_LOW) {
+        *result = {source, &operations};
+        return TTX_BINDING_SATISFIED;
+      }
+      return static_cast<const TypeReference*>(source)
+          ->bind_interface(System::Uuid(requested))
+          .visit(
+              [&](const Binding& binding) -> ttx_binding_status {
+                *result = binding.get_abi();
+                return TTX_BINDING_SATISFIED;
+              },
+              [](Binding::Failure failure) -> ttx_binding_status {
+                return static_cast<ttx_binding_status>(failure);
+              });
+    },
+    [](const void* source) -> perimortem_view_bytes {
+      const auto route = static_cast<const TypeReference*>(source)->get_route();
+      return {route.get_data(), route.get_size()};
+    },
+    [](const void* source) -> ttx_abstract {
+      return static_cast<const TypeReference*>(source)
+          ->get_interface()
+          .get_abi();
+    },
+    [](const void* source, perimortem_view_bytes name) -> ttx_abstract {
+      return static_cast<const TypeReference*>(source)
+          ->resolve_concept({name.data, name.size})
+          .get_interface()
+          .get_abi();
+    },
+    [](const void* source, ttx_concept_visitor visitor) {
+      auto receive = [&](Core::View::Bytes name, const Abstract& value) {
+        visitor.receive(
+            visitor.source, {name.get_data(), name.get_size()},
+            value.get_interface().get_abi());
+      };
+      static_cast<const TypeReference*>(source)->visit_concepts(
+          Abstract::Visitor(receive));
+    },
+  };
+  return Abstract::Handle(this, operations);
 }
 
-enum class PersistedArgument : U8 {
-  Reference,
-  Unsigned,
-  Signed,
-  False,
-  True,
-};
-
-static auto write_argument(
-    Archive::Writer& writer,
-    const Language::TypeReference::Argument& argument) -> Bool {
-  return argument.visit(
-      []() -> Bool { return False; },
-      [&](const Language::TypeReference& reference) -> Bool {
-        writer.write(U8(PersistedArgument::Reference));
-        return reference.persist(writer);
-      },
-      [&](const Abstract& selected) -> Bool {
-        auto unsigned_value = selected.select<Language::Constants::Unsigned>();
-        if (unsigned_value) {
-          writer.write(U8(PersistedArgument::Unsigned));
-          writer.write(unsigned_value->get_value());
-          return True;
-        }
-
-        auto signed_value = selected.select<Language::Constants::Signed>();
-        if (signed_value) {
-          writer.write(U8(PersistedArgument::Signed));
-          writer.write(signed_value->get_value());
-          return True;
-        }
-
-        if (selected.is<Language::Constants::False>()) {
-          writer.write(U8(PersistedArgument::False));
-          return True;
-        }
-        if (selected.is<Language::Constants::True>()) {
-          writer.write(U8(PersistedArgument::True));
-          return True;
-        }
-        return False;
-      });
-}
-
-static auto resolve_root_type(const Abstract& context, Core::View::Bytes name)
-    -> Core::Option<const Language::Model::Type&> {
-  return context.resolve_context(name)
-      .resolve()
-      .select<Language::Model::Type>();
-}
-
-static auto read_argument(
-    Archive::Reader& reader,
-    Memory::Allocator::Arena& arena,
-    const Abstract& context)
-    -> Core::Option<Language::TypeReference::Argument> {
-  auto kind = reader.read_u8();
-  BAIL_IF(!kind);
-
-  switch (PersistedArgument(*kind)) {
-  case PersistedArgument::Reference: {
-    auto reference = Language::TypeReference::restore(reader, arena, context);
-    BAIL_IF(!reference);
-    const auto& retained = arena.construct<Language::TypeReference>(*reference);
-    return Language::TypeReference::Argument(retained);
-  }
-  case PersistedArgument::Unsigned: {
-    auto value = reader.read_u64();
-    auto type = resolve_root_type(context, "U64"_view);
-    auto selected =
-        type ? type->select<Language::Model::Types::Unsigned>()
-             : Core::Option<const Language::Model::Types::Unsigned&>();
-    BAIL_IF(!value || !selected);
-    const auto& constant = Language::Constants::Unsigned::create_synthetic(
-        arena, *selected, *value);
-    return Language::TypeReference::Argument(
-        static_cast<const Abstract&>(constant));
-  }
-  case PersistedArgument::Signed: {
-    auto value = reader.read_s64();
-    auto type = resolve_root_type(context, "S64"_view);
-    auto selected = type
-                        ? type->select<Language::Model::Types::Signed>()
-                        : Core::Option<const Language::Model::Types::Signed&>();
-    BAIL_IF(!value || !selected);
-    const auto& constant =
-        Language::Constants::Signed::create_synthetic(arena, *selected, *value);
-    return Language::TypeReference::Argument(
-        static_cast<const Abstract&>(constant));
-  }
-  case PersistedArgument::False:
-  case PersistedArgument::True: {
-    auto type = resolve_root_type(context, "Bool"_view);
-    auto selected = type ? type->select<Language::Model::Types::Flag>()
-                         : Core::Option<const Language::Model::Types::Flag&>();
-    BAIL_IF(!selected);
-    const Abstract& constant =
-        PersistedArgument(*kind) == PersistedArgument::True
-            ? static_cast<const Abstract&>(
-                  Language::Constants::True::create_synthetic(arena, *selected))
-            : static_cast<const Abstract&>(
-                  Language::Constants::False::create_synthetic(
-                      arena, *selected));
-    return Language::TypeReference::Argument(constant);
-  }
-  }
-
-  return {};
-}
-
-auto Language::TypeReference::parse(const Abstract& context, Cursor& cursor)
-    -> Core::Option<TypeReference> {
-  // Dispatch has already chosen this Type route. Reporting malformed arguments
-  // here points the author back to that declaration instead of asking the
-  // parser to reinterpret the same spelling.
-  auto& domain = cursor.get_arena();
-  auto route = parse_route(cursor);
-  BAIL_IF(!route);
-
-  if (!cursor.matches(Code::Type::BracketStart)) {
-    return *route;
-  }
-
-  Memory::Managed::Vector<Argument> arguments(domain);
-  auto closing = Model::Parser::Layout::parse_entries(
-      cursor, Code::Type::BracketStart, Code::Type::BracketEnd,
-      [&](Cursor& entry, Count) -> Bool {
-        if (entry.matches(Code::Type::Type)) {
-          auto nested = parse(context, entry);
-          BAIL_IF(!nested);
-
-          // A nested route shares the Arena of the authored argument shape. The
-          // Layout parser handles its punctuation, while TypeReference keeps
-          // the source edge needed when recursive linking reaches it.
-          const TypeReference& retained =
-              domain.construct<TypeReference>(*nested);
-          arguments.insert(Argument(retained));
-          return True;
-        }
-
-        switch (entry.current().get_code().get_type()) {
-        case Code::Type::Numeric:
-        case Code::Type::Hex:
-        case Code::Type::Float:
-        case Code::Type::String:
-        case Code::Type::Bytes:
-        case Code::Type::Embedded:
-        case Code::Type::True:
-        case Code::Type::False:
-          break;
-        default:
-          entry.create_token_error(
-              "Library Generic Layout entries require a Type reference or "
-              "literal."_view);
-          return False;
-        }
-
-        // Literal already owns its grammar and diagnostics. TypeReference only
-        // needs to remember that this argument is a stable semantic identity
-        // rather than another route waiting for context.
-        auto literal = Parser::Literal::parse(context, entry);
-        BAIL_IF(!literal);
-        arguments.insert(Argument(*literal));
-        return True;
-      });
-  BAIL_IF(!closing);
-
-  TypeReference completed(
-      route->route,
-      Anchor::create(
-          route->get_anchor().get_token(),
-          Span(route->get_anchor().get_token(), *closing)),
-      route->terminal, arguments.get_view());
-  return completed;
-}
-
-auto Language::TypeReference::parse_route(Cursor& cursor)
-    -> Core::Option<TypeReference> {
-  Token first = cursor.require(
-      Code::Type::Type, "Library Type reference requires one Type name."_view);
-  BAIL_IF(!first);
-
-  Token last = first;
-  while (cursor.matches(Code::Type::TypeAccessOp)) {
-    Token separator = cursor.current();
-    Count previous_end = Count(last.get_offset()) + Count(last.get_size());
-    if (separator.get_offset() != previous_end) {
-      cursor.create_expression_error(
-          Span(first, separator),
-          "Library Type references cannot contain whitespace around `::`."_view);
-      return {};
+auto Language::TypeReference::bind_interface(Perimortem::System::Uuid requested)
+    const -> Perimortem::Utility::Result<Binding, Binding::Failure> {
+  if (requested == Ttx::Concept::Domain::contract_id) {
+    if (subject == nullptr) {
+      return Binding::Failure::Pending;
     }
-
-    cursor.consume();
-    Token segment = cursor.require(
-        Code::Type::Type,
-        "Library Type reference requires a Type after `::`."_view);
-    BAIL_IF(!segment);
-
-    Count separator_end =
-        Count(separator.get_offset()) + Count(separator.get_size());
-    if (segment.get_offset() != separator_end) {
-      cursor.create_expression_error(
-          Span(first, segment),
-          "Library Type references cannot contain whitespace around `::`."_view);
-      return {};
+    if (!domain) {
+      Core::Option<Binding::Failure> failure;
+      subject->bind<Domain>().visit(
+          [&](const Ttx::Concept::Domain::Handle& selected) { domain = selected; },
+          [&](Binding::Failure rejected) { failure = rejected; });
+      if (failure) {
+        return *failure;
+      }
     }
-
-    last = segment;
+    return Ttx::Concept::Domain::provide(*this);
+  }
+  using Import = Tetrodotoxin::Language::Import;
+  if (requested != Import::contract_id || !dependency) {
+    if (!subject) {
+      return Binding::Failure::Pending;
+    }
+    return subject->bind_interface(requested);
   }
 
-  Count start = first.get_offset();
-  Count end = Count(last.get_offset()) + Count(last.get_size());
-  return TypeReference(
-      cursor.get_source_text().slice(start, end - start),
-      Anchor::create(first, Span(first, last)), last);
+  // An imported generator needs its argument recipe as well as a name path.
+  // Until that projection is defined, declining it is the only answer that
+  // does not misidentify the generated Type as the generator itself.
+  if (arguments) {
+    return Binding::Failure::Rejected;
+  }
+
+  static const Import::Operations operations = {
+    [](const void* source) -> Import::Kind {
+      return static_cast<const TypeReference*>(source)->dependency->get_kind();
+    },
+    [](const void* source) -> Core::View::Bytes {
+      return static_cast<const TypeReference*>(source)
+          ->dependency->get_locator();
+    },
+    [](const void* source) -> System::Version {
+      return static_cast<const TypeReference*>(source)
+          ->dependency->get_version();
+    },
+    [](const void* source) -> Count {
+      const auto& reference = *static_cast<const TypeReference*>(source);
+      return reference.dependency->get_access_count() + reference.get_size() -
+             reference.dependency_suffix;
+    },
+    [](const void* source, Count index) -> Core::Option<Core::View::Bytes> {
+      const auto& reference = *static_cast<const TypeReference*>(source);
+      const Count imported = reference.dependency->get_access_count();
+      if (index < imported) {
+        return reference.dependency->get_access(index);
+      }
+      const Count suffix = index - imported;
+      if (suffix >= reference.get_size() - reference.dependency_suffix) {
+        return {};
+      }
+      return reference.get_name(reference.dependency_suffix + suffix);
+    },
+  };
+  return Binding::provide<Import>(this, operations);
+}
+
+auto Language::TypeReference::get_domain() const -> Ttx::Concept::Domain::Answer {
+  return domain->get_domain().visit(
+      [&](Abstract::Handle selected) -> Ttx::Concept::Domain::Answer {
+        // A self domain can keep this reference's dependency and access path.
+        // A provider that supplies another domain owns that returned edge,
+        // so its answer passes through without substituting our native Type.
+        return selected.get_identity() ==
+                       subject->get_interface().get_identity()
+                   ? get_interface()
+                   : selected;
+      },
+      [](Binding::Failure failure) -> Ttx::Concept::Domain::Answer { return failure; });
+}
+
+auto Language::TypeReference::resolve_concept(Core::View::Bytes name) const
+    -> const Abstract& {
+  return subject ? subject->resolve_concept(name) : Unknown::get_unknown();
+}
+
+auto Language::TypeReference::visit_concepts(Abstract::Visitor visitor) const
+    -> void {
+  if (subject) {
+    subject->visit_concepts(visitor);
+  }
+}
+
+static auto is_missing(const Abstract& abstract) -> Bool {
+  return abstract.is<Unknown>() || abstract.is<None>();
+}
+
+// A native Type identity can be useful before its full resolve answer becomes
+// factual. Import supplies that Type through its own operation, while other
+// declarations and transparent references follow ordinary resolution.
+static auto select_native(const Abstract& candidate) -> const Abstract& {
+  if (candidate.is<Tetrodotoxin::Source::Type>()) {
+    return candidate;
+  }
+  const Abstract& resolved = candidate.resolve();
+  return resolved.is<Tetrodotoxin::Language::Import>() ? resolved.get_type()
+                                                       : resolved;
 }
 
 auto Language::TypeReference::get_size() const -> Count {
@@ -296,6 +227,23 @@ auto Language::TypeReference::get_name(Count requested) const
   return {};
 }
 
+auto Language::TypeReference::get_token(Count requested) const -> Token {
+  if (requested + 1 == get_size() && terminal) {
+    return terminal;
+  }
+  Core::View::Bytes name = get_name(requested);
+  Token first = anchor.get_token();
+  if (!first || name.is_empty()) {
+    return {};
+  }
+
+  Count offset = Count(name.get_data() - route.get_data());
+  return Token(
+      U16(Count(first.get_offset()) + offset), first.get_line(),
+      U16(Count(first.get_column()) + offset), U8(name.get_size()),
+      first.get_code());
+}
+
 auto Language::TypeReference::matches_route(const TypeReference& other) const
     -> Bool {
   return route == other.route;
@@ -316,117 +264,132 @@ auto Language::TypeReference::get_argument(Count index) const
   return arguments->get_data()[index];
 }
 
-auto Language::TypeReference::persist(Archive::Writer& writer) const -> Bool {
-  auto record = writer.begin(Archive::Tag::TypeReference);
-  BAIL_IF(!writer.write(route) || get_argument_size() > U32(-1));
-
-  writer.write(U32(get_argument_size()));
-  for (Count index = 0; index < get_argument_size(); index++) {
-    auto argument = get_argument(index);
-    BAIL_IF(!argument || !write_argument(writer, *argument));
-  }
-  return writer.finish(record);
-}
-
-auto Language::TypeReference::restore(
-    Archive::Reader& reader,
-    Memory::Allocator::Arena& arena,
-    const Abstract& context) -> Core::Option<TypeReference> {
-  auto record = reader.read_record();
-  BAIL_IF(
-      !record || record->get_tag() != U16(Archive::Tag::TypeReference) ||
-      record->is_optional());
-
-  Archive::Reader contents(record->get_payload());
-  auto route = contents.read_bytes();
-  auto count = contents.read_u32();
-  BAIL_IF(!route || route->is_empty() || !count);
-
-  Memory::Managed::Vector<Argument> restored(arena);
-  for (Count index = 0; index < *count; index++) {
-    auto argument = read_argument(contents, arena, context);
-    BAIL_IF(!argument);
-    restored.insert(*argument);
-  }
-  BAIL_IF(!contents.is_complete());
-
-  Core::Option<Core::View::Vector<Argument>> selected_arguments;
-  if (*count != 0) {
-    selected_arguments = restored.get_view();
-  }
-  return TypeReference(
-      arena.proxy(*route), Anchor::create(Span()), Token(), selected_arguments);
-}
-
 static auto map_failure(
     Anchor anchor,
     const Language::Generic::Failure& failure)
     -> Language::TypeReference::Failure {
-  using GenericFailure = Language::Generic::Failure;
-  using ReferenceFailure = Language::TypeReference::Failure;
   switch (failure.get_type()) {
-  case GenericFailure::Type::Unavailable:
-    return ReferenceFailure(ReferenceFailure::Type::Unavailable, anchor);
-  case GenericFailure::Type::Arity:
-    return ReferenceFailure(ReferenceFailure::Type::Arity, anchor);
-  case GenericFailure::Type::Parameter:
-    return ReferenceFailure(
-        ReferenceFailure::Type::Parameter, anchor, failure.get_argument());
-  case GenericFailure::Type::Recursive:
-    return ReferenceFailure(ReferenceFailure::Type::Recursive, anchor);
-  case GenericFailure::Type::Formula:
-    return ReferenceFailure(ReferenceFailure::Type::Formula, anchor);
+  case Language::Generic::Failure::Type::Unavailable:
+    return Language::TypeReference::Failure(
+        Language::TypeReference::Failure::Type::Unavailable, anchor);
+  case Language::Generic::Failure::Type::Arity:
+    return Language::TypeReference::Failure(
+        Language::TypeReference::Failure::Type::Arity, anchor);
+  case Language::Generic::Failure::Type::Parameter:
+    return Language::TypeReference::Failure(
+        Language::TypeReference::Failure::Type::Parameter, anchor,
+        failure.get_argument());
+  case Language::Generic::Failure::Type::Recursive:
+    return Language::TypeReference::Failure(
+        Language::TypeReference::Failure::Type::Recursive, anchor);
+  case Language::Generic::Failure::Type::Formula:
+    return Language::TypeReference::Failure(
+        Language::TypeReference::Failure::Type::Formula, anchor);
   }
 
-  return ReferenceFailure(ReferenceFailure::Type::Formula, anchor);
+  return Language::TypeReference::Failure(
+      Language::TypeReference::Failure::Type::Formula, anchor);
 }
 
 auto Language::TypeReference::resolve_with_root(
     const Abstract& context,
     Root root,
     Core::Option<Cursor&> cursor) const -> Resolution {
+  Core::Option<Tetrodotoxin::Language::Import::Handle> encountered;
+  Core::Option<Binding::Failure> boundary_failure;
+  Count suffix = 0;
+  auto retain_boundary = [&](const Abstract& candidate, Count next) {
+    if (encountered) {
+      return;
+    }
+    candidate.bind<Tetrodotoxin::Language::Import>().visit(
+        [&](const Tetrodotoxin::Language::Import::Handle& import) {
+          encountered = import;
+          suffix = next;
+        },
+        [&](Binding::Failure failure) {
+          if (failure != Binding::Failure::Unsupported) {
+            boundary_failure = failure;
+          }
+        });
+  };
   // The declaration context gives the root name its lexical authority. Each
   // explicit suffix then asks the identity selected by the preceding segment.
-  const Abstract* selected = &context.resolve_context(get_root());
+  const Abstract* selected = &context.resolve_concept(get_root());
   if (root == Root::Lexical) {
     auto type = context.select<Language::Model::Type>();
     if (type) {
       selected = &type->resolve_lexical_context(get_root());
+    } else {
+      auto monograph = context.select<Tetrodotoxin::Language::Monograph>();
+      if (monograph) {
+        selected = &monograph->resolve_lexical_context(get_root());
+      }
     }
   }
-  if (selected->is<Invalid>()) {
+  if (is_missing(*selected)) {
     return Failure(Failure::Type::Route, anchor, 0);
+  }
+  if (cursor && get_size() > 1) {
+    Token token = get_token(0);
+    cursor->get_associations().create(
+        Anchor::create(token, Span(token)), *selected);
   }
 
   for (Count i = 1; i < get_size(); i++) {
-    // Alias resolution reveals the identity that can answer the next ordinary
-    // context query. Keeping that step visible also preserves Alias opacity for
-    // every other consumer.
-    const Abstract& route_context = resolve_alias(*selected);
-    if (route_context.is<Invalid>()) {
+    retain_boundary(*selected, i);
+    if (boundary_failure) {
+      return Failure(Failure::Type::Unavailable, anchor, i - 1);
+    }
+    // Navigation stays on the encountered subject so Import can apply its
+    // policy. A native Type is selected only after the full access path has
+    // answered, otherwise the compiler could bypass a restricted route.
+    const Abstract& route_context = *selected;
+    if (is_missing(route_context)) {
       return Failure(Failure::Type::Route, anchor, i - 1);
     }
 
-    selected = &route_context.resolve_context(get_name(i));
-    if (selected->is<Invalid>()) {
+    selected = &route_context.resolve_concept(get_name(i));
+    if (is_missing(*selected)) {
       return Failure(Failure::Type::Route, anchor, i);
+    }
+    if (cursor && i + 1 < get_size()) {
+      Token token = get_token(i);
+      cursor->get_associations().create(
+          Anchor::create(token, Span(token)), *selected);
     }
   }
 
+  retain_boundary(*selected, get_size());
+  if (boundary_failure) {
+    return Failure(Failure::Type::Unavailable, anchor, get_size() - 1);
+  }
   if (!arguments) {
-    const Abstract& resolved = resolve_alias(*selected);
-    if (resolved.is<Invalid>()) {
+    const Abstract& direct = select_native(*selected);
+    const Abstract& resolved = direct;
+    if (is_missing(resolved)) {
       return Failure(Failure::Type::Route, anchor, get_size() - 1);
     }
 
     if (cursor) {
-      cursor->get_associations().create(anchor, *selected);
+      Token token = get_token(get_size() - 1);
+      cursor->get_associations().create(
+          Anchor::create(token, Span(token)), *selected);
     }
+    if (target && (target != &resolved || subject != selected)) {
+      return Failure(Failure::Type::Unavailable, anchor);
+    }
+    // Native selection can step past an Import or authored declaration. Keep
+    // the subject that supplied that answer for all later semantic questions.
+    subject = selected;
+    target = &resolved;
+    dependency = encountered;
+    dependency_suffix = suffix;
     return resolved;
   }
 
-  const Abstract& resolved = resolve_alias(*selected);
-  if (resolved.is<Invalid>()) {
+  const Abstract& resolved = select_native(*selected);
+  if (is_missing(resolved)) {
     return Failure(Failure::Type::Route, anchor, get_size() - 1);
   }
   auto generic = resolved.select<Generic>();
@@ -438,8 +401,9 @@ auto Language::TypeReference::resolve_with_root(
     // arguments returns a materialized Type. Recording the terminal Token lets
     // editor tooling show that distinction with the same identity selected by
     // resolution.
+    Token token = get_token(get_size() - 1);
     cursor->get_associations().create(
-        Anchor::create(terminal, Span(terminal)), *generic);
+        Anchor::create(token, Span(token)), *generic);
   }
 
   // Resolution assembles one temporary Layout from the real argument
@@ -457,13 +421,13 @@ auto Language::TypeReference::resolve_with_root(
       reference->resolve_with_root(context, root, cursor)
           .visit(
               [&](const Abstract& resolved) {
-                nested = resolve_alias(resolved);
+                nested = select_native(resolved);
               },
               [&](const Failure& failure) { nested_failure = failure; });
       if (nested_failure) {
         return *nested_failure;
       }
-      if (!nested || !nested->is<Language::Model::Type>()) {
+      if (!nested || !nested->is<Tetrodotoxin::Source::Type>()) {
         return Failure(Failure::Type::Argument, anchor, i);
       }
       linked.insert(*nested);
@@ -477,12 +441,19 @@ auto Language::TypeReference::resolve_with_root(
     linked.insert(*literal);
   }
 
-  Ttx::Model::Layouts::Fluid layout(linked.get_view());
+  Tetrodotoxin::Source::Layouts::Fluid layout(linked.get_view());
   return generic->materialize(layout).visit(
       [&](const Language::Model::Type& type) -> Resolution {
         if (cursor) {
           cursor->get_associations().create(anchor, type);
         }
+        if (target && target != &type) {
+          return Failure(Failure::Type::Unavailable, anchor);
+        }
+        subject = &type;
+        target = &type;
+        dependency = encountered;
+        dependency_suffix = suffix;
         return type;
       },
       [&](const Generic::Failure& failure) -> Resolution {
@@ -500,10 +471,10 @@ auto Language::TypeReference::resolve_with_root(
             failure_anchor = reference->get_anchor();
           } else {
             const Abstract* literal = argument.find<const Abstract&>();
-            auto expression = literal ? literal->select<Expression>()
-                                      : Core::Option<const Expression&>();
-            if (expression && expression->get_anchor()) {
-              failure_anchor = *expression->get_anchor();
+            auto pack = literal ? Model::Pack::from(*literal)
+                                : Core::Option<const Model::Pack&>();
+            if (pack && pack->get_anchor()) {
+              failure_anchor = *pack->get_anchor();
             }
           }
         }

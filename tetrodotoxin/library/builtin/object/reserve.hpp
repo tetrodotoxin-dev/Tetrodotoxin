@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -6,12 +6,12 @@
 #include "perimortem/core/static/vector.hpp"
 
 #include "tetrodotoxin/library/language/model/callable.hpp"
-#include "tetrodotoxin/library/language/parameter.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/model/documentations/comment.hpp"
-#include "ttx/model/layouts/named.hpp"
-#include "ttx/model/layouts/ranged.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/documentations/comment.hpp"
+#include "tetrodotoxin/source/layouts/addressable.hpp"
+#include "tetrodotoxin/source/layouts/named.hpp"
+#include "tetrodotoxin/source/layouts/ranged.hpp"
 
 namespace Tetrodotoxin::Library::Builtin::Object {
 
@@ -29,41 +29,32 @@ class Reserve : public Language::Model::Callable {
 
   TTX_NAME(name);
   TTX_DOCUMENTATION(documentation);
-  TTX_CONSTEXPR_INVALID_CONTEXT;
 
   constexpr auto get_parameters() const
-      -> const Ttx::Concept::Layout& override {
+      -> const Tetrodotoxin::Source::Layout& override {
     return parameters;
   }
 
-  constexpr auto get_results() const -> const Ttx::Concept::Layout& override {
+  constexpr auto get_results() const -> const Tetrodotoxin::Source::Layout& override {
     return results;
   }
 
   auto accepts_receiver(
-      const Ttx::Concept::Abstract& receiver,
-      const Ttx::Concept::Abstract& host) const -> Bool override;
-
-  auto lower_call(
-      Llvm::Builder& body,
-      const Ttx::Model::Pack& result,
-      Perimortem::Core::View::Vector<LLVMValueRef> inputs,
-      Perimortem::Core::Option<const Ttx::Model::Pack&> receiver_source) const
-      -> Bool override;
+      const Tetrodotoxin::Source::Abstract& receiver,
+      const Tetrodotoxin::Source::Abstract& host) const -> Bool override;
 
  private:
   Reserve(
-      Language::Parameter& self,
-      Language::Parameter& count,
+      Tetrodotoxin::Source::Layouts::Addressable& self,
+      Tetrodotoxin::Source::Layouts::Addressable& count,
       const Language::Model::Type& result);
 
   Perimortem::Core::Static::
-      Vector<Ttx::Concept::Reference<const Ttx::Concept::Abstract>, 2>
+      Vector<Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Abstract>, 2>
           parameter_entries;
-  Ttx::Model::Layouts::Named parameters;
-  Ttx::Model::Layouts::Ranged results;
-  const Language::Model::Type& result_type;
-  static constexpr Ttx::Model::Documentations::Comment documentation{
+  Tetrodotoxin::Source::Layouts::Named parameters;
+  Tetrodotoxin::Source::Layouts::Ranged results;
+  static constexpr Tetrodotoxin::Source::Documentations::Comment documentation{
     "Reserves at least count initialized elements and returns writable access."_view,
   };
 };

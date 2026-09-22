@@ -1,7 +1,9 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "validation/unit_test.hpp"
+
+#include "tetrodotoxin/source/documentation.hpp"
 
 #include "perimortem/memory/allocator/arena.hpp"
 #include "perimortem/memory/dynamic/bytes.hpp"
@@ -22,28 +24,28 @@
 #include "tetrodotoxin/library/language/types/u16.hpp"
 #include "tetrodotoxin/library/language/types/u64.hpp"
 #include "tetrodotoxin/library/language/types/u8.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/model/layouts/named.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/layouts/named.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Tetrodotoxin::Library::Language;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Validation;
 
 class ExpressionType : public Model::Type {
  public:
-  ExpressionType(View::Bytes name, Ttx::Model::Layouts::Named layout = {})
+  ExpressionType(View::Bytes name, Tetrodotoxin::Source::Layouts::Named layout = {})
       : name(name), layout(layout) {}
 
   auto get_name() const -> View::Bytes override { return name; }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
-  auto resolve_context(View::Bytes) const -> const Abstract& override {
-    return Invalid::get_invalid();
+  auto resolve_concept(View::Bytes) const -> const Abstract& override {
+    return Unknown::get_unknown();
   }
-  auto get_layout() const -> const Ttx::Model::Layouts::Named& override {
+  auto get_layout() const -> const Tetrodotoxin::Source::Layouts::Named& override {
     return layout;
   }
   auto create_default(Allocator::Arena&) const
@@ -53,7 +55,7 @@ class ExpressionType : public Model::Type {
 
  private:
   View::Bytes name;
-  Ttx::Model::Layouts::Named layout;
+  Tetrodotoxin::Source::Layouts::Named layout;
 };
 
 class ExpressionField : public Model::Addressable {
@@ -62,8 +64,8 @@ class ExpressionField : public Model::Addressable {
       : name(name), type(type) {}
 
   auto get_name() const -> View::Bytes override { return name; }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
   auto get_type() const -> const Model::Type& override { return type; }
 
@@ -78,8 +80,8 @@ class ExpressionValue : public Expression {
       : Expression({}), name(name), type(type) {}
 
   auto get_name() const -> View::Bytes override { return name; }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
   auto get_type() const -> const Model::Type& override { return type; }
 
@@ -96,11 +98,11 @@ class ExpressionTypeResult : public Expression {
       : Expression({}), result(result) {}
 
   auto get_name() const -> View::Bytes override { return result.get_name(); }
-  auto get_documentation() const -> const Documentation& override {
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
     return result.get_documentation();
   }
   auto get_type() const -> const Abstract& override {
-    return Invalid::get_invalid();
+    return Unknown::get_unknown();
   }
   auto get_result() const -> const Abstract& override { return result; }
 
@@ -130,14 +132,14 @@ PERIMORTEM_UNIT_TEST(LibraryExpression, address_identity) {
   EXPECT(address.fits(scalar));
 }
 
-PERIMORTEM_UNIT_TEST(LibraryExpression, type_result_has_no_value_flow) {
+PERIMORTEM_UNIT_TEST(LibraryExpression, no_value_flow) {
   Types::Boolean selected;
   ExpressionTypeResult selection(selected);
-  Ttx::Model::Layouts::Named empty;
+  Tetrodotoxin::Source::Layouts::Named empty;
 
   EXPECT(&selection.get_result() == &selected);
   EXPECT(selection.get_layout().is_empty());
-  EXPECT(selection.resolve().is<Invalid>());
+  EXPECT(selection.resolve().is<Unknown>());
   EXPECT_NOT(selection.fits(empty));
   EXPECT_NOT(selection.fits(selected));
 }
@@ -156,30 +158,21 @@ PERIMORTEM_UNIT_TEST(LibraryExpression, constant_identity) {
   auto& signed_value =
       Constants::Signed::create_synthetic(arena, signed_type, ::S64(100));
 
-  EXPECT(first.is<Expression>());
-  EXPECT(first.is<Constant>());
+  EXPECT_NOT(first.is<Expression>());
+  EXPECT(first.is<Tetrodotoxin::Source::Constant>());
+  EXPECT(first.is<Tetrodotoxin::Library::Language::Constant>());
   EXPECT(first.is<Constants::Unsigned>());
-  EXPECT_NOT(first.is<Ttx::Model::Type>());
+  EXPECT_NOT(first.is<Tetrodotoxin::Source::Type>());
   EXPECT(&first.get_type() == &type);
-  EXPECT_TEXT(first.get_name(), type.get_name());
+  EXPECT_TEXT(first.get_name(), "100"_view);
   EXPECT(first.get_value() == 100);
   EXPECT(first == same);
   EXPECT(first != different);
   EXPECT(first != other);
   EXPECT(first != signed_value);
 
-  auto first_fold = first.fold();
-  auto repeated_fold = first.fold();
-  EXPECT(first_fold.visit(
-      [&](const Perimortem::Core::Option<Model::Pack&>& selected) {
-        return selected && &*selected == &first ? True : False;
-      },
-      [](const Expression::Error&) { return False; }));
-  EXPECT(repeated_fold.visit(
-      [&](const Perimortem::Core::Option<Model::Pack&>& selected) {
-        return selected && &*selected == &first ? True : False;
-      },
-      [](const Expression::Error&) { return False; }));
+  EXPECT(first.is_complete());
+  EXPECT(first.get_identity() && &*first.get_identity() == &first);
 }
 
 PERIMORTEM_UNIT_TEST(LibraryExpression, constant_fitting) {
@@ -243,7 +236,8 @@ PERIMORTEM_UNIT_TEST(LibraryExpression, byte_lifetime) {
   auto& empty = Constants::Bytes::create_synthetic(arena, type, {});
   auto& also_empty = Constants::Bytes::create_synthetic(arena, type, {});
 
-  EXPECT_TEXT(retained->get_name(), type.get_name());
+  EXPECT_TEXT(
+      retained->get_name(), "$[73 74 61 62 6C 65 20 62 79 74 65 73]"_view);
   EXPECT_TEXT(retained->get_value(), "stable bytes"_view);
   EXPECT(*retained == same);
   EXPECT(*retained != other);

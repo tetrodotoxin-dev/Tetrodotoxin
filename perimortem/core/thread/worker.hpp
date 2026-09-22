@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -34,11 +34,11 @@ class Worker {
       JobFunction job_function,
       Core::View::Bytes job_data = Core::View::Bytes()) -> Worker;
 
-  // Checks if the thread is a main thread spawned by a non-Perimortem system.
+  // Checks if the thread is a main thread spawned by a non Perimortem system.
   // Unless a Foreign system creates threads Perimortem only provides one main
   // thread.
   //
-  // The main thread always has id -1.
+  // The negative one id distinguishes the main thread from owned workers.
   static auto on_main_thread() -> Bool;
 
   static auto get_thread_id() -> Count;
@@ -50,7 +50,7 @@ class Worker {
   static constexpr auto max_workers() -> Count { return 64; };
 
  private:
-  // pthread_t is an unsigned long on Linux x86_64 (8 bytes, 8-byte aligned).
+  // pthread_t is an unsigned long on Linux x86_64 (8 bytes, 8 byte aligned).
   // Validated by static_assert in thread.cpp.
   U64 handle = 0;
 };

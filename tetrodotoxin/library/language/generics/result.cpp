@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/generics/result.hpp"
@@ -24,7 +24,7 @@ auto Generics::Result::create(
   }
 
   auto flag = get_context()
-                  .resolve_context("Bool"_view)
+                  .resolve_concept("Bool"_view)
                   .resolve()
                   .select<Model::Types::Flag>();
   if (!flag) {

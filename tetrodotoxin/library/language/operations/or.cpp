@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/operations/or.hpp"
@@ -6,24 +6,22 @@
 #include "tetrodotoxin/library/language/constants/false.hpp"
 #include "tetrodotoxin/library/language/constants/true.hpp"
 #include "tetrodotoxin/library/language/model/types/flag.hpp"
-#include "tetrodotoxin/library/language/parser/expression.hpp"
-#include "tetrodotoxin/library/llvm/builder.hpp"
-#include "ttx/concept/invalid.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
 using namespace Tetrodotoxin::Library;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 
 static auto select_result_type(
-    const Language::Expression& left,
-    const Language::Expression& right) -> const Abstract& {
+    const Language::Model::Pack& left,
+    const Language::Model::Pack& right) -> const Abstract& {
   const Abstract& selected_left = left.get_type().resolve();
   const Abstract& selected_right = right.get_type().resolve();
   if (&selected_left != &selected_right ||
       !selected_left.is<Language::Model::Types::Flag>()) {
-    return Invalid::get_invalid();
+    return Unknown::get_unknown();
   }
 
   return selected_left;
@@ -40,49 +38,19 @@ static auto make_result(
   return Language::Constants::False::create_synthetic(domain, type);
 }
 
-TTX_BINARY_PARSE(Or, Or);
-
 TTX_BINARY_OP(Or);
 
-auto Language::Operations::Or::lower(Llvm::Builder& body) const -> Bool {
-  auto folded = lower_folded(body);
-  if (folded) {
-    return *folded;
-  }
-
-  auto inputs = get_inputs();
-  const Expression& left = inputs.get_data()[0].get();
-  const Expression& right = inputs.get_data()[1].get();
-
-  Bool left_lowered = left.lower(body);
-  if (!left_lowered) {
-    return False;
-  }
-
-  auto state = body.begin_logic(Llvm::Builder::Logical::Or, left);
-  if (!state) {
-    return False;
-  }
-
-  Bool right_lowered = right.lower(body);
-  if (!right_lowered) {
-    return False;
-  }
-
-  return body.end_logic(*state, *this, left, right);
-}
-
-auto Language::Operations::Or::select_type(const Ttx::Concept::Abstract&) const
+auto Language::Operations::Or::select_type(const Tetrodotoxin::Source::Abstract&) const
     -> Core::Option<const Language::Model::Type&> {
   auto inputs = get_inputs();
-  const Expression& left = inputs.get_data()[0].get();
-  const Expression& right = inputs.get_data()[1].get();
+  const Model::Pack& left = inputs.get_data()[0].get();
+  const Model::Pack& right = inputs.get_data()[1].get();
   return select_result_type(left, right).select<Language::Model::Type>();
 }
 
 auto Language::Operations::Or::reaches_next_input(
     Count folded_input,
-    const Expression& folded) const -> Bool {
+    const Constant& folded) const -> Bool {
   if (folded_input != 0) {
     return True;
   }
@@ -94,10 +62,12 @@ auto Language::Operations::Or::reaches_next_input(
 
 auto Language::Operations::Or::evaluate_constants(
     Memory::Allocator::Arena& domain)
-    -> Utility::Result<Core::Option<Constant&>, Expression::Error> {
+    -> Utility::Result<
+        Core::Option<Tetrodotoxin::Library::Language::Constant&>,
+        Expression::Error> {
   auto inputs = get_inputs();
-  Expression& authored_left = inputs.get_data()[0].get();
-  Expression& authored_right = inputs.get_data()[1].get();
+  Model::Pack& authored_left = inputs.get_data()[0].get();
+  Model::Pack& authored_right = inputs.get_data()[1].get();
   auto left = get_folded_input(0);
   if (!left) {
     return Expression::Error(Expression::Error::Type::InvalidInput, *this);
@@ -110,7 +80,7 @@ auto Language::Operations::Or::evaluate_constants(
   auto left_validity =
       result_type ? result_type->get_validity(*left) : Core::Option<Bool>();
   if (!left_validity || !result_type) {
-    return Expression::Error(
+    return Expression::Error::from_pack(
         Expression::Error::Type::InvalidConstant, authored_left);
   }
 
@@ -125,7 +95,7 @@ auto Language::Operations::Or::evaluate_constants(
 
   auto right_validity = result_type->get_validity(*right);
   if (!right_validity) {
-    return Expression::Error(
+    return Expression::Error::from_pack(
         Expression::Error::Type::InvalidConstant, authored_right);
   }
 

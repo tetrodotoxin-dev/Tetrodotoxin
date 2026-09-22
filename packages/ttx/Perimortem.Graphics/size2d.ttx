@@ -1,0 +1,13 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+// A pixel extent in the two dimensional graphics domain.
+//
+dialect : Library;
+
+// Zero width or height carries the ordinary unconfigured state rather than a
+// target allocation.
+public Size2D : struct {
+  public state width  : U32;
+  public state height : U32;
+}

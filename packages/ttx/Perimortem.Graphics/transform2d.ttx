@@ -1,0 +1,19 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+// Local placement shared by hosted graphics Objects.
+//
+dialect : Library;
+
+private Point2DSource : alias = source("point2d.ttx");
+
+public Point2D : alias = Point2DSource::Point2D;
+
+// Transform2D carries translation, scale, and rotation without choosing a
+// backend matrix representation.
+public Transform2D : struct {
+  public state translation : Point2D;
+  public state scale_x     : R64 = 1.0;
+  public state scale_y     : R64 = 1.0;
+  public state rotation    : R64 = 0.0;
+}

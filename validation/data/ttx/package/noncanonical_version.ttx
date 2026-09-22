@@ -1,5 +1,0 @@
-// Rejects a noncanonical quoted package version.
-dialect : Package;
-
-resolve Math : Perimortem.Math = "01.2";
-source Main from "main.ttx";

@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -8,7 +8,7 @@
 
 namespace Perimortem::Core::Writer {
 
-// Reads human-readable values from a text byte buffer. Reads are greedy so
+// Reads human readable values from a text byte buffer. Reads are greedy so
 // numeric values must be whitespace seperated to be read appropriately.
 //
 // Numeric and boolean reads automatically skip leading whitespace except for

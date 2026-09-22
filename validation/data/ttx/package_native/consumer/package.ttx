@@ -1,5 +1,8 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
 // Native Package consumer.
 dialect : Package;
+package(.name = "Validation.Consumer", .version = "1.0");
 
-resolve Provider : Validation.Provider = "1.0";
-source Main from "main.ttx";
+public Main : alias = source("main.ttx");

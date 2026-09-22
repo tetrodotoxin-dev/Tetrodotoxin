@@ -1,161 +1,216 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/environment/toolchain.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "validation/unit_test.hpp"
+
+#include <cstdlib>
+#include <unistd.h>
+
+#include "perimortem/core/null_terminated.hpp"
+
+#include "perimortem/system/file.hpp"
+
+#include "tetrodotoxin/build/dialect.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Tetrodotoxin;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Validation;
 
-class TestDialect : public Language::Dialect {
+class SourceFile {
  public:
-  TestDialect(View::Bytes name) : Language::Dialect(name) {}
-
-  auto interpret(Cursor&, const Documentation&, const Anchor&, Abstract&)
-      -> Option<Language::Monograph&> override {
-    return {};
+  explicit SourceFile(View::Bytes text) {
+    const int descriptor = mkstemp(path);
+    if (descriptor < 0) {
+      return;
+    }
+    close(descriptor);
+    ready = Perimortem::System::File::write(text, get_path());
   }
-};
-
-class IndependentDialect : public TestDialect {
- public:
-  using TestDialect::TestDialect;
-};
-
-class LowerDialect : public TestDialect {
- public:
-  using TestDialect::TestDialect;
-};
-
-class MiddleDialect : public TestDialect {
- public:
-  MiddleDialect(View::Bytes name, LowerDialect& lower)
-      : TestDialect(name), lower(lower) {}
-
-  auto get_lower() const -> const LowerDialect& { return lower; }
+  ~SourceFile() { unlink(path); }
+  auto get_path() const -> View::Bytes { return NullTerminated::to_view(path); }
+  Bool ready = False;
 
  private:
-  LowerDialect& lower;
+  char path[64] = "/tmp/ttx-toolchain-XXXXXX";
 };
 
-class LeftDialect : public TestDialect {
- public:
-  LeftDialect(View::Bytes name, LowerDialect& lower)
-      : TestDialect(name), lower(lower) {}
+struct Lifetime {
+  Count live_dialects = 0;
+  Count destroyed_sources = 0;
+  Bool released_before_dialect = False;
+};
 
-  auto get_lower() const -> const LowerDialect& { return lower; }
+class ProcessedSource : public Language::Monograph {
+ public:
+  ProcessedSource(
+      Allocator::Arena& arena,
+      Language::Dialect& dialect,
+      const Tetrodotoxin::Source::Documentation& documentation,
+      Abstract& context,
+      View::Bytes body,
+      Lifetime& lifetime)
+      : Monograph(arena, dialect, documentation, context),
+        body(body),
+        lifetime(lifetime) {}
+  ~ProcessedSource() override {
+    lifetime.destroyed_sources++;
+    lifetime.released_before_dialect = lifetime.live_dialects > 0;
+  }
+  TTX_NAME("Processed"_view);
+  auto link(Cursor&) -> Bool override {
+    linked = True;
+    return True;
+  }
+  View::Bytes body;
+  Bool linked = False;
 
  private:
-  LowerDialect& lower;
+  Lifetime& lifetime;
 };
 
-class RightDialect : public TestDialect {
+class ProbeDialect : public Language::Dialect {
  public:
-  RightDialect(View::Bytes name, LowerDialect& lower)
-      : TestDialect(name), lower(lower) {}
-
-  auto get_lower() const -> const LowerDialect& { return lower; }
+  explicit ProbeDialect(Lifetime& lifetime) : lifetime(lifetime) {
+    lifetime.live_dialects++;
+  }
+  ~ProbeDialect() override { lifetime.live_dialects--; }
+  TTX_NAME("Probe"_view);
+  auto interpret(
+      Cursor& cursor,
+      const Tetrodotoxin::Source::Documentation& documentation,
+      const Anchor&,
+      Abstract& context) -> Option<Language::Monograph&> override {
+    auto body = cursor.get_source_text().slice(cursor.current().get_offset());
+    if (body == "reject"_view) {
+      return {};
+    }
+    if (body == "partial"_view) {
+      cursor.create_error("Probe retained a partial source."_view);
+    }
+    source = cursor.get_arena().construct<ProcessedSource>(
+        cursor.get_arena(), *this, documentation, context, body, lifetime);
+    return *source;
+  }
+  Option<ProcessedSource&> source;
 
  private:
-  LowerDialect& lower;
-};
-
-class TopDialect : public TestDialect {
- public:
-  TopDialect(View::Bytes name, LeftDialect& left, RightDialect& right)
-      : TestDialect(name), left(left), right(right) {}
-
-  auto get_left() const -> const LeftDialect& { return left; }
-  auto get_right() const -> const RightDialect& { return right; }
-
- private:
-  LeftDialect& left;
-  RightDialect& right;
-};
-
-class RootDialect : public TestDialect {
- public:
-  RootDialect(View::Bytes name) : TestDialect(name) {}
-
-  RootDialect(View::Bytes name, Language::Dialect&) : TestDialect(name) {}
-};
-
-class ChildDialect : public TestDialect {
- public:
-  ChildDialect(View::Bytes name, RootDialect& root)
-      : TestDialect(name), root(root) {}
-
-  auto get_root() const -> const RootDialect& { return root; }
-
- private:
-  RootDialect& root;
+  Lifetime& lifetime;
 };
 
 static Harness EnvironmentToolchain = {
-  .name = "Tetrodotoxin::Environment::Toolchain"_view,
-};
+  .name = "Tetrodotoxin::Environment::Toolchain"_view};
 
-PERIMORTEM_UNIT_TEST(EnvironmentToolchain, dependency_free_and_chain) {
+PERIMORTEM_UNIT_TEST(EnvironmentToolchain, registers_provided_names) {
+  Lifetime lifetime;
+  ProbeDialect dialect(lifetime);
+  ProbeDialect duplicate(lifetime);
   Environment::Toolchain toolchain;
-
-  auto independent = toolchain.install<IndependentDialect>("Independent"_view);
-  auto lower = toolchain.install<LowerDialect>("Lower"_view);
-  ASSERT(independent);
-  ASSERT(lower);
-  auto middle = toolchain.install<MiddleDialect>("Middle"_view, *lower);
-
-  ASSERT(middle);
-  EXPECT(&middle->get_lower() == &*lower);
+  EXPECT(toolchain.install(dialect));
+  auto selected = toolchain.find("Probe"_view);
+  ASSERT(selected);
+  EXPECT(&*selected == &dialect);
+  EXPECT_NOT(toolchain.install(duplicate));
+  EXPECT_NOT(toolchain.find("Renamed"_view));
 }
 
-PERIMORTEM_UNIT_TEST(EnvironmentToolchain, shared_diamond) {
-  Environment::Toolchain toolchain;
-
-  auto lower = toolchain.install<LowerDialect>("Lower"_view);
-  ASSERT(lower);
-  auto left = toolchain.install<LeftDialect>("Left"_view, *lower);
-  auto right = toolchain.install<RightDialect>("Right"_view, *lower);
-  ASSERT(left);
-  ASSERT(right);
-  auto top = toolchain.install<TopDialect>("Top"_view, *left, *right);
-
-  ASSERT(top);
-  EXPECT(&top->get_left() == &*left);
-  EXPECT(&top->get_right() == &*right);
-  EXPECT(&top->get_left().get_lower() == &*lower);
-  EXPECT(&top->get_right().get_lower() == &*lower);
+PERIMORTEM_UNIT_TEST(EnvironmentToolchain, borrows_dialects) {
+  Lifetime lifetime;
+  {
+    ProbeDialect dialect(lifetime);
+    {
+      Environment::Toolchain toolchain;
+      ASSERT(toolchain.install(dialect));
+      Errors errors;
+      SourceFile file("// Source\ndialect : Probe;\nbody"_view);
+      ASSERT(file.ready);
+      ASSERT(toolchain.process(file.get_path(), errors));
+    }
+    EXPECT_EQ(lifetime.live_dialects, Count(1));
+    EXPECT_EQ(lifetime.destroyed_sources, Count(1));
+    EXPECT(lifetime.released_before_dialect);
+  }
+  EXPECT_EQ(lifetime.live_dialects, Count(0));
 }
 
-PERIMORTEM_UNIT_TEST(EnvironmentToolchain, rejects_unowned_dependencies) {
-  Environment::Toolchain local;
-  Environment::Toolchain foreign;
-  RootDialect missing("Missing"_view);
-
-  auto missing_result = local.install<ChildDialect>("Missing"_view, missing);
-  auto foreign_root = foreign.install<RootDialect>("ForeignRoot"_view);
-  ASSERT(foreign_root);
-  auto foreign_result =
-      local.install<ChildDialect>("Foreign"_view, *foreign_root);
-
-  EXPECT_NOT(missing_result);
-  EXPECT_NOT(foreign_result);
+PERIMORTEM_UNIT_TEST(EnvironmentToolchain, processes_source_body) {
+  Lifetime lifetime;
+  ProbeDialect dialect(lifetime);
+  Environment::Toolchain toolchain;
+  ASSERT(toolchain.install(dialect));
+  Errors errors;
+  {
+    SourceFile file(
+        "// Source documentation\ndialect : Probe;\nprivate Input : alias = source(\"unused.ttx\");\n"_view);
+    ASSERT(file.ready);
+    ASSERT(toolchain.process(file.get_path(), errors));
+  }
+  // The file and its caller path have ended, but the returned source still
+  // borrows valid bytes. The command proves dispatch stopped after the header.
+  ASSERT(dialect.source);
+  EXPECT_TEXT(
+      dialect.source->body,
+      "private Input : alias = source(\"unused.ttx\");\n"_view);
+  EXPECT_NOT(dialect.source->linked);
+  EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(EnvironmentToolchain, maps_names_to_instances) {
+PERIMORTEM_UNIT_TEST(EnvironmentToolchain, reports_source_failures) {
+  Lifetime lifetime;
+  ProbeDialect dialect(lifetime);
   Environment::Toolchain toolchain;
+  ASSERT(toolchain.install(dialect));
+  const View::Bytes invalid[] = {
+    "// Source\ndialect : Missing;\n"_view,
+    "// Source\ndialect Probe;\n"_view,
+    "// Source\ndialect : Probe;\nreject"_view,
+    "dialect : Probe;\n"_view,
+  };
+  for (auto source : invalid) {
+    SourceFile file(source);
+    ASSERT(file.ready);
+    Errors errors;
+    EXPECT_NOT(toolchain.process(file.get_path(), errors));
+    EXPECT_EQ(errors.get_size(), Count(1));
+    EXPECT_TEXT(errors.get_source_name(0), file.get_path());
+  }
+  Errors unreadable;
+  EXPECT_NOT(toolchain.process("/dev/null/missing.ttx"_view, unreadable));
+  EXPECT_EQ(unreadable.get_size(), Count(1));
+  EXPECT_TEXT(unreadable.get_source_name(0), "/dev/null/missing.ttx"_view);
+}
 
-  auto root = toolchain.install<RootDialect>("Root"_view);
-  ASSERT(root);
-  auto child = toolchain.install<ChildDialect>("Child"_view, *root);
-  ASSERT(child);
+PERIMORTEM_UNIT_TEST(EnvironmentToolchain, accumulates_partial_diagnostics) {
+  Lifetime lifetime;
+  ProbeDialect dialect(lifetime);
+  Environment::Toolchain toolchain;
+  ASSERT(toolchain.install(dialect));
+  SourceFile partial("// Source\ndialect : Probe;\npartial"_view);
+  SourceFile complete("// Source\ndialect : Probe;\ncomplete"_view);
+  ASSERT(partial.ready && complete.ready);
+  Errors errors;
+  EXPECT(toolchain.process(partial.get_path(), errors));
+  EXPECT_EQ(errors.get_size(), Count(1));
+  EXPECT_TEXT(errors.get_message(0), "Probe retained a partial source."_view);
+  EXPECT(toolchain.process(complete.get_path(), errors));
+  EXPECT_EQ(errors.get_size(), Count(1));
+}
 
-  EXPECT_NOT(toolchain.install<IndependentDialect>("Root"_view));
-  EXPECT(toolchain.install<RootDialect>("SecondRoot"_view));
-  EXPECT(toolchain.install<RootDialect>("ContextRoot"_view, *child));
-  EXPECT(&child->get_root() == &*root);
+PERIMORTEM_UNIT_TEST(EnvironmentToolchain, supplies_build_arguments) {
+  const View::Bytes arguments[] = {
+    "-help"_view, "-output=a path"_view, ""_view, "-choice=first"_view,
+    "-choice=second"_view};
+  Build::Dialect build(arguments);
+  auto supplied = build.get_arguments();
+  ASSERT_EQ(supplied.get_size(), Count(5));
+  for (Count index = 0; index < supplied.get_size(); index++) {
+    EXPECT_TEXT(supplied[index], arguments[index]);
+  }
+  EXPECT_TEXT(build.get_name(), "Build"_view);
 }

@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/language/attribute.hpp"
@@ -7,13 +7,13 @@
 
 #include "perimortem/memory/allocator/arena.hpp"
 
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Tetrodotoxin::Language;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Validation;
 
 static Harness AttributeTests = {
@@ -24,7 +24,7 @@ PERIMORTEM_UNIT_TEST(AttributeTests, optional_prefix) {
   Allocator::Arena arena;
   Errors errors;
   Tokenizer tokenizer(arena, "Value"_view, "<optional attribute>"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
 
   auto attributes = Attribute::parse(cursor);
@@ -41,7 +41,7 @@ PERIMORTEM_UNIT_TEST(AttributeTests, scalar_prefix) {
   Allocator::Arena arena;
   Errors errors;
   Tokenizer tokenizer(arena, source, "<attribute values>"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
 
   auto attributes = Attribute::parse(cursor);
@@ -66,56 +66,24 @@ PERIMORTEM_UNIT_TEST(AttributeTests, scalar_prefix) {
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(AttributeTests, malformed_prefix_fails) {
-  Allocator::Arena arena;
-  Errors errors;
-  Tokenizer tokenizer(
-      arena, "@valid @invalid() Value"_view, "<invalid attribute>"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
-  Cursor cursor(tokenizer, errors, associations);
+PERIMORTEM_UNIT_TEST(AttributeTests, malformed_inputs) {
+  static constexpr View::Bytes sources[] = {
+    "@valid @invalid() Value"_view,
+    "@"_view,
+    "@ Value"_view,
+    "@text(\"unterminated)"_view,
+  };
 
-  auto attributes = Attribute::parse(cursor);
+  for (View::Bytes source : sources) {
+    Allocator::Arena arena;
+    Errors errors;
+    Tokenizer tokenizer(arena, source, "<invalid attribute>"_view);
+    Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
+    Cursor cursor(tokenizer, errors, associations);
 
-  EXPECT(attributes.is_empty());
-  EXPECT(!errors.is_empty());
-}
+    auto attributes = Attribute::parse(cursor);
 
-PERIMORTEM_UNIT_TEST(AttributeTests, empty_key_fails) {
-  Allocator::Arena arena;
-  Errors errors;
-  Tokenizer tokenizer(arena, "@"_view, "<empty attribute>"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
-  Cursor cursor(tokenizer, errors, associations);
-
-  auto attributes = Attribute::parse(cursor);
-
-  EXPECT(attributes.is_empty());
-  EXPECT(!errors.is_empty());
-}
-
-PERIMORTEM_UNIT_TEST(AttributeTests, separated_key_fails) {
-  Allocator::Arena arena;
-  Errors errors;
-  Tokenizer tokenizer(arena, "@ Value"_view, "<separated attribute>"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
-  Cursor cursor(tokenizer, errors, associations);
-
-  auto attributes = Attribute::parse(cursor);
-
-  EXPECT(attributes.is_empty());
-  EXPECT(!errors.is_empty());
-}
-
-PERIMORTEM_UNIT_TEST(AttributeTests, malformed_string_fails) {
-  Allocator::Arena arena;
-  Errors errors;
-  Tokenizer tokenizer(
-      arena, "@text(\"unterminated)"_view, "<attribute string>"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
-  Cursor cursor(tokenizer, errors, associations);
-
-  auto attributes = Attribute::parse(cursor);
-
-  EXPECT(attributes.is_empty());
-  EXPECT(!errors.is_empty());
+    EXPECT(attributes.is_empty());
+    EXPECT(!errors.is_empty());
+  }
 }

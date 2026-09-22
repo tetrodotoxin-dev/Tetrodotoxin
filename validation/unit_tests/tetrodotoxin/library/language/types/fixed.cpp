@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/types/fixed.hpp"
@@ -12,12 +12,13 @@
 
 #include "tetrodotoxin/library/language/generics/fixed.hpp"
 #include "tetrodotoxin/library/language/types/u8.hpp"
-#include "ttx/concept/invalid.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Tetrodotoxin::Library::Language;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Validation;
 
 static Harness LibraryFixed = {
@@ -27,10 +28,10 @@ static Harness LibraryFixed = {
 PERIMORTEM_UNIT_TEST(LibraryFixed, direct_contract) {
   Tetrodotoxin::Library::Language::Types::U8 element;
   Types::Fixed fixed("Fixed[U8,4]"_view, element, ::U64(4));
-  const Ttx::Model::Layouts::Ranged& layout = fixed.get_layout();
+  const Tetrodotoxin::Source::Layouts::Ranged& layout = fixed.get_layout();
 
   EXPECT(fixed.is<Types::Fixed>());
-  EXPECT(fixed.is<Ttx::Model::Type>());
+  EXPECT(fixed.is<Tetrodotoxin::Source::Type>());
   EXPECT(fixed.is<Abstract>());
   EXPECT_NOT(fixed.is<Generic>());
   EXPECT_TEXT(fixed.get_name(), "Fixed[U8,4]"_view);
@@ -49,7 +50,7 @@ PERIMORTEM_UNIT_TEST(LibraryFixed, direct_contract) {
       }));
   EXPECT_NOT(layout.get_abstract(4));
   EXPECT_NOT(fixed.get_documentation().is_empty());
-  EXPECT(&fixed.resolve_context("member"_view) == &Invalid::get_invalid());
+  EXPECT(&fixed.resolve_concept("member"_view) == &None::get_none());
 }
 
 PERIMORTEM_UNIT_TEST(LibraryFixed, formula_construction) {
@@ -58,8 +59,8 @@ PERIMORTEM_UNIT_TEST(LibraryFixed, formula_construction) {
   auto& root = create_library_monograph(arena, dialect);
   Tetrodotoxin::Library::Language::Types::U8 element;
   const auto& formula =
-      static_cast<const Generic&>(root.resolve_context("Fixed"_view));
-  const Abstract& u8 = root.resolve_context("U8"_view);
+      static_cast<const Generic&>(root.resolve_concept("Fixed"_view));
+  const Abstract& u8 = root.resolve_concept("U8"_view);
   const Static::Vector<Generic::Argument, 2> positive = {
     {Generic::Argument(element), Generic::Argument(::U64(4))},
   };
@@ -77,8 +78,8 @@ PERIMORTEM_UNIT_TEST(LibraryFixed, formula_construction) {
   };
 
   auto positive_type = formula.materialize(positive);
-  EXPECT_NOT(u8.is<Invalid>());
-  EXPECT(&formula.resolve_context("U8"_view) == &Invalid::get_invalid());
+  EXPECT_NOT(u8.is<Unknown>());
+  EXPECT(&formula.resolve_concept("U8"_view) == &Unknown::get_unknown());
   EXPECT(positive_type.visit(
       [&element](const Model::Type& selected) {
         auto fixed = selected.select<Types::Fixed>();

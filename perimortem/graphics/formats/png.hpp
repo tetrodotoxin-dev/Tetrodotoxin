@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -12,12 +12,12 @@ namespace Perimortem::Graphics::Formats {
 // Stateless PNG codec that converts between encoded bytes and RGBA Images.
 class Png {
  public:
-  // Decodes a PNG byte stream into a Graphics::Image (RGBA pixels, row-major).
+  // Decodes a PNG byte stream into a Graphics::Image (RGBA pixels, row major).
   // All source color formats are expanded to full RGBA.
   //
   // Returns an empty Image on malformed or unsupported input.
   //
-  // CRC-32 validation is skipped in release builds to improve throughput.
+  // CRC 32 validation is skipped in release builds to improve throughput.
   //
   // Benchmarked on AMD Ryzen 9 9950X3D, Arch Linux 6.19.11, using libpng 1.6.58
   // as a reference (CRC disabled for parity):

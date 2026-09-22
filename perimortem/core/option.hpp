@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -20,7 +20,8 @@ class Option {
  private:
   template <typename candidate_type>
   constexpr auto construct(candidate_type&& candidate) -> void {
-    new (&value) value_type(static_cast<candidate_type&&>(candidate));
+    new (&value, Placement::Construct)
+        value_type(static_cast<candidate_type&&>(candidate));
     set = true;
   }
 
@@ -93,7 +94,8 @@ class Option {
     return *this;
   }
 
-  constexpr operator bool() const { return bool(set); }
+  constexpr explicit operator bool() const { return bool(set); }
+  constexpr explicit operator Bool() const { return set; }
 
   constexpr auto operator*() -> value_type& { return value; }
   constexpr auto operator*() const -> const value_type& { return value; }
@@ -137,7 +139,8 @@ class Option<value_type&> {
   // at construction.
   Option(value_type&&) = delete;
 
-  constexpr operator bool() const { return value != nullptr; }
+  constexpr explicit operator bool() const { return value != nullptr; }
+  constexpr explicit operator Bool() const { return value != nullptr; }
 
   constexpr auto operator*() const -> value_type& { return *value; }
   constexpr auto operator->() const -> value_type* { return value; }

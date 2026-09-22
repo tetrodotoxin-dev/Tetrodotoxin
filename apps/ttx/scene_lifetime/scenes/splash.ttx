@@ -1,54 +1,66 @@
-// Tetrodotoxin
-// Copyright (c) 2023-present Matt Kaes and contributors
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
 //
-// A mock splash screen fades in, then out, two icons and then transitions
-// to the next scene.
-//
+// A splash screen that fades two hosted Sprites before moving to the title.
 dialect : Scene;
 
-private const bottom_icon : Graphics::Sprite = new;
-private const fade_time   : R64 = 1.0;
-private const hold_time   : R64 = 1.5;
-private const top_icon    : Graphics::Sprite = new;
+public Graphics : alias = package(.name = "Perimortem.Graphics", .version = "1.0");
+
+private Material : alias = Graphics::TexturedQuad2DMaterial;
+
+private const fade_time : R64 = 1.0;
+private const hold_time : R64 = 1.5;
 
 signal finished;
 private state elapsed : R64 = 0.0;
+private state icons : Fixed[Graphics::Sprite, 2];
+private state shared_material : Material;
 
-Scene prepare[self] -> Void {
-  state image := Graphics::Image -> decode($[resources/logo.png]);
-  self -> configure_icon(self.top_icon, image, (.x = 200.0, .y = 100.0));
-  self -> configure_icon(self.bottom_icon, image, (.x = 200.0, .y = 400.0));
+Scene prepare[self] -> [] {
+  state image   := Graphics::Format::PNG -> decode(.bytes = $[../resources/icon.png] ->
+      get_view())!;
+  state texture : Graphics::Texture2D = (
+    .image = image,
+    .sampler = new[Graphics::Sampler2D],
+  );
+  state size    := image.size;
+  state offset  : R64 = 0.0;
   self.elapsed = 0.0;
-  return;
+  for [.icon : Graphics::Sprite] in self.icons {
+    state position : Graphics::Point2D = (
+      .x = 190.0 + offset,
+      .y = 240.0 + offset,
+    );
+    icon.texture = texture;
+    icon.material = self.shared_material;
+    icon.size = size;
+    icon.transform = (
+      .translation = position,
+      .scale_x = 1.0,
+      .scale_y = 1.0,
+      .rotation = 0.0,
+    );
+    offset += new[R64](image.size.width);
+  }
 }
 
-Scene release[self] -> Void : return;
-Scene update[self, .delta_time : R64] -> Scene::Flow {
+Scene release[self] -> [] : return;
+Scene update[self, .delta_time : R64] -> [] {
   self.elapsed = self.elapsed + delta_time;
 
   const duration : R64 = fade_time * 2.0 + hold_time;
   state alpha    : R64 = 0.0;
-  if (self.elapsed < fade_time) : alpha = self.elapsed / fade_time;
-  if (self.elapsed >= fade_time and self.elapsed < fade_time + hold_time) : alpha =
+  if self.elapsed < fade_time : alpha = self.elapsed / fade_time;
+  if self.elapsed >= fade_time and self.elapsed < fade_time + hold_time : alpha =
       1.0;
-  if (self.elapsed >= fade_time + hold_time and self.elapsed < duration) : alpha =
+  if self.elapsed >= fade_time + hold_time and self.elapsed < duration : alpha =
       (duration - self.elapsed) / fade_time;
 
-  self.top_icon.tone.a    = alpha;
-  self.bottom_icon.tone.a = alpha;
-  if (self.elapsed >= duration) : return Scene::Flow -> emit(self.finished);
-
-  return Scene::Flow -> stay();
-}
-
-private func configure_icon[
-  self,
-  .icon : Graphics::Sprite,
-  .image : Graphics::Image,
-  .position : Graphics::Point2D,
-] -> [] {
-  icon.image       = image;
-  icon.size_pixels = image -> get_size_pixels();
-  icon.position    = position;
-  icon.tone        = (.r = 1.0, .g = 1.0, .b = 1.0, .a = 0.0);
+  self.shared_material.parameters.tone = (
+    .x = new[R32](1.0),
+    .y = new[R32](1.0),
+    .z = new[R32](1.0),
+    .w = new[R32](alpha),
+  );
+  if self.elapsed >= duration : emit finished;
 }

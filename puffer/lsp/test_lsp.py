@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Tetrodotoxin
+# Tetrodotoxin
 Copyright (c) 2023-present Matt Kaes and contributors
 
 Local LSP server test harness.
@@ -17,6 +17,7 @@ import os
 import socket
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 
@@ -26,7 +27,36 @@ REPO_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
 BINARY = os.environ.get(
     "PUFFER_BINARY",
     os.path.join(REPO_ROOT, ".bin/bin/puffer/puffer"))
+PACKAGE_REPOSITORY = os.environ.get("PUFFER_PACKAGE_REPOSITORY", "")
+PACKAGE_IDENTITIES = (
+    "Perimortem.Memory",
+    "Perimortem.Math",
+    "Perimortem.System",
+    "Perimortem.Graphics",
+)
 POSITION_ENCODING = "utf-16" if "--utf16" in sys.argv else "utf-8"
+SCENE_ONLY = "--scene-only" in sys.argv
+RESPONSE_BUFFERS = {}
+
+
+def prepare_package_repository():
+    if PACKAGE_REPOSITORY:
+        return PACKAGE_REPOSITORY, None
+
+    temporary = tempfile.TemporaryDirectory(prefix="puffer-lsp-products-")
+    for identity in PACKAGE_IDENTITIES:
+        source = os.path.join(
+            REPO_ROOT, "packages", "ttx", identity, "package.ttx")
+        completed = subprocess.run(
+            [BINARY, source, f"-terminal_repository={temporary.name}"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+        )
+        if completed.returncode:
+            raise RuntimeError(
+                f"could not materialize {identity}: {completed.stderr}")
+    return temporary.name, temporary
 
 
 def lsp_frame(obj):
@@ -43,7 +73,8 @@ def read_lsp_response(conn, timeout=5.0):
     """Read one complete LSP response (header + body). Returns the parsed JSON
     body dict, or None on timeout."""
     conn.settimeout(timeout)
-    buf = b""
+    key = conn.fileno()
+    buf = RESPONSE_BUFFERS.pop(key, b"")
     try:
         while True:
             chunk = conn.recv(4096)
@@ -61,9 +92,22 @@ def read_lsp_response(conn, timeout=5.0):
                     if not chunk:
                         break
                     rest += chunk
+                RESPONSE_BUFFERS[key] = rest[content_length:]
                 return json.loads(rest[:content_length].decode())
     except socket.timeout:
         return None
+
+
+def read_request_response(conn, request_id, timeout=10.0):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        response = read_lsp_response(
+            conn, timeout=max(0.1, deadline - time.monotonic()))
+        if response is None:
+            return None
+        if response.get("id") == request_id:
+            return response
+    return None
 
 
 def send_format_edit(conn, source_text, name):
@@ -137,7 +181,20 @@ def send_hover(conn, uri, source_text, needle, request_id, start=0):
             "position": source_position(source_text, offset),
         },
     }))
-    return read_lsp_response(conn, timeout=10.0)
+    return read_request_response(conn, request_id)
+
+
+def send_completion(conn, uri, source_text, offset, request_id):
+    conn.sendall(lsp_frame({
+        "jsonrpc": "2.0",
+        "id": request_id,
+        "method": "textDocument/completion",
+        "params": {
+            "textDocument": {"uri": uri},
+            "position": source_position(source_text, offset),
+        },
+    }))
+    return read_request_response(conn, request_id)
 
 
 def source_position(source_text, offset):
@@ -160,7 +217,7 @@ def send_definition(conn, uri, source_text, needle, request_id, start=0):
             "position": source_position(source_text, offset),
         },
     }))
-    return read_lsp_response(conn, timeout=10.0)
+    return read_request_response(conn, request_id)
 
 
 def matches_location(response, uri, source_text, needle, start=0):
@@ -175,6 +232,16 @@ def matches_location(response, uri, source_text, needle, start=0):
             target_range.get("end") == expected_end)
 
 
+def matches_file_start(response, uri):
+    location = response.get("result") if response else None
+    if not location or location.get("uri") != uri:
+        return False
+    origin = {"line": 0, "character": 0}
+    target_range = location.get("range", {})
+    return (target_range.get("start") == origin and
+            target_range.get("end") == origin)
+
+
 def send_semantic_tokens(conn, uri, request_id):
     conn.sendall(lsp_frame({
         "jsonrpc": "2.0",
@@ -182,7 +249,7 @@ def send_semantic_tokens(conn, uri, request_id):
         "method": "textDocument/semanticTokens/full",
         "params": {"textDocument": {"uri": uri}},
     }))
-    return read_lsp_response(conn, timeout=10.0)
+    return read_request_response(conn, request_id)
 
 
 def send_inlay_hints(conn, uri, source_text, request_id):
@@ -198,7 +265,7 @@ def send_inlay_hints(conn, uri, source_text, request_id):
             },
         },
     }))
-    return read_lsp_response(conn, timeout=10.0)
+    return read_request_response(conn, request_id)
 
 
 def semantic_token_texts(source_text, data):
@@ -241,6 +308,13 @@ def semantic_token_records(data):
 def run_test():
     failures = []
 
+    try:
+        package_repository, temporary_repository = (
+            prepare_package_repository())
+    except RuntimeError as error:
+        print(f"ERROR: {error}")
+        return 1
+
     def check(condition, message):
         if condition:
             print(f"  [OK] {message}")
@@ -267,13 +341,13 @@ def run_test():
             env["LD_PRELOAD"] = asan_path
             print(f"ASAN: {asan_path}")
 
+    server_arguments = [
+        BINARY,
+        f"-lsp={SOCKET_PATH}",
+        f"-package_repository={package_repository}",
+    ]
     proc = subprocess.Popen(
-        [
-            BINARY,
-            f"--pipe={SOCKET_PATH}",
-            "--packages-root=" + os.path.join(
-                REPO_ROOT, "packages", "ttx"),
-        ],
+        server_arguments,
         stderr=subprocess.PIPE,
         text=True,
         env=env,
@@ -314,6 +388,7 @@ def run_test():
     init_resp = read_lsp_response(conn)
     caps = {}
     generic_token = None
+    raw_comment_token = None
     if init_resp:
         caps = init_resp.get("result", {}).get("capabilities", {})
         info = init_resp.get("result", {}).get("serverInfo", {})
@@ -330,14 +405,20 @@ def run_test():
         generic_types = legend.get("tokenTypes", [])
         generic_token = (generic_types.index("generic")
                          if "generic" in generic_types else None)
+        raw_comment_token = (generic_types.index("rawComment")
+                             if "rawComment" in generic_types else None)
         check(generic_token is not None,
               "semantic token legend includes Generic formulas")
+        check(raw_comment_token is not None,
+              "semantic token legend includes raw comments")
         check(bool(semantic_provider.get("full")),
               "server supports full semantic token requests")
         check(bool(caps.get("hoverProvider")),
               "server advertises semantic hover")
         check(bool(caps.get("inlayHintProvider")),
               "server advertises parameter inlay hints")
+        check(bool(caps.get("completionProvider")),
+              "server advertises access completion")
         check(bool(caps.get("definitionProvider")),
               "server advertises go to definition")
         check(bool(caps.get("documentFormattingProvider")),
@@ -352,6 +433,248 @@ def run_test():
         "params": {},
     }))
     time.sleep(0.1)
+
+    print("\n--- Nested Package member: Scene source session ---")
+    splash_path = os.path.join(
+        REPO_ROOT, "apps", "ttx", "scene_lifetime", "scenes", "splash.ttx")
+    with open(splash_path, "r", encoding="utf-8") as f:
+        splash_source = f.read()
+
+    splash_uri = "file://" + splash_path
+    splash_diagnostics = send_did_open(conn, splash_uri, splash_source)
+    splash_messages = (splash_diagnostics or {}).get(
+        "params", {}).get("diagnostics", [])
+    if splash_messages:
+        print("  Scene Package diagnostics:")
+        for diagnostic in splash_messages:
+            print("   ", diagnostic.get("message"))
+    check(splash_diagnostics is not None and not splash_messages,
+          "Scene member resolves its Package Resource and Graphics dependency")
+
+    title_path = os.path.join(
+        REPO_ROOT, "apps", "ttx", "scene_lifetime", "scenes", "title.ttx")
+    blend_path = os.path.join(
+        REPO_ROOT, "apps", "ttx", "scene_lifetime", "shaders", "blend.ttx")
+    with open(title_path, "r", encoding="utf-8") as f:
+        title_source = f.read()
+    with open(blend_path, "r", encoding="utf-8") as f:
+        blend_source = f.read()
+    title_uri = "file://" + title_path
+    blend_uri = "file://" + blend_path
+    title_diagnostics = send_did_open(conn, title_uri, title_source)
+    title_messages = (title_diagnostics or {}).get(
+        "params", {}).get("diagnostics", [])
+    check(title_diagnostics is not None and not title_messages,
+          "Title Scene resolves its qualified Shader and Graphics Types")
+
+    graphics_route = title_source.index("Graphics::Sprite")
+    graphics_hover = send_hover(
+        conn, title_uri, title_source, "Graphics", 101, graphics_route)
+    graphics_result = graphics_hover.get("result") if graphics_hover else None
+    graphics_markdown = (
+        graphics_result.get("contents", {}).get("value", "")
+        if graphics_result else "")
+    graphics_hover_matches = (
+        "alias Graphics = Perimortem.Graphics" in graphics_markdown and
+        "Type Sprite" not in graphics_markdown)
+    if not graphics_hover_matches:
+        print("  Graphics hover:", graphics_hover)
+    check(graphics_hover_matches,
+          "qualified hover preserves the Graphics Package alias")
+    graphics_definition = send_definition(
+        conn, title_uri, title_source, "Graphics", 102, graphics_route)
+    graphics_declaration = title_source.index("public Graphics")
+    check(matches_location(
+        graphics_definition, title_uri, title_source, "Graphics",
+        graphics_declaration),
+        "qualified definition selects the Graphics Package alias")
+
+    shader_route = title_source.index("Blend::Material")
+
+    blend_hover = send_hover(
+        conn, title_uri, title_source, "Blend", 103, shader_route)
+    blend_result = blend_hover.get("result") if blend_hover else None
+    blend_markdown = (
+        blend_result.get("contents", {}).get("value", "")
+        if blend_result else "")
+    blend_hover_matches = (
+        "alias Blend" in blend_markdown and
+        "Type Material" not in blend_markdown)
+    if not blend_hover_matches:
+        print("  Blend hover:", blend_hover)
+    check(blend_hover_matches,
+          "qualified hover preserves the Blend Package alias")
+    blend_definition = send_definition(
+        conn, title_uri, title_source, "Blend", 104, shader_route)
+    blend_declaration = title_source.index("private Blend")
+    check(matches_location(
+        blend_definition, title_uri, title_source, "Blend",
+        blend_declaration),
+        "qualified definition selects the Blend Package alias")
+
+    source_definition = send_definition(
+        conn, title_uri, title_source, "source", 107)
+    check(matches_file_start(source_definition, blend_uri),
+          "source locator definition opens the imported file")
+
+    graphics_package_root = os.path.join(
+        REPO_ROOT, "packages", "ttx", "Perimortem.Graphics")
+    graphics_package_uri = "file://" + os.path.join(
+        graphics_package_root, "package.ttx")
+    package_definition = send_definition(
+        conn, title_uri, title_source, "package", 108)
+    package_definition_matches = matches_location(
+        package_definition, title_uri, title_source, "Graphics",
+        graphics_declaration)
+    if not package_definition_matches:
+        print("  Package locator definition:", package_definition)
+    check(package_definition_matches,
+          "package locator definition selects its authored Import alias")
+
+    with open(os.path.join(graphics_package_root, "package.ttx"),
+              "r", encoding="utf-8") as f:
+        graphics_package_source = f.read()
+    graphics_package_diagnostics = send_did_open(
+        conn, graphics_package_uri, graphics_package_source)
+    check(graphics_package_diagnostics is not None and
+          not graphics_package_diagnostics.get(
+              "params", {}).get("diagnostics", []),
+          "Graphics Package direct Import Types publish without diagnostics")
+    pixel_expression = graphics_package_source.index(
+        'source("pixel.ttx")::Pixel')
+    pixel_segment = graphics_package_source.index(
+        "Pixel", pixel_expression + len('source("pixel.ttx")::'))
+    pixel_definition = send_definition(
+        conn, graphics_package_uri, graphics_package_source, "Pixel", 109,
+        pixel_segment)
+    pixel_hover = send_hover(
+        conn, graphics_package_uri, graphics_package_source, "Pixel", 111,
+        pixel_segment)
+    pixel_hover_result = pixel_hover.get("result") if pixel_hover else None
+    pixel_markdown = (
+        pixel_hover_result.get("contents", {}).get("value", "")
+        if pixel_hover_result else "")
+    check("Type Pixel" in pixel_markdown,
+          "chained Import hover selects the external Type")
+    pixel_uri = "file://" + os.path.join(graphics_package_root, "pixel.ttx")
+    with open(os.path.join(graphics_package_root, "pixel.ttx"),
+              "r", encoding="utf-8") as f:
+        pixel_source = f.read()
+    pixel_declaration = pixel_source.index("public Pixel")
+    pixel_matches = matches_location(
+        pixel_definition, pixel_uri, pixel_source, "Pixel",
+        pixel_declaration)
+    if not pixel_matches:
+        print("  Chained Pixel definition:", pixel_definition)
+        print("  Chained Pixel hover:", pixel_hover)
+    check(pixel_matches,
+        "chained Import definition selects the external Type")
+
+    icon_uri = "file://" + os.path.join(
+        REPO_ROOT, "apps", "ttx", "scene_lifetime", "resources",
+        "icon.png")
+    icon_definition = send_definition(
+        conn, splash_uri, splash_source, "icon.png", 110)
+    check(matches_file_start(icon_definition, icon_uri),
+          "embedded Resource definition opens the acquired file")
+
+    material_hover = send_hover(
+        conn, title_uri, title_source, "Material", 105, shader_route)
+    material_result = material_hover.get("result") if material_hover else None
+    material_markdown = (
+        material_result.get("contents", {}).get("value", "")
+        if material_result else "")
+    check("Type Material" in material_markdown,
+          "qualified hover selects the app-owned Shader Material")
+    material_definition = send_definition(
+        conn, title_uri, title_source, "Material", 106, shader_route)
+    material_declaration = blend_source.index("implements")
+    material_matches = matches_location(
+        material_definition, blend_uri, blend_source, "implements",
+        material_declaration)
+    if not material_matches:
+        print("  Material definition:", material_definition)
+    check(material_matches,
+          "generated Material definition opens its owning Shader source")
+    if SCENE_ONLY:
+        conn.close()
+        proc.terminate()
+        proc.wait(timeout=3)
+        drain_thread.join(timeout=2)
+        server_sock.close()
+        if os.path.exists(SOCKET_PATH):
+            os.unlink(SOCKET_PATH)
+        if failures:
+            print("\nFailures:")
+            for failure in failures:
+                print(f"  - {failure}")
+            return 1
+        return 0
+
+    print("\n--- Access completion: progressive Library graph ---")
+    dot_source = (
+        "// Progressive address completion.\n"
+        "dialect : Library;\n"
+        "public Item : struct {\n"
+        "  public state count : U64;\n"
+        "}\n"
+        "public explore : func = [.value : Item] -> [] {\n"
+        "  value.")
+    dot_uri = "file:///completion-address.ttx"
+    send_did_open(conn, dot_uri, dot_source)
+    dot_completion = send_completion(
+        conn, dot_uri, dot_source, len(dot_source), 60)
+    dot_labels = {
+        item.get("label")
+        for item in (dot_completion or {}).get("result", [])
+    }
+    if "count" not in dot_labels:
+        print("  Address completion:", dot_completion)
+    check("count" in dot_labels,
+          "address completion survives an unfinished access expression")
+
+    type_source = (
+        "// Progressive Type completion.\n"
+        "dialect : Library;\n"
+        "public Item : struct {\n"
+        "  public Nested : struct {}\n"
+        "}\n"
+        "public explore : func = [] -> [] {\n"
+        "  Item::")
+    type_uri = "file:///completion-type.ttx"
+    send_did_open(conn, type_uri, type_source)
+    type_completion = send_completion(
+        conn, type_uri, type_source, len(type_source), 61)
+    type_labels = {
+        item.get("label")
+        for item in (type_completion or {}).get("result", [])
+    }
+    if "Nested" not in type_labels:
+        print("  Type completion:", type_completion)
+    check("Nested" in type_labels,
+          "Type completion uses the retained nested Type graph")
+
+    call_source = (
+        "// Progressive Callable completion.\n"
+        "dialect : Library;\n"
+        "public Item : struct {\n"
+        "  public size : func = [self] -> U64 : return 0;\n"
+        "}\n"
+        "public item : Item;\n"
+        "public explore : func = [] -> [] {\n"
+        "  item ->")
+    call_uri = "file:///completion-call.ttx"
+    send_did_open(conn, call_uri, call_source)
+    call_completion = send_completion(
+        conn, call_uri, call_source, len(call_source), 62)
+    call_labels = {
+        item.get("label")
+        for item in (call_completion or {}).get("result", [])
+    }
+    if "size" not in call_labels:
+        print("  Callable completion:", call_completion)
+    check("size" in call_labels,
+          "Callable completion preserves the Self receiver role")
 
     print("\n--- Package session: cross-source and System ABI ---")
     package_root = os.path.join(
@@ -393,7 +716,7 @@ def run_test():
     check(system_package_diagnostics is not None and
           not system_package_diagnostics.get(
               "params", {}).get("diagnostics", []),
-          "Perimortem.System manifest publishes without diagnostics")
+          "Perimortem.System Package root publishes without diagnostics")
     package_messages = (package_diagnostics or {}).get(
         "params", {}).get("diagnostics", [])
     if package_messages:
@@ -402,7 +725,7 @@ def run_test():
             print("   ", diagnostic.get("message"))
     check(package_diagnostics is not None and not package_diagnostics.get(
         "params", {}).get("diagnostics", []),
-        "consumer Package manifest publishes without diagnostics")
+        "consumer Package root publishes without diagnostics")
     main_messages = (main_diagnostics or {}).get(
         "params", {}).get("diagnostics", [])
     if main_messages:
@@ -411,7 +734,7 @@ def run_test():
             print("   ", diagnostic.get("message"))
     check(main_diagnostics is not None and not main_diagnostics.get(
         "params", {}).get("diagnostics", []),
-        "Package member resolves its sibling and Perimortem.System")
+        "Package source resolves its sibling and Perimortem.System")
     prefix_use = main_source.index("Dynamic::Bytes -> concat")
     system_hover = send_hover(
         conn, main_uri, main_source, "line_prefix", 11, prefix_use)
@@ -419,7 +742,9 @@ def run_test():
     system_markdown = (
         system_result.get("contents", {}).get("value", "")
         if system_result else "")
-    check("state line_prefix : View[U8]" in system_markdown,
+    if "line_prefix : View[U8]" not in system_markdown:
+        print("  line_prefix hover:", system_hover)
+    check("line_prefix : View[U8]" in system_markdown,
           "Package hover uses the shared cross-source analysis snapshot")
     helper_call = main_source.index("Helper -> prefix")
     prefix_definition = send_definition(
@@ -437,20 +762,36 @@ def run_test():
         bytes_result.get("contents", {}).get("value", "")
         if bytes_result else "")
     check("Type Bytes" in bytes_markdown and
-          "copy-on-write container of U8 values" in bytes_markdown,
+          "copy on write container of U8 values" in bytes_markdown,
           "Package hover preserves exported Bytes Type documentation")
-    memory_path = os.path.join(
-        REPO_ROOT, "packages", "ttx", "Perimortem.Memory", "dynamic.ttx")
-    memory_uri = "file://" + memory_path
-    with open(memory_path, "r", encoding="utf-8") as f:
-        memory_source = f.read()
     bytes_definition = send_definition(
         conn, main_uri, main_source, "Bytes", 42, prefix_use)
-    bytes_declaration = memory_source.index("public Bytes")
+    if not matches_location(
+            bytes_definition, main_uri, main_source, "Bytes", prefix_use):
+        print("  Archived Bytes definition:", bytes_definition)
     check(matches_location(
-        bytes_definition, memory_uri, memory_source, "Bytes",
-        bytes_declaration),
-        "definition resolves an unopened dependency source")
+        bytes_definition, main_uri, main_source, "Bytes", prefix_use),
+        "source-free Package definition retains the exact local Type use")
+
+    graphics_root = os.path.join(
+        REPO_ROOT, "packages", "ttx", "Perimortem.Graphics")
+    transform_path = os.path.join(graphics_root, "transform2d.ttx")
+    with open(transform_path, "r", encoding="utf-8") as f:
+        transform_source = f.read()
+    transform_uri = "file://" + transform_path
+    transform_diagnostics = send_did_open(
+        conn, transform_uri, transform_source)
+    check(transform_diagnostics is not None and not transform_diagnostics.get(
+        "params", {}).get("diagnostics", []),
+        "Graphics Transform2D publishes without diagnostics")
+    point_use = transform_source.index("state translation : Point2D")
+    point_definition = send_definition(
+        conn, transform_uri, transform_source, "Point2D", 68, point_use)
+    point_declaration = transform_source.index("public Point2D : alias")
+    check(matches_location(
+        point_definition, transform_uri, transform_source, "Point2D",
+        point_declaration),
+        "definition preserves the source-local Point2D Alias")
 
     concat_hover = send_hover(
         conn, main_uri, main_source, "concat", 17, prefix_use)
@@ -463,11 +804,12 @@ def run_test():
           "Package hover preserves exported Bytes Callable documentation")
     concat_definition = send_definition(
         conn, main_uri, main_source, "concat", 43, prefix_use)
-    concat_declaration = memory_source.index("public concat")
+    if not matches_location(
+            concat_definition, main_uri, main_source, "concat", prefix_use):
+        print("  Archived concat definition:", concat_definition)
     check(matches_location(
-        concat_definition, memory_uri, memory_source, "concat",
-        concat_declaration),
-        "definition resolves an exported Static Callable")
+        concat_definition, main_uri, main_source, "concat", prefix_use),
+        "source-free Package definition retains the exact Callable use")
 
     get_view_use = main_source.index("line -> get_view")
     get_view_hover = send_hover(
@@ -485,9 +827,13 @@ def run_test():
     send_did_change(conn, helper_uri, renamed_helper, 2)
     invalidated_hover = send_hover(
         conn, main_uri, main_source, "line_prefix", 12, prefix_use)
-    check(invalidated_hover is not None and
-          invalidated_hover.get("result") is None,
-          "editing one member invalidates the complete Package graph")
+    invalidated_result = (
+        invalidated_hover.get("result") if invalidated_hover else None)
+    invalidated_markdown = (
+        invalidated_result.get("contents", {}).get("value", "")
+        if invalidated_result else "")
+    check("line_prefix : Unknown" in invalidated_markdown,
+          "editing one member exposes an unresolved progressive hover")
     send_did_change(conn, helper_uri, helper_source, 3)
     restored_hover = send_hover(
         conn, main_uri, main_source, "line_prefix", 13, prefix_use)
@@ -495,7 +841,7 @@ def run_test():
     restored_markdown = (
         restored_result.get("contents", {}).get("value", "")
         if restored_result else "")
-    check("state line_prefix : View[U8]" in restored_markdown,
+    check("line_prefix : View[U8]" in restored_markdown,
           "restoring an overlay rebuilds one complete Package snapshot")
 
     renamed_system = system_source.replace(
@@ -503,9 +849,13 @@ def run_test():
     send_did_change(conn, system_uri, renamed_system, 2)
     dependency_hover = send_hover(
         conn, main_uri, main_source, "line_prefix", 14, prefix_use)
-    check(dependency_hover is not None and
-          dependency_hover.get("result") is None,
-          "editing a dependency invalidates every consuming Package graph")
+    dependency_result = (
+        dependency_hover.get("result") if dependency_hover else None)
+    dependency_markdown = (
+        dependency_result.get("contents", {}).get("value", "")
+        if dependency_result else "")
+    check("line_prefix : View[U8]" in dependency_markdown,
+          "editing a dependency retains progressive consumer hover")
     send_did_change(conn, system_uri, system_source, 3)
     dependency_restored_hover = send_hover(
         conn, main_uri, main_source, "line_prefix", 15, prefix_use)
@@ -515,9 +865,84 @@ def run_test():
     dependency_restored_markdown = (
         dependency_restored_result.get("contents", {}).get("value", "")
         if dependency_restored_result else "")
-    check("state line_prefix : View[U8]" in
+    check("line_prefix : View[U8]" in
           dependency_restored_markdown,
           "restoring a dependency overlay rebuilds its consumers")
+
+    context_main_source = main_source.replace(
+        "  System::Terminal -> write_line(Dynamic::Bytes -> "
+        "concat(line_prefix, view))?;\n",
+        "  state output := Dynamic::\n")
+    send_did_change(conn, main_uri, context_main_source, 2)
+    context_completion = send_completion(
+        conn, main_uri, context_main_source,
+        context_main_source.index("Dynamic::") + len("Dynamic::"), 66)
+    context_labels = {
+        item.get("label")
+        for item in (context_completion or {}).get("result", [])
+    }
+    check("Bytes" in context_labels,
+          "Library Monograph context offers its retained Types")
+
+    static_main_source = main_source.replace(
+        "  System::Terminal -> write_line(Dynamic::Bytes -> "
+        "concat(line_prefix, view))?;\n",
+        "  state output := Dynamic::Bytes -> \n")
+    send_did_change(conn, main_uri, static_main_source, 3)
+    static_completion = send_completion(
+        conn, main_uri, static_main_source,
+        static_main_source.index("Dynamic::Bytes -> ") +
+        len("Dynamic::Bytes -> "), 67)
+    static_labels = {
+        item.get("label")
+        for item in (static_completion or {}).get("result", [])
+    }
+    if not {"copy", "concat"}.issubset(static_labels):
+        print("  Static completion:", static_completion)
+    check("copy" in static_labels and "concat" in static_labels,
+          "Static Type completion survives preferred call spacing")
+
+    partial_main_source = main_source.replace(
+        "  System::Terminal -> write_line(Dynamic::Bytes -> "
+        "concat(line_prefix, view))?;\n",
+        "  while true {\n"
+        "    state output := Dynamic::Bytes -> copy(line_prefix);\n"
+        "    output->\n"
+        "  }\n")
+    partial_diagnostics = send_did_change(
+        conn, main_uri, partial_main_source, 4)
+    partial_messages = (partial_diagnostics or {}).get(
+        "params", {}).get("diagnostics", [])
+    partial_hover = send_hover(
+        conn, main_uri, partial_main_source, "output", 63,
+        partial_main_source.index("output->"))
+    partial_result = partial_hover.get("result") if partial_hover else None
+    partial_markdown = (
+        partial_result.get("contents", {}).get("value", "")
+        if partial_result else "")
+    if "output : Bytes" not in partial_markdown:
+        print("  Inferred Local hover:", partial_hover)
+    inferred_completion = send_completion(
+        conn, main_uri, partial_main_source,
+        partial_main_source.index("output->") + len("output->"), 64)
+    partial_definition = send_definition(
+        conn, main_uri, partial_main_source, "output", 65,
+        partial_main_source.index("output->"))
+    inferred_labels = {
+        item.get("label")
+        for item in (inferred_completion or {}).get("result", [])
+    }
+    check(bool(partial_messages),
+          "unfinished inferred access remains diagnostic")
+    check("output : Bytes" in partial_markdown,
+          "retained Package source preserves an inferred Local Type")
+    check("concat" in inferred_labels,
+          "inferred Local completion survives unfinished invocation")
+    check(matches_location(
+        partial_definition, main_uri, partial_main_source, "output",
+        partial_main_source.index("state output")),
+        "unfinished invocation preserves inferred Local definition")
+    send_did_change(conn, main_uri, main_source, 5)
 
     print("\n--- Semantic tokens: Library/default dialect ---")
     library_source = (
@@ -577,14 +1002,17 @@ def run_test():
     check("\"Icon \\\"Preview\\\"\"" in no_dialect_texts,
           "document sync decodes escaped string text")
 
-    print("\n--- Semantic tokens: Shader dialect filtering ---")
+    print("\n--- Semantic tokens: Shader Library execution ---")
     shader_source = (
         "dialect : Shader;\n"
-        "public func main[] -> Count {\n"
-        "  if (true) {\n"
-        "    continue;\n"
+        "implements source(\"pipeline.ttx\");\n"
+        "Shader fragment[] -> [] {\n"
+        "  while true {\n"
+        "    if true {\n"
+        "      continue;\n"
+        "    }\n"
         "  }\n"
-        "  return 0;\n"
+        "  return;\n"
         "}\n"
     )
     shader_uri = "file:///semantic-shader.ttx"
@@ -595,8 +1023,40 @@ def run_test():
         shader_source, shader_data)]
     check(len(shader_data) > 0, "Shader document returns semantic tokens")
     check("return" in shader_texts, "Shader document keeps shared control keywords")
-    check("if" not in shader_texts and "continue" not in shader_texts,
-          "Shader document filters Library-only control keywords")
+    check("if" in shader_texts and "continue" in shader_texts,
+          "Shader document keeps Library control keywords")
+
+    print("\n--- Semantic tokens: App and Scene policy ---")
+    app_path = os.path.join(
+        REPO_ROOT, "apps", "ttx", "scene_lifetime", "main.ttx")
+    with open(app_path, "r", encoding="utf-8") as f:
+        app_source = f.read()
+    app_uri = "file://" + app_path
+    send_did_open(conn, app_uri, app_source)
+    app_resp = send_semantic_tokens(conn, app_uri, 68)
+    app_data = app_resp.get("result", {}).get("data", []) if app_resp else []
+    app_tokens = semantic_token_texts(app_source, app_data)
+    for spelling in [
+            "runtime", "lifecycle", "initial", "on", "replace", "exit"]:
+        check((spelling, 7) in app_tokens,
+              f"App policy highlights {spelling} from its semantic owner")
+
+    scene_path = os.path.join(
+        REPO_ROOT, "apps", "ttx", "scene_lifetime", "scenes", "title.ttx")
+    with open(scene_path, "r", encoding="utf-8") as f:
+        scene_source = f.read()
+    scene_uri = "file://" + scene_path
+    send_did_open(conn, scene_uri, scene_source)
+    scene_resp = send_semantic_tokens(conn, scene_uri, 69)
+    scene_data = (
+        scene_resp.get("result", {}).get("data", []) if scene_resp else [])
+    scene_tokens = semantic_token_texts(scene_source, scene_data)
+    check(("/// Tetrodotoxin", raw_comment_token) in scene_tokens,
+          "Scene gives raw comments their subdued semantic token")
+    check(("signal", 7) in scene_tokens,
+          "Scene highlights the Signal declaration keyword")
+    check(("space_pressed", 5) in scene_tokens,
+          "Scene highlights the real Signal identity as a property")
 
     print("\n--- Parameter inlay hints: retained Call fitting ---")
     hint_source = (
@@ -635,6 +1095,8 @@ def run_test():
     ]
     actual_hints = [(hint.get("label"), hint.get("position"))
                     for hint in hints]
+    if actual_hints != expected_hints:
+        print("  Inlay hints:", hint_resp)
     check(actual_hints == expected_hints,
           "positional and composed Packs use exact fitted parameter hints")
     check(all(hint.get("kind") == 2 and hint.get("paddingRight") is True
@@ -661,7 +1123,9 @@ def run_test():
     unicode_markdown = (
         (unicode_hover.get("result") or {}).get("contents", {}).get("value", "")
         if unicode_hover else "")
-    check("func echo[.value : U64] -> U64" in unicode_markdown,
+    if "func echo" not in unicode_markdown:
+        print("  Unicode hover:", unicode_hover)
+    check("func echo[.value : U64] -> [U64]" in unicode_markdown,
           f"hover maps {POSITION_ENCODING} positions after an astral character")
     unicode_definition = send_definition(
         conn, unicode_uri, unicode_source, "echo", 26, unicode_use)
@@ -675,6 +1139,8 @@ def run_test():
     unicode_hint_values = (
         unicode_inlays.get("result", []) if unicode_inlays else [])
     argument = unicode_source.index("7", unicode_use)
+    if not unicode_hint_values:
+        print("  Unicode inlays:", unicode_inlays)
     check(unicode_hint_values == [{
         "position": source_position(unicode_source, argument),
         "label": ".value =",
@@ -725,12 +1191,14 @@ def run_test():
 
     print("\n--- Semantic hover: completed Library graph ---")
     hover_path = os.path.join(
-        REPO_ROOT, "validation", "data", "ttx", "llvm",
+        REPO_ROOT, "validation", "data", "ttx", "products", "runtime",
         "runtime.ttx")
     with open(hover_path, "r", encoding="utf-8") as f:
         hover_source = f.read()
     hover_uri = "file:///llvm_nonobject-hover.ttx"
     hover_diagnostics = send_did_open(conn, hover_uri, hover_source)
+    if (hover_diagnostics or {}).get("params", {}).get("diagnostics", []):
+        print("  Hover source diagnostics:", hover_diagnostics)
     check(hover_diagnostics is not None and
           hover_diagnostics.get("method") ==
           "textDocument/publishDiagnostics" and
@@ -757,14 +1225,14 @@ def run_test():
     absent_markdown = (
         absent_resp.get("result", {}).get("contents", {}).get("value", "")
         if absent_resp else "")
-    check("const present : Option[U64]" in present_markdown,
+    check("present : Option[U64]" in present_markdown,
           "hover resolves present to its exact Field and Type")
-    check("= some(5)" in present_markdown,
-          "hover displays present's folded Option payload")
-    check("const absent : Option[U64]" in absent_markdown,
+    check("some(5)" not in present_markdown,
+          "Field hover stays separate from its folded Option payload")
+    check("absent : Option[U64]" in absent_markdown,
           "hover resolves absent to its exact Field and Type")
-    check("= absent" in absent_markdown,
-          "hover displays absent's folded Option state")
+    check("= absent" not in absent_markdown,
+          "Field hover stays separate from its folded Option state")
 
     frozen_use = hover_source.index("total += frozen_dense")
     frozen_resp = send_hover(
@@ -772,10 +1240,10 @@ def run_test():
     frozen_markdown = (
         frozen_resp.get("result", {}).get("contents", {}).get("value", "")
         if frozen_resp else "")
-    check("const frozen_dense : Fixed[U64,4]" in frozen_markdown,
+    check("frozen_dense : Fixed[U64,4]" in frozen_markdown,
           "hover resolves the const Fixed stack Local and exact Type")
-    check("= (5, 6, 7, 8)" in frozen_markdown,
-          "hover displays the const Fixed Local's folded values")
+    check("(5, 6, 7, 8)" not in frozen_markdown,
+          "Local hover stays separate from its folded values")
 
     bytes_use = hover_source.index("Dynamic::Bytes -> concat(left, right)")
     bytes_resp = send_hover(
@@ -783,10 +1251,10 @@ def run_test():
     bytes_markdown = (
         bytes_resp.get("result", {}).get("contents", {}).get("value", "")
         if bytes_resp else "")
-    check("const left : View[U8]" in bytes_markdown,
+    check("left : View[U8]" in bytes_markdown,
           "hover resolves the const byte View and exact Type")
-    check('= "Hi"' in bytes_markdown,
-          "hover displays the const byte View as an escaped string")
+    check('"Hi"' not in bytes_markdown,
+          "Addressable hover stays separate from its byte Constant")
 
     execute_start = hover_source.index("public execute : func")
     dense_use = hover_source.index("total += dense", execute_start)
@@ -810,7 +1278,7 @@ def run_test():
     function_markdown = (
         (function_resp.get("result") or {}).get("contents", {}).get("value", "")
         if function_resp else "")
-    check("func execute[] -> U64" in function_markdown and
+    check("func execute[] -> [U64]" in function_markdown and
           "Test documentation string for function" in function_markdown,
           "Function hover includes its complete signature and documentation")
 
@@ -824,8 +1292,9 @@ def run_test():
         changed_present_resp.get("result", {})
         .get("contents", {}).get("value", "")
         if changed_present_resp else "")
-    check("= some(7)" in changed_present_markdown,
-          "document edits rebuild the semantic hover snapshot")
+    check("present : Option[U64]" in changed_present_markdown and
+          "some(7)" not in changed_present_markdown,
+          "document edits rebuild the exact semantic hover identity")
 
     detail_source = (
         "// Semantic hover details.\n"
@@ -853,9 +1322,9 @@ def run_test():
     field_markdown = (
         field_resp.get("result", {}).get("contents", {}).get("value", "")
         if field_resp else "")
-    check("state value : U64" in field_markdown,
+    check("value : U64" in field_markdown,
           "hover resolves a state Field declaration and exact Type")
-    check("```tetrodotoxin\nstate value : U64\n```" in
+    check("```tetrodotoxin\nvalue : U64\n```" in
           field_markdown,
           "state Field hover uses one theme-highlighted declaration")
     check("Current value documentation." in field_markdown and
@@ -880,7 +1349,7 @@ def run_test():
     local_markdown = (
         (local_resp.get("result") or {}).get("contents", {}).get("value", "")
         if local_resp else "")
-    check("state bucket : Bucket" in local_markdown and
+    check("bucket : Bucket" in local_markdown and
           "```tetrodotoxin" in local_markdown,
           "hover resolves a state Local and its Type in one declaration")
 
@@ -890,15 +1359,15 @@ def run_test():
     escaped_markdown = (
         (escaped_resp.get("result") or {}).get("contents", {}).get("value", "")
         if escaped_resp else "")
-    check(r'= "\t\n\r\"\\\x60A\xFF"' in escaped_markdown,
-          "byte View hover escapes controls, quotes, slashes, and Markdown")
+    check("escaped : View[U8]" in escaped_markdown,
+          "byte View hover preserves its exact Addressable and Type")
 
     alias_resp = send_hover(
         conn, detail_uri, detail_source, "BucketAlias", 38, local_start)
     alias_markdown = (
         (alias_resp.get("result") or {}).get("contents", {}).get("value", "")
         if alias_resp else "")
-    check("BucketAlias : alias = Bucket" in alias_markdown and
+    check("alias BucketAlias = Bucket" in alias_markdown and
           "```tetrodotoxin" in alias_markdown,
           "hover preserves the authored Alias and target in one declaration")
     check(alias_markdown.index("Alias documentation.") <
@@ -924,9 +1393,9 @@ def run_test():
         .get("contents", {}).get("value", "")
         if foreign_parameter_resp else "")
     check(
-        "```tetrodotoxin\n.parameter value : Object[U8]\n```" in
+        "```tetrodotoxin\nvalue : Object[U8]\n```" in
         foreign_parameter_markdown,
-        "Parameter hover uses pack-parameter highlighting")
+        "Layout-owned parameter hover uses its exact Addressable Type")
 
     foreign_call_start = hover_source.index(
         "foreign -> llvm_object_identity")
@@ -939,7 +1408,7 @@ def run_test():
         if foreign_call_resp else "")
     check(
         "```tetrodotoxin\nfunc llvm_object_identity"
-        "[.value : Object[U8]] -> U64\n```" in
+        "[.value : Object[U8]] -> [U64]\n```" in
         foreign_call_markdown,
         "Foreign Callable hover shows its complete signature")
 
@@ -957,9 +1426,15 @@ def run_test():
     literal_start = detail_source.index("0x[09")
     literal_definition = send_definition(
         conn, detail_uri, detail_source, "09", 46, literal_start)
-    check(literal_definition is not None and
-          literal_definition.get("result") is None,
-          "definition ignores values without declaration identity")
+    literal_spelling = "0x[09 0A 0D 22 5C 60 41 FF]"
+    if not matches_location(
+            literal_definition, detail_uri, detail_source, literal_spelling,
+            literal_start):
+        print("  Literal definition:", literal_definition)
+    check(matches_location(
+        literal_definition, detail_uri, detail_source, literal_spelling,
+        literal_start),
+        "definition preserves an authored Constant identity")
 
     diagnostic_source = (
         "// Invalid hover source.\n"
@@ -1010,6 +1485,24 @@ def run_test():
         notification_probe_resp is not None
         and "result" in notification_probe_resp,
         "$ notification keeps server responsive")
+
+    print("\n--- Formatting: Markdown heading boundary ---")
+    heading_source = (
+        "// # Tetrodotoxin\n"
+        "// Copyright (c) 2023-present Matt Kaes and contributors\n"
+        "//\n"
+        "// Describes one source while leaving its legal notice untouched.\n"
+        "//\n"
+        "dialect : Library;\n"
+        "public value : U64;\n")
+    heading_header = (
+        "// # Tetrodotoxin\n"
+        "// Copyright (c) 2023-present Matt Kaes and contributors\n"
+        "//\n")
+    heading_formatted = send_format(conn, heading_source, "heading.ttx")
+    check(heading_formatted is not None and
+          heading_formatted.startswith(heading_header),
+          "formatting preserves the canonical Markdown header")
 
     print("\n--- Round-trip: apps/ttx/scene_lifetime/scenes/splash.ttx ---")
     splash_path = os.path.join(

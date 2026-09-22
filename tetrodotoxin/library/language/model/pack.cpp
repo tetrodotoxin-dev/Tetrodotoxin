@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/model/pack.hpp"
@@ -8,6 +8,7 @@
 #include "perimortem/memory/managed/vector.hpp"
 
 #include "tetrodotoxin/library/language/constant.hpp"
+#include "tetrodotoxin/library/language/constants/aggregate.hpp"
 #include "tetrodotoxin/library/language/constants/bytes.hpp"
 #include "tetrodotoxin/library/language/constants/enumeration.hpp"
 #include "tetrodotoxin/library/language/constants/false.hpp"
@@ -19,6 +20,7 @@
 #include "tetrodotoxin/library/language/constants/signed.hpp"
 #include "tetrodotoxin/library/language/constants/true.hpp"
 #include "tetrodotoxin/library/language/constants/unsigned.hpp"
+#include "tetrodotoxin/library/language/expression.hpp"
 #include "tetrodotoxin/library/language/generic.hpp"
 #include "tetrodotoxin/library/language/model/type.hpp"
 #include "tetrodotoxin/library/language/model/types/flag.hpp"
@@ -29,14 +31,41 @@
 #include "tetrodotoxin/library/language/types/option.hpp"
 #include "tetrodotoxin/library/language/types/range.hpp"
 #include "tetrodotoxin/library/language/types/result.hpp"
-#include "tetrodotoxin/library/llvm/builder.hpp"
-#include "ttx/concept/documentation.hpp"
-#include "ttx/concept/reference.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/documentation.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
+
+auto Language::Model::Pack::from(Abstract& identity) -> Core::Option<Pack&> {
+  auto expression = identity.select<Language::Expression>();
+  if (expression) {
+    return *expression;
+  }
+  auto constant = identity.select<Language::Constant>();
+  if (constant) {
+    return *constant;
+  }
+  auto aggregate = identity.select<Language::Constants::Aggregate>();
+  return aggregate ? Core::Option<Pack&>(*aggregate) : Core::Option<Pack&>();
+}
+
+auto Language::Model::Pack::from(const Abstract& identity)
+    -> Core::Option<const Pack&> {
+  auto expression = identity.select<Language::Expression>();
+  if (expression) {
+    return *expression;
+  }
+  auto constant = identity.select<Language::Constant>();
+  if (constant) {
+    return *constant;
+  }
+  auto aggregate = identity.select<Language::Constants::Aggregate>();
+  return aggregate ? Core::Option<const Pack&>(*aggregate)
+                   : Core::Option<const Pack&>();
+}
 
 auto Language::Model::Pack::link_restored(
     const Abstract&,
@@ -46,7 +75,7 @@ auto Language::Model::Pack::link_restored(
 
 class Group final : public Language::Model::Pack {
  public:
-  class Layout final : public Ttx::Concept::Layout {
+  class Layout final : public Tetrodotoxin::Source::Layout {
    public:
     struct Selection {
       Count entry;
@@ -61,13 +90,13 @@ class Group final : public Language::Model::Pack {
     auto get_name(Count index) const
         -> Core::Option<Core::View::Bytes> override;
     auto fits_entry(
-        const Ttx::Concept::Layout& target,
+        const Tetrodotoxin::Source::Layout& target,
         Count source,
         Count target_index) const -> Bool override;
-    auto fits_at(const Ttx::Concept::Layout& target, Count target_offset) const
+    auto fits_at(const Tetrodotoxin::Source::Layout& target, Count target_offset) const
         -> Bool override;
     auto get_fitted_at(
-        const Ttx::Concept::Layout& target,
+        const Tetrodotoxin::Source::Layout& target,
         Count target_offset,
         Count target_index) const
         -> Utility::Result<const Abstract&, Errors> override;
@@ -80,9 +109,10 @@ class Group final : public Language::Model::Pack {
 
   Group(
       Memory::Allocator::Arena& domain,
-      Core::View::Vector<Reference<Language::Model::Pack>> source_entries,
+      Core::View::Vector<Tetrodotoxin::Source::PackReference<Language::Model::Pack>>
+          source_entries,
       Core::View::Vector<Core::View::Bytes> source_names,
-      Core::Option<Ttx::Lexical::Anchor> anchor,
+      Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor,
       Bool linked = False)
       : entries(domain),
         names(domain),
@@ -90,7 +120,8 @@ class Group final : public Language::Model::Pack {
         layout(*this),
         linked(linked) {
     entries.reset(source_entries.get_size());
-    for (const Reference<Language::Model::Pack>& entry : source_entries) {
+    for (const Tetrodotoxin::Source::PackReference<Language::Model::Pack>& entry :
+         source_entries) {
       entries.insert(entry);
     }
 
@@ -100,27 +131,23 @@ class Group final : public Language::Model::Pack {
     }
   }
 
-  TTX_CONTRACT(Group, Language::Model::Pack);
-
-  TTX_NAME("Pack"_view);
-  TTX_EMPTY_DOCUMENTATION();
-  TTX_INVALID_CONTEXT;
-
   auto link(
-      Ttx::Lexical::Cursor& cursor,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
       const Abstract& lexical_context,
       Core::Option<const Abstract&> access_scope) -> Bool override {
     Bool failed = False;
-    for (Reference<Language::Model::Pack> entry : entries.get_view()) {
+    for (Tetrodotoxin::Source::PackReference<Language::Model::Pack> entry :
+         entries.get_view()) {
       failed |= !entry.get().link(cursor, lexical_context, access_scope);
     }
     BAIL_IF(failed);
 
-    // Type selection must link so a following access can query that identity.
+    // Type selection links here so a following access can query that identity.
     // A group is a value consumer, so it rejects the same result before Layout
     // observation turns the missing value output into a process failure.
-    for (Reference<Language::Model::Pack> entry : entries.get_view()) {
-      if (&entry.get().resolve() != &entry.get()) {
+    for (Tetrodotoxin::Source::PackReference<Language::Model::Pack> entry :
+         entries.get_view()) {
+      if (!entry.get().is_complete()) {
         cursor.create_expression_error(
             anchor, "Library Pack entry did not produce value flow."_view,
             "Use a Type result only as an access receiver."_view);
@@ -129,7 +156,8 @@ class Group final : public Language::Model::Pack {
     }
 
     if (!names.is_empty()) {
-      for (Reference<Language::Model::Pack> entry : entries.get_view()) {
+      for (Tetrodotoxin::Source::PackReference<Language::Model::Pack> entry :
+           entries.get_view()) {
         if (entry.get().get_layout().get_size() != 1) {
           cursor.create_expression_error(
               anchor,
@@ -151,57 +179,53 @@ class Group final : public Language::Model::Pack {
       return True;
     }
 
-    for (Reference<Language::Model::Pack> entry : entries.get_view()) {
+    for (Tetrodotoxin::Source::PackReference<Language::Model::Pack> entry :
+         entries.get_view()) {
       BAIL_IF(!entry.get().link_restored(lexical_context, access_scope));
-      BAIL_IF(&entry.get().resolve() != &entry.get());
+      BAIL_IF(!entry.get().is_complete());
     }
     linked = True;
     return True;
   }
 
-  auto get_layout() const -> const Ttx::Concept::Layout& override {
+  auto get_layout() const -> const Tetrodotoxin::Source::Layout& override {
     return layout;
   }
 
   auto get_value_type(Count index) const -> const Abstract& override {
     auto selected = layout.select(index);
     if (!selected) {
-      return Invalid::get_invalid();
+      return Unknown::get_unknown();
     }
     return entries.at(selected->entry).get().get_value_type(selected->value);
   }
 
-  auto get_produced(Count index) const
-      -> Core::Option<Ttx::Model::Pack::Produced> override {
-    auto selected = layout.select(index);
-    BAIL_IF(!selected);
-    return entries.at(selected->entry).get().get_produced(selected->value);
+  auto is_complete() const -> Bool override { return linked; }
+
+  auto get_anchor() const -> Core::Option<Tetrodotoxin::Source::Lexical::Anchor> override {
+    return anchor;
   }
 
-  auto resolve() const -> const Abstract& override {
-    return linked ? static_cast<const Language::Model::Pack&>(*this)
-                  : static_cast<const Abstract&>(Invalid::get_invalid());
+  auto get_identity() const -> Core::Option<const Abstract&> override {
+    return {};
   }
 
-  auto finalize(Ttx::Lexical::Cursor& cursor) -> void override {
-    for (Reference<Language::Model::Pack> entry : entries.get_view()) {
+  auto finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> void override {
+    for (Tetrodotoxin::Source::PackReference<Language::Model::Pack> entry :
+         entries.get_view()) {
       entry.get().finalize(cursor);
     }
   }
 
-  auto lower(Llvm::Builder& body) const -> Bool override {
-    for (Reference<Language::Model::Pack> entry : entries.get_view()) {
-      if (!entry.get().lower(body)) {
-        return False;
-      }
-    }
-
-    return body.compose(*this);
+  constexpr auto get_entries() const -> Core::View::Vector<
+      Tetrodotoxin::Source::PackReference<Language::Model::Pack>> override {
+    return entries;
   }
 
-  Memory::Managed::Vector<Reference<Language::Model::Pack>> entries;
+  Memory::Managed::Vector<Tetrodotoxin::Source::PackReference<Language::Model::Pack>>
+      entries;
   Memory::Managed::Vector<Core::View::Bytes> names;
-  Core::Option<Ttx::Lexical::Anchor> anchor;
+  Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor;
   Layout layout;
   Bool linked = False;
 };
@@ -212,7 +236,8 @@ auto Group::Layout::get_size() const -> Count {
   }
 
   Count size = 0;
-  for (Reference<Language::Model::Pack> entry : group.entries.get_view()) {
+  for (Tetrodotoxin::Source::PackReference<Language::Model::Pack> entry :
+       group.entries.get_view()) {
     size += entry.get().get_layout().get_size();
   }
   return size;
@@ -251,7 +276,7 @@ auto Group::Layout::get_name(Count index) const
   return group.names.at(index);
 }
 
-static auto get_target_name(const Ttx::Concept::Layout& target, Count index)
+static auto get_target_name(const Tetrodotoxin::Source::Layout& target, Count index)
     -> Core::Option<Core::View::Bytes> {
   auto name = target.get_name(index);
   if (name) {
@@ -266,7 +291,7 @@ static auto get_target_name(const Ttx::Concept::Layout& target, Count index)
 }
 
 auto Group::Layout::fits_entry(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count source,
     Count target_index) const -> Bool {
   BAIL_IF(source >= get_size() || target_index >= target.get_size());
@@ -285,7 +310,7 @@ auto Group::Layout::fits_entry(
 }
 
 auto Group::Layout::fits_at(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count target_offset) const -> Bool {
   BAIL_IF(!has_target_segment(target, target_offset));
 
@@ -316,7 +341,7 @@ auto Group::Layout::fits_at(
 }
 
 auto Group::Layout::get_fitted_at(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count target_offset,
     Count target_index) const -> Utility::Result<const Abstract&, Errors> {
   if (target_index >= get_size()) {
@@ -361,12 +386,25 @@ auto Group::Layout::get_fitted_at(
 }
 
 auto Language::Model::Pack::get_type() const -> const Abstract& {
-  const Ttx::Concept::Layout& layout = get_layout();
+  const Tetrodotoxin::Source::Layout& layout = get_layout();
   if (layout.get_size() != 1) {
-    return Invalid::get_invalid();
+    return Unknown::get_unknown();
   }
 
   return get_value_type(0);
+}
+
+auto Language::Model::Pack::get_result() const -> const Abstract& {
+  return get_identity().visit(
+      []() -> const Abstract& { return Unknown::get_unknown(); },
+      [](const Abstract& identity) -> const Abstract& { return identity; });
+}
+
+auto Language::Model::Pack::get_identity() const
+    -> Core::Option<const Abstract&> {
+  const Tetrodotoxin::Source::Layout& layout = get_layout();
+  BAIL_IF(layout.get_size() != 1);
+  return layout.get_abstract(0);
 }
 
 static auto select_target_type(const Abstract& target)
@@ -377,17 +415,17 @@ static auto select_target_type(const Abstract& target)
   }
 
   const Abstract& resolved = target.resolve();
-  auto addressable = resolved.select<Language::Model::Addressable>();
+  auto addressable = resolved.select<Tetrodotoxin::Source::Addressable>();
   const Abstract& selected = addressable ? addressable->get_type() : resolved;
   direct = selected.select<Language::Model::Type>();
   return direct ? direct : selected.resolve().select<Language::Model::Type>();
 }
 
 auto Language::Model::Pack::fits_entry(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count source_index,
     Count target_index) const -> Bool {
-  const Ttx::Concept::Layout& source = get_layout();
+  const Tetrodotoxin::Source::Layout& source = get_layout();
   BAIL_IF(
       source_index >= source.get_size() || target_index >= target.get_size());
 
@@ -398,32 +436,53 @@ auto Language::Model::Pack::fits_entry(
   if (source.fits_entry(target, source_index, target_index)) {
     return True;
   }
-  BAIL_IF(source.get_name(source_index));
-
+  auto source_name = source.get_name(source_index);
+  auto target_name = get_target_name(target, target_index);
+  BAIL_IF(source_name && (!target_name || *source_name != *target_name));
   auto target_entry = target.get_abstract(target_index);
   BAIL_IF(!target_entry);
   auto target_type = select_target_type(*target_entry);
   BAIL_IF(!target_type);
 
-  auto produced = get_produced(source_index);
-  auto producer = produced ? produced->producer.select<Language::Model::Pack>()
-                           : Core::Option<const Language::Model::Pack&>();
-  return producer ? producer->fits_into(*target_type) : False;
+  auto producer = source.get_abstract(source_index);
+  auto supplied =
+      producer ? Pack::from(*producer) : Core::Option<const Pack&>();
+  return supplied ? supplied->fits_into(*target_type) : False;
 }
 
 auto Language::Model::Pack::fits_at(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count target_offset) const -> Bool {
-  const Ttx::Concept::Layout& source = get_layout();
+  const Tetrodotoxin::Source::Layout& source = get_layout();
   BAIL_IF(
       target_offset > target.get_size() ||
       source.get_size() > target.get_size() - target_offset);
 
-  // A named Layout owns its target reordering. Its fits_entry implementation
-  // still delegates each selected value back through Pack when necessary.
+  // Named flow owns target reordering, while this Pack keeps contextual fitting
+  // on each real producer. Delegating the complete operation to Named would
+  // compare only raw identities and lose cross source scalar admission.
   for (Count index = 0; index < source.get_size(); index++) {
     if (source.get_name(index)) {
-      return source.fits_at(target, target_offset);
+      for (Count source_index = 0; source_index < source.get_size();
+           source_index++) {
+        auto source_name = source.get_name(source_index);
+        BAIL_IF(!source_name);
+        Count selected = 0;
+        Count matches = 0;
+        for (Count target_index = 0; target_index < source.get_size();
+             target_index++) {
+          auto target_name =
+              get_target_name(target, target_offset + target_index);
+          if (target_name && *target_name == *source_name) {
+            selected = target_index;
+            matches++;
+          }
+        }
+        BAIL_IF(
+            matches != 1 ||
+            !fits_entry(target, source_index, target_offset + selected));
+      }
+      return True;
     }
   }
 
@@ -433,14 +492,15 @@ auto Language::Model::Pack::fits_at(
   return True;
 }
 
-auto Language::Model::Pack::fits(const Ttx::Concept::Layout& target) const
+auto Language::Model::Pack::fits(const Tetrodotoxin::Source::Layout& target) const
     -> Bool {
-  BAIL_IF(&resolve() != this);
+  BAIL_IF(!is_complete());
   if (get_layout().get_size() == target.get_size() && fits_at(target, 0)) {
     return True;
   }
 
   BAIL_IF(target.get_size() != 1);
+  BAIL_IF(get_layout().get_size() == 1 && get_layout().get_name(0));
   auto target_entry = target.get_abstract(0);
   BAIL_IF(!target_entry);
   auto target_type = select_target_type(*target_entry);
@@ -448,20 +508,20 @@ auto Language::Model::Pack::fits(const Ttx::Concept::Layout& target) const
 }
 
 auto Language::Model::Pack::get_fitted_at(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count target_offset,
     Count target_index) const
-    -> Utility::Result<const Abstract&, Ttx::Concept::Layout::Errors> {
-  const Ttx::Concept::Layout& source = get_layout();
+    -> Utility::Result<const Abstract&, Tetrodotoxin::Source::Layout::Errors> {
+  const Tetrodotoxin::Source::Layout& source = get_layout();
   if (target_index >= source.get_size()) {
-    return Ttx::Concept::Layout::Errors::IndexOutOfBounds;
+    return Tetrodotoxin::Source::Layout::Errors::IndexOutOfBounds;
   }
   if (target_offset > target.get_size() ||
       source.get_size() > target.get_size() - target_offset) {
-    return Ttx::Concept::Layout::Errors::SizeMismatch;
+    return Tetrodotoxin::Source::Layout::Errors::SizeMismatch;
   }
   if (!fits_at(target, target_offset)) {
-    return Ttx::Concept::Layout::Errors::IncompatibleFit;
+    return Tetrodotoxin::Source::Layout::Errors::IncompatibleFit;
   }
 
   for (Count index = 0; index < source.get_size(); index++) {
@@ -472,24 +532,24 @@ auto Language::Model::Pack::get_fitted_at(
   return source.get_abstract(target_index)
       .visit(
           []() -> Utility::Result<
-                   const Abstract&, Ttx::Concept::Layout::Errors> {
-            return Ttx::Concept::Layout::Errors::IncompatibleFit;
+                   const Abstract&, Tetrodotoxin::Source::Layout::Errors> {
+            return Tetrodotoxin::Source::Layout::Errors::IncompatibleFit;
           },
           [](const Abstract& entry)
               -> Utility::Result<
-                  const Abstract&, Ttx::Concept::Layout::Errors> {
+                  const Abstract&, Tetrodotoxin::Source::Layout::Errors> {
             return entry;
           });
 }
 
-auto Language::Model::Pack::fits(const Ttx::Model::Type& target) const -> Bool {
-  BAIL_IF(&resolve() != this);
-  const Ttx::Concept::Layout& target_layout = target.get_layout();
+auto Language::Model::Pack::fits(const Tetrodotoxin::Source::Type& target) const -> Bool {
+  BAIL_IF(!is_complete());
+  const Tetrodotoxin::Source::Layout& target_layout = target.get_layout();
   return get_layout().get_size() == target_layout.get_size() &&
          fits_at(target_layout, 0);
 }
 
-auto Language::Model::Pack::fits_into(const Ttx::Model::Type& target) const
+auto Language::Model::Pack::fits_into(const Tetrodotoxin::Source::Type& target) const
     -> Bool {
   if (fits(target)) {
     return True;
@@ -500,304 +560,33 @@ auto Language::Model::Pack::fits_into(const Ttx::Model::Type& target) const
 }
 
 auto Language::Model::Pack::create_empty(
-    Memory::Allocator::Arena& domain,
-    Core::Option<Ttx::Lexical::Anchor> anchor) -> Pack& {
+    Perimortem::Memory::Allocator::Arena& domain,
+    Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor) -> Pack& {
   return domain.construct<Group>(
-      domain, Core::View::Vector<Reference<Pack>>(),
+      domain, Core::View::Vector<Tetrodotoxin::Source::PackReference<Pack>>(),
       Core::View::Vector<Core::View::Bytes>(), anchor);
 }
 
 auto Language::Model::Pack::create_group(
-    Memory::Allocator::Arena& domain,
-    Core::View::Vector<Reference<Pack>> entries,
+    Perimortem::Memory::Allocator::Arena& domain,
+    Core::View::Vector<Tetrodotoxin::Source::PackReference<Pack>> entries,
     Core::View::Vector<Core::View::Bytes> names,
-    Core::Option<Ttx::Lexical::Anchor> anchor) -> Pack& {
+    Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor) -> Pack& {
   return domain.construct<Group>(domain, entries, names, anchor);
 }
 
 auto Language::Model::Pack::create_folded(
-    Memory::Allocator::Arena& domain,
-    Core::View::Vector<Reference<Pack>> entries) -> Pack& {
-  return domain.construct<Group>(
-      domain, entries, Core::View::Vector<Core::View::Bytes>(),
-      Core::Option<Ttx::Lexical::Anchor>(), True);
+    Perimortem::Memory::Allocator::Arena& domain,
+    Core::View::Vector<Tetrodotoxin::Source::PackReference<Pack>> entries) -> Pack& {
+  auto aggregate = Language::Constants::Aggregate::create(domain, entries);
+  return aggregate ? static_cast<Pack&>(*aggregate)
+                   : create_completed(domain, entries);
 }
 
 auto Language::Model::Pack::create_completed(
-    Memory::Allocator::Arena& domain,
-    Core::View::Vector<Reference<Pack>> entries,
+    Perimortem::Memory::Allocator::Arena& domain,
+    Core::View::Vector<Tetrodotoxin::Source::PackReference<Pack>> entries,
     Core::View::Vector<Core::View::Bytes> names) -> Pack& {
   return domain.construct<Group>(
-      domain, entries, names, Core::Option<Ttx::Lexical::Anchor>(), True);
-}
-
-auto Language::Model::Pack::persist_folded(
-    Archive::Writer& writer,
-    const Pack& value) -> Bool {
-  auto constant = value.select<Language::Constant>();
-  if (constant) {
-    return constant->persist(writer);
-  }
-
-  const Layout& layout = value.get_layout();
-  BAIL_IF(layout.is_empty() || layout.get_size() > U32(-1));
-
-  Bool named = Bool(layout.get_name(0));
-  auto record = writer.begin(Archive::Tag::PackGroup);
-  writer.write(U32(layout.get_size()));
-  writer.write(U32(named ? layout.get_size() : 0));
-  for (Count index = 0; named && index < layout.get_size(); index++) {
-    auto name = layout.get_name(index);
-    BAIL_IF(!name || !writer.write(*name));
-  }
-
-  for (Count index = 0; index < layout.get_size(); index++) {
-    Bool selected_named = Bool(layout.get_name(index));
-    auto produced = value.get_produced(index);
-    auto selected = produced ? produced->producer.select<Language::Constant>()
-                             : Core::Option<const Language::Constant&>();
-    BAIL_IF(selected_named != named || !selected || !selected->persist(writer));
-  }
-  return writer.finish(record);
-}
-
-static auto resolve_type(const Abstract& context, Core::View::Bytes name)
-    -> Core::Option<const Language::Model::Type&> {
-  return context.resolve_context(name)
-      .resolve()
-      .select<Language::Model::Type>();
-}
-
-static auto materialize_type(
-    const Abstract& context,
-    Core::View::Bytes formula,
-    Core::View::Vector<Language::Generic::Argument> arguments)
-    -> Core::Option<const Language::Model::Type&> {
-  auto generic =
-      context.resolve_context(formula).resolve().select<Language::Generic>();
-  BAIL_IF(!generic);
-  return generic->materialize(arguments).visit(
-      [](const Language::Model::Type& selected)
-          -> Core::Option<const Language::Model::Type&> { return selected; },
-      [](const Language::Generic::Failure&)
-          -> Core::Option<const Language::Model::Type&> { return {}; });
-}
-
-static auto restore_bytes_type(
-    Memory::Allocator::Arena& arena,
-    const Abstract& context,
-    Count extent) -> Core::Option<const Language::Model::Type&> {
-  auto element = resolve_type(context, "U8"_view);
-  auto fixed = context.resolve_context("Fixed"_view)
-                   .resolve()
-                   .select<Language::Generic>();
-  BAIL_IF(!element || !fixed || extent == 0);
-
-  Core::Static::Vector<Language::Generic::Argument, 2> arguments = {{
-    Language::Generic::Argument(*element),
-    Language::Generic::Argument(U64(extent)),
-  }};
-  return fixed->materialize(arguments.get_view())
-      .visit(
-          [](const Language::Model::Type& selected)
-              -> Core::Option<const Language::Model::Type&> {
-            return selected;
-          },
-          [](const Language::Generic::Failure&)
-              -> Core::Option<const Language::Model::Type&> { return {}; });
-}
-
-auto Language::Model::Pack::restore_folded(
-    Archive::Reader& reader,
-    Memory::Allocator::Arena& arena,
-    const Abstract& lexical_context) -> Core::Option<Pack&> {
-  auto record = reader.read_record();
-  BAIL_IF(!record || record->is_optional());
-
-  Archive::Reader contents(record->get_payload());
-  Archive::Tag tag = Archive::Tag(record->get_tag());
-  switch (tag) {
-  case Archive::Tag::PackGroup: {
-    auto count = contents.read_u32();
-    auto name_count = contents.read_u32();
-    BAIL_IF(
-        !count || *count == 0 || !name_count ||
-        (*name_count != 0 && *name_count != *count));
-
-    Memory::Managed::Vector<Core::View::Bytes> names(arena);
-    for (Count index = 0; index < *name_count; index++) {
-      auto name = contents.read_bytes();
-      BAIL_IF(!name);
-      names.insert(arena.proxy(*name));
-    }
-
-    Memory::Managed::Vector<Reference<Pack>> entries(arena);
-    for (Count index = 0; index < *count; index++) {
-      auto entry = restore_folded(contents, arena, lexical_context);
-      BAIL_IF(!entry);
-      entries.insert(*entry);
-    }
-    BAIL_IF(!contents.is_complete());
-    return create_completed(arena, entries.get_view(), names.get_view());
-  }
-  case Archive::Tag::ConstantFalse:
-  case Archive::Tag::ConstantTrue: {
-    auto type_name = contents.read_bytes();
-    auto type = type_name ? resolve_type(lexical_context, *type_name)
-                          : Core::Option<const Language::Model::Type&>();
-    auto flag = type ? type->select<Language::Model::Types::Flag>()
-                     : Core::Option<const Language::Model::Types::Flag&>();
-    BAIL_IF(!flag || !contents.is_complete());
-    return tag == Archive::Tag::ConstantTrue
-               ? static_cast<Pack&>(
-                     Language::Constants::True::create_synthetic(arena, *flag))
-               : static_cast<Pack&>(
-                     Language::Constants::False::create_synthetic(
-                         arena, *flag));
-  }
-  case Archive::Tag::ConstantUnsigned: {
-    auto type_name = contents.read_bytes();
-    auto value = contents.read_u64();
-    auto type = type_name ? resolve_type(lexical_context, *type_name)
-                          : Core::Option<const Language::Model::Type&>();
-    auto selected =
-        type ? type->select<Language::Model::Types::Unsigned>()
-             : Core::Option<const Language::Model::Types::Unsigned&>();
-    BAIL_IF(!value || !selected || !contents.is_complete());
-    return Language::Constants::Unsigned::create_synthetic(
-        arena, *selected, *value);
-  }
-  case Archive::Tag::ConstantSigned: {
-    auto type_name = contents.read_bytes();
-    auto value = contents.read_s64();
-    auto type = type_name ? resolve_type(lexical_context, *type_name)
-                          : Core::Option<const Language::Model::Type&>();
-    auto selected = type
-                        ? type->select<Language::Model::Types::Signed>()
-                        : Core::Option<const Language::Model::Types::Signed&>();
-    BAIL_IF(!value || !selected || !contents.is_complete());
-    return Language::Constants::Signed::create_synthetic(
-        arena, *selected, *value);
-  }
-  case Archive::Tag::ConstantReal: {
-    auto type_name = contents.read_bytes();
-    auto value = contents.read_r64();
-    auto type = type_name ? resolve_type(lexical_context, *type_name)
-                          : Core::Option<const Language::Model::Type&>();
-    auto selected = type ? type->select<Language::Model::Types::Real>()
-                         : Core::Option<const Language::Model::Types::Real&>();
-    BAIL_IF(!value || !selected || !contents.is_complete());
-    return Language::Constants::Real::create_synthetic(
-        arena, *selected, *value);
-  }
-  case Archive::Tag::ConstantBytes: {
-    auto ignored_type_name = contents.read_bytes();
-    auto value = contents.read_bytes();
-    BAIL_IF(
-        !ignored_type_name || !value || value->is_empty() ||
-        !contents.is_complete());
-    auto type = restore_bytes_type(arena, lexical_context, value->get_size());
-    BAIL_IF(!type);
-    return Language::Constants::Bytes::create_synthetic(
-        arena, *type, arena.proxy(*value));
-  }
-  case Archive::Tag::ConstantObject: {
-    auto ignored_type_name = contents.read_bytes();
-    auto element_name = contents.read_bytes();
-    auto element = element_name ? resolve_type(lexical_context, *element_name)
-                                : Core::Option<const Language::Model::Type&>();
-    BAIL_IF(!ignored_type_name || !element || !contents.is_complete());
-    Core::Static::Vector<Language::Generic::Argument, 1> arguments = {{
-      Language::Generic::Argument(*element),
-    }};
-    auto type =
-        materialize_type(lexical_context, "Object"_view, arguments.get_view());
-    BAIL_IF(!type || !type->is<Language::Types::ObjectStorage>());
-    return Language::Constants::Object::create(arena, *type);
-  }
-  case Archive::Tag::ConstantEnumeration: {
-    auto type_name = contents.read_bytes();
-    auto value = contents.read_u64();
-    auto type = type_name ? resolve_type(lexical_context, *type_name)
-                          : Core::Option<const Language::Model::Type&>();
-    auto selected = type ? type->select<Language::Types::Enumeration>()
-                         : Core::Option<const Language::Types::Enumeration&>();
-    BAIL_IF(!value || !selected || !contents.is_complete());
-    return Language::Constants::Enumeration::create_synthetic(
-        arena, *selected, *value);
-  }
-  case Archive::Tag::ConstantOption: {
-    auto ignored_type_name = contents.read_bytes();
-    auto element_name = contents.read_bytes();
-    auto present = contents.read_u8();
-    auto element = element_name ? resolve_type(lexical_context, *element_name)
-                                : Core::Option<const Language::Model::Type&>();
-    BAIL_IF(!ignored_type_name || !element || !present || *present > 1);
-    Core::Static::Vector<Language::Generic::Argument, 1> arguments = {{
-      Language::Generic::Argument(*element),
-    }};
-    auto type =
-        materialize_type(lexical_context, "Option"_view, arguments.get_view());
-    auto selected = type ? type->select<Language::Types::Option>()
-                         : Core::Option<const Language::Types::Option&>();
-    BAIL_IF(!selected);
-    if (*present == 0) {
-      BAIL_IF(!contents.is_complete());
-      return Language::Constants::Option::create_absent(arena, *selected);
-    }
-
-    auto payload = restore_folded(contents, arena, lexical_context);
-    BAIL_IF(!payload || !contents.is_complete());
-    auto restored =
-        Language::Constants::Option::create_present(arena, *selected, *payload);
-    return restored ? Core::Option<Pack&>(*restored) : Core::Option<Pack&>();
-  }
-  case Archive::Tag::ConstantResult: {
-    auto ignored_type_name = contents.read_bytes();
-    auto value_name = contents.read_bytes();
-    auto error_name = contents.read_bytes();
-    auto kind = contents.read_u8();
-    auto value = value_name ? resolve_type(lexical_context, *value_name)
-                            : Core::Option<const Language::Model::Type&>();
-    auto error = error_name ? resolve_type(lexical_context, *error_name)
-                            : Core::Option<const Language::Model::Type&>();
-    BAIL_IF(
-        !ignored_type_name || !value || !error || !kind ||
-        *kind > U8(Language::Types::Result::Kind::Error));
-    Core::Static::Vector<Language::Generic::Argument, 2> arguments = {{
-      Language::Generic::Argument(*value),
-      Language::Generic::Argument(*error),
-    }};
-    auto type =
-        materialize_type(lexical_context, "Result"_view, arguments.get_view());
-    auto selected = type ? type->select<Language::Types::Result>()
-                         : Core::Option<const Language::Types::Result&>();
-    auto payload = restore_folded(contents, arena, lexical_context);
-    BAIL_IF(!selected || !payload || !contents.is_complete());
-    auto restored = *kind == U8(Language::Types::Result::Kind::Value)
-                        ? Language::Constants::Result::create_value(
-                              arena, *selected, *payload)
-                        : Language::Constants::Result::create_error(
-                              arena, *selected, *payload);
-    return restored ? Core::Option<Pack&>(*restored) : Core::Option<Pack&>();
-  }
-  case Archive::Tag::ConstantRange: {
-    auto ignored_type_name = contents.read_bytes();
-    auto element_name = contents.read_bytes();
-    auto element = element_name ? resolve_type(lexical_context, *element_name)
-                                : Core::Option<const Language::Model::Type&>();
-    BAIL_IF(!ignored_type_name || !element || !contents.is_complete());
-    Core::Static::Vector<Language::Generic::Argument, 1> arguments = {{
-      Language::Generic::Argument(*element),
-    }};
-    auto type =
-        materialize_type(lexical_context, "Range"_view, arguments.get_view());
-    auto selected = type ? type->select<Language::Types::Range>()
-                         : Core::Option<const Language::Types::Range&>();
-    BAIL_IF(!selected);
-    return Language::Constants::Range::create_synthetic(arena, *selected);
-  }
-  default:
-    return {};
-  }
+      domain, entries, names, Core::Option<Tetrodotoxin::Source::Lexical::Anchor>(), True);
 }

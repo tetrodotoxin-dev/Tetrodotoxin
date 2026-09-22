@@ -1,0 +1,8 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+// Supplies the exact Program entry selected by App.
+//
+dialect : Library;
+
+public run : func = [] -> [] : return;

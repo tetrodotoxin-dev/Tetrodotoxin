@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -7,9 +7,10 @@
 
 namespace Tetrodotoxin::Package::Archive {
 
-// One completed semantic member carried by a Package Archive. The semantic
-// name identifies the restored member and the Dialect name selects the owner
-// that can interpret its exact opaque payload.
+// One completed semantic member carried by a Package Archive. The member name
+// is the deterministic first route discovered from the Package root; it keys
+// graph restoration without becoming an intrinsic Monograph name. The Dialect
+// name selects the owner that can interpret its exact opaque payload.
 //
 // Member retains those three facts without interpreting or versioning the
 // payload itself.

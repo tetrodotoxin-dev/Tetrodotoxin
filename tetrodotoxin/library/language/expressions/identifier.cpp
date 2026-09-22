@@ -1,43 +1,49 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/expressions/identifier.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
+#include "tetrodotoxin/language/import.hpp"
 #include "tetrodotoxin/library/language/diagnostics.hpp"
-#include "tetrodotoxin/library/language/model/addressable.hpp"
-#include "tetrodotoxin/library/llvm/builder.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/model/alias.hpp"
+#include "tetrodotoxin/library/language/flow/block.hpp"
+#include "tetrodotoxin/library/language/model/memory.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
-static auto resolve_alias(const Abstract& binding) -> const Abstract& {
-  return binding.visit<Ttx::Model::Alias>(
-      [](const Ttx::Model::Alias& alias) -> const Abstract& {
-        return alias.resolve();
-      },
-      [](const Abstract& direct) -> const Abstract& { return direct; });
+// A native Type identity can be useful before its full resolve answer becomes
+// factual. Import supplies that Type through its own operation, while other
+// declarations and transparent references follow ordinary resolution.
+static auto select_native(const Abstract& candidate) -> const Abstract& {
+  if (candidate.is<Tetrodotoxin::Source::Type>()) {
+    return candidate;
+  }
+  const Abstract& resolved = candidate.resolve();
+  return resolved.is<Tetrodotoxin::Language::Import>() ? resolved.get_type()
+                                                       : resolved;
 }
 
 auto Language::Expressions::Identifier::link(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& lexical_context,
     Core::Option<const Abstract&> access_scope) -> Bool {
   (void)token;
   (void)access_scope;
   const Abstract& candidate =
-      resolve_alias(lexical_context.resolve_context(name));
-  const Abstract& selected =
-      candidate.is<Language::Model::Type>() ||
-              candidate.is<Language::Model::Addressable>()
-          ? candidate
-          : candidate.resolve();
+      select_native(lexical_context.resolve_concept(name));
+  const Abstract& selected = candidate.is<Language::Model::Type>() ||
+                                     candidate.is<Tetrodotoxin::Source::Addressable>()
+                                 ? candidate
+                                 : candidate.resolve();
   auto source_anchor = get_anchor();
 
-  if (selected.is<Invalid>()) {
+  if (selected.is<Unknown>() || selected.is<None>()) {
     auto report = cursor.create_report(source_anchor);
     report << "Identifier '"_view << name
            << "' is not available in lexical context '"_view
@@ -61,6 +67,9 @@ auto Language::Expressions::Identifier::link(
   }
 
   result = Reference<const Abstract>(selected);
+  if (source_anchor) {
+    cursor.get_associations().create(*source_anchor, selected);
+  }
   return True;
 }
 
@@ -68,40 +77,44 @@ auto Language::Expressions::Identifier::link_restored(
     const Abstract& lexical_context,
     Core::Option<const Abstract&>) -> Bool {
   const Abstract& candidate =
-      resolve_alias(lexical_context.resolve_context(name));
-  const Abstract& selected =
-      candidate.is<Language::Model::Type>() ||
-              candidate.is<Language::Model::Addressable>()
-          ? candidate
-          : candidate.resolve();
-  BAIL_IF(selected.is<Invalid>());
+      select_native(lexical_context.resolve_concept(name));
+  const Abstract& selected = candidate.is<Language::Model::Type>() ||
+                                     candidate.is<Tetrodotoxin::Source::Addressable>()
+                                 ? candidate
+                                 : candidate.resolve();
+  BAIL_IF(selected.is<Unknown>() || selected.is<None>());
   result = Reference<const Abstract>(selected);
   return True;
 }
 
 auto Language::Expressions::Identifier::get_documentation() const
-    -> const Documentation& {
+    -> const Tetrodotoxin::Source::Documentation& {
   return result.visit(
-      []() -> const Documentation& { return Documentation::get_empty(); },
-      [](const Reference<const Abstract>& selected) -> const Documentation& {
+      []() -> const Tetrodotoxin::Source::Documentation& { return Tetrodotoxin::Source::Documentation::get_empty(); },
+      [](const Reference<const Abstract>& selected) -> const Tetrodotoxin::Source::Documentation& {
         return selected.get().get_documentation();
       });
 }
 
 auto Language::Expressions::Identifier::get_type() const -> const Abstract& {
   return result.visit(
-      []() -> const Abstract& { return Invalid::get_invalid(); },
+      []() -> const Abstract& { return Unknown::get_unknown(); },
       [&](const Reference<const Abstract>& selected) -> const Abstract& {
-        return selected.get().visit<Language::Model::Type>(
+        const Abstract& direct = selected.get();
+        auto pack = Language::Model::Pack::from(direct);
+        if (pack) {
+          return pack->get_type();
+        }
+        return direct.visit<Language::Model::Type>(
             [](const Language::Model::Type&) -> const Abstract& {
-              return Invalid::get_invalid();
+              return Unknown::get_unknown();
             },
             [](const Abstract& addressable) -> const Abstract& {
-              return addressable.visit<Language::Model::Addressable>(
-                  [](const Language::Model::Addressable& selected)
+              return addressable.visit<Tetrodotoxin::Source::Addressable>(
+                  [](const Tetrodotoxin::Source::Addressable& selected)
                       -> const Abstract& { return selected.get_type(); },
                   [](const Abstract&) -> const Abstract& {
-                    return Invalid::get_invalid();
+                    return Unknown::get_unknown();
                   });
             });
       });
@@ -109,37 +122,23 @@ auto Language::Expressions::Identifier::get_type() const -> const Abstract& {
 
 auto Language::Expressions::Identifier::get_result() const -> const Abstract& {
   return result.visit(
-      []() -> const Abstract& { return Invalid::get_invalid(); },
+      []() -> const Abstract& { return Unknown::get_unknown(); },
       [](const Reference<const Abstract>& selected) -> const Abstract& {
         return selected.get();
       });
 }
 
-auto Language::Expressions::Identifier::lower(Llvm::Builder& body) const
-    -> Bool {
-  if (get_result().resolve().is<Language::Model::Type>()) {
-    return True;
+auto Language::Expressions::Identifier::resolve_authored() const
+    -> const Abstract& {
+  if (result) {
+    return result->get();
   }
 
-  auto folded = lower_folded(body);
-  if (folded) {
-    return *folded;
-  }
-
-  Bool selected = lower_write_target(body);
-  if (!selected) {
-    return False;
-  }
-
-  return body.load(*this);
-}
-
-auto Language::Expressions::Identifier::lower_write_target(
-    Llvm::Builder& body) const -> Bool {
-  auto addressable = get_result().resolve().select<Model::Addressable>();
-  if (!addressable) {
-    return False;
-  }
-
-  return body.select(*this, *addressable);
+  const Abstract& context = lexical_context.get();
+  auto block = context.select<Language::Flow::Block>();
+  const Abstract& candidate =
+      block && token
+          ? block->resolve_authored_context(name, Count(token.get_offset()))
+          : context.resolve_concept(name);
+  return select_native(candidate);
 }

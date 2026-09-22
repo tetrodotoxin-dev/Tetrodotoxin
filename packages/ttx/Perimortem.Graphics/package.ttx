@@ -1,0 +1,30 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+// Publishes the value, resource, and hosted Object Types used by graphics.
+//
+dialect : Package;
+package(.name = "Perimortem.Graphics", .version = "1.0");
+
+public Pixel : alias = source("pixel.ttx")::Pixel;
+public Point2D : alias = source("point2d.ttx")::Point2D;
+public Size2D : alias = source("size2d.ttx")::Size2D;
+public Tone : alias = source("tone.ttx")::Tone;
+public Transform2D : alias = source("transform2d.ttx")::Transform2D;
+public Placement2D : alias = source("placement2d.ttx")::Placement2D;
+public Image : alias = source("image.ttx")::Image;
+public Sampler2D : alias = source("sampler2d.ttx")::Sampler2D;
+public Texture2D : alias = source("texture2d.ttx")::Texture2D;
+public Sprite : alias = source("sprite.ttx")::Sprite;
+public DrawableUI : alias = source("sprite.ttx")::DrawableUI;
+public TexturedQuad2DMaterial : alias = source("shaders/textured_2d.ttx")::Material;
+private PNGSource : alias = source("png.ttx");
+private PipelineSource : alias = source("pipelines/textured_2d.ttx");
+
+public Format : namespace {
+  public PNG : alias = PNGSource::PNG;
+}
+
+public Pipeline : namespace {
+  public TexturedQuad2D : alias = PipelineSource;
+}

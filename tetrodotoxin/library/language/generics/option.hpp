@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -6,8 +6,8 @@
 #include "perimortem/core/static/vector.hpp"
 
 #include "tetrodotoxin/library/language/generic.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/model/documentations/comment.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/documentations/comment.hpp"
 
 namespace Tetrodotoxin::Library::Language::Generics {
 
@@ -19,7 +19,7 @@ class Option : public Generic {
 
   Option(
       Perimortem::Memory::Allocator::Arena& domain,
-      const Ttx::Concept::Abstract& context)
+      const Tetrodotoxin::Source::Abstract& context)
       : Generic(domain, context) {}
 
   TTX_NAME(name);
@@ -37,7 +37,7 @@ class Option : public Generic {
 
   static constexpr Perimortem::Core::Static::Vector<Parameters, 1>
       parameterization = {{Parameters::Type}};
-  static constexpr Ttx::Model::Documentations::Comment documentation{
+  static constexpr Tetrodotoxin::Source::Documentations::Comment documentation{
     "Provides an absent or present value without nullable identity."_view,
   };
 };

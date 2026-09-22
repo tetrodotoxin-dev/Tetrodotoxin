@@ -1,5 +1,10 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
 // Perimortem System Package.
 dialect : Package;
+package(.name = "Perimortem.System", .version = "1.0");
 
-resolve Memory : Perimortem.Memory = "1.0";
-source Terminal from "terminal.ttx";
+public Terminal : alias = source("terminal.ttx")::Terminal;
+public Key : alias = source("key.ttx")::Key;
+public Input : alias = source("input.ttx")::Input;

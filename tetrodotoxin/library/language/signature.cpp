@@ -1,66 +1,37 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/signature.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
-auto Language::Signature::interpret(Cursor& cursor, const Abstract& host)
-    -> Option<Signature&> {
-  Allocator::Arena& domain = cursor.get_arena();
-
-  auto parameters = Language::Model::Layout::interpret_parameters(cursor, host);
-  BAIL_IF(!parameters);
-
-  BAIL_IF(!cursor.require(
-      Code::Type::CallOp,
-      "Library Function parameters require `->` before the result "
-      "Layout."_view));
-
-  auto results = Language::Model::Layout::interpret(cursor, host);
-  BAIL_IF(!results);
-
-  Signature& signature = domain.construct_from<Signature>(
-      [&]() -> Signature { return Signature(host, *parameters, *results); });
-  return signature;
+auto Language::Signature::create_authored(
+    Allocator::Arena& domain,
+    const Abstract& host,
+    Model::Layout& parameters,
+    Model::Layout& results) -> Signature& {
+  return create(domain, host, parameters, results);
 }
 
-auto Language::Signature::persist(Archive::Writer& writer) const -> Bool {
-  auto record = writer.begin(Archive::Tag::Signature);
-  BAIL_IF(
-      !parameters.persist(writer) || !results.persist(writer) ||
-      !writer.finish(record));
-  return True;
-}
-
-auto Language::Signature::restore(
-    Archive::Reader& reader,
-    Allocator::Arena& arena,
-    const Abstract& host) -> Option<Signature&> {
-  auto record = reader.read_record();
-  BAIL_IF(
-      !record || record->get_tag() != U16(Archive::Tag::Signature) ||
-      record->is_optional());
-
-  Archive::Reader contents(record->get_payload());
-  auto parameters = Model::Layout::restore(contents, arena, host, True);
-  auto results = Model::Layout::restore(contents, arena, host, False);
-  BAIL_IF(!parameters || !results || !contents.is_complete());
-
-  return arena.construct_from<Signature>(
-      [&]() -> Signature { return Signature(host, *parameters, *results); });
+auto Language::Signature::create(
+    Allocator::Arena& domain,
+    const Abstract& host,
+    Model::Layout& parameters,
+    Model::Layout& results) -> Signature& {
+  return domain.construct_from<Signature>(
+      [&]() -> Signature { return Signature(host, parameters, results); });
 }
 
 auto Language::Signature::link_restored() -> Bool {
   BAIL_IF(!parameters.link_restored(host, True));
   auto first = parameters.get_abstract(0);
-  auto self = first ? first->select<Ttx::Model::Addressable>()
-                    : Option<const Ttx::Model::Addressable&>();
+  auto self = first ? first->select<Tetrodotoxin::Source::Addressable>()
+                    : Option<const Tetrodotoxin::Source::Addressable&>();
   return results.link_restored(host, False, self);
 }
 
@@ -70,8 +41,8 @@ auto Language::Signature::link(Cursor& cursor) -> Bool {
   Bool parameters_linked = parameters.link_parameters(cursor, host);
   auto first = parameters_linked ? parameters.get_abstract(0)
                                  : Option<const Abstract&>();
-  auto self = first ? first->select<Ttx::Model::Addressable>()
-                    : Option<const Ttx::Model::Addressable&>();
+  auto self = first ? first->select<Tetrodotoxin::Source::Addressable>()
+                    : Option<const Tetrodotoxin::Source::Addressable&>();
   Bool results_linked = results.link_types(cursor, host, self);
   return parameters_linked && results_linked;
 }

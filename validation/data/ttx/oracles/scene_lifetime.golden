@@ -23,7 +23,7 @@ release Scenes::Splash[1]
 host Scenes::Title[1].title_card
 prepare Scenes::Title[1]
 step delta_ns=0 Shift=pressed Space=up
-submit Scenes::Title[1].title_card alpha=1.0
+submit Scenes::Title[1].title_card time_milliseconds=0
 press Shift
 emit Scenes::Title[1].shift_pressed
 release Scenes::Title[1]
@@ -50,7 +50,7 @@ release Scenes::Splash[2]
 host Scenes::Title[2].title_card
 prepare Scenes::Title[2]
 step delta_ns=0 Shift=up Space=pressed
-submit Scenes::Title[2].title_card alpha=1.0
+submit Scenes::Title[2].title_card time_milliseconds=0
 press Space
 emit Scenes::Title[2].space_pressed
 release Scenes::Title[2]

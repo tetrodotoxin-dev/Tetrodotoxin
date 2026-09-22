@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/system/random.hpp"
@@ -36,7 +36,7 @@ struct PhiloxState {
       S64(0x9E2779B9'00000000),
       S64(0xBB67AE85'00000000));
   // Reorders the multiplied counter halves for the next round. The high half
-  // crosses each 64-bit pair while the low half moves into the high position.
+  // crosses each 64 bit pair while the low half moves into the high position.
   static constexpr U8 counter_shuffle = 0b10'01'00'11;
 
   alignas(32) U64 output[max_index];
@@ -53,7 +53,7 @@ auto Random::read_entropy() -> U64 {
   }
 
   // RDRAND can transiently fail. The bounded retry avoids hanging startup. The
-  // C runtime fallback is only a last-resort seed source and must not be
+  // C runtime fallback is only a last resort seed source and must not be
   // treated as cryptographic entropy.
   if (timeout == 0) {
     return (Count(rand()) << 32) | Count(rand());
@@ -64,7 +64,7 @@ auto Random::read_entropy() -> U64 {
 
 // Advances four counter depths for each of the two vectorized Philox channels.
 //
-// One refill produces sixteen 64-bit values. All four depths must pass through
+// One refill produces sixteen 64 bit values. All four depths must pass through
 // every Philox round. Leaving depth zero as the raw counter would preserve
 // uniqueness while destroying the statistical meaning of the generator.
 static constexpr auto bump_counter(PhiloxState& state) -> void {
@@ -103,8 +103,8 @@ static constexpr auto bump_counter(PhiloxState& state) -> void {
   state.index = 0;
 }
 
-// Seeds independent keys and counters for one thread-local generator. Keeping
-// the state thread-local avoids synchronization and false sharing in the hot
+// Seeds independent keys and counters for one thread local generator. Keeping
+// the state thread local avoids synchronization and false sharing in the hot
 // generate() path.
 static auto create_prng() -> PhiloxState {
   PhiloxState state;

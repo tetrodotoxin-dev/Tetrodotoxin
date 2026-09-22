@@ -1,10 +1,15 @@
-// Tetrodotoxin
-// Copyright (c) 2023-present Matt Kaes and contributors
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
 //
-// Reads complete terminal lines and writes each ordinary line back with a
-// stable prefix.
+// Reads complete terminal lines and writes each ordinary line back with a stable
+// prefix.
 //
 dialect : Library;
+
+public Memory : alias =
+    package(.name = "Perimortem.Memory", .version = "1.0");
+public System : alias =
+    package(.name = "Perimortem.System", .version = "1.0");
 
 using Memory;
 

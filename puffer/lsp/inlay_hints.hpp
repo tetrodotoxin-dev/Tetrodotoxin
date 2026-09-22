@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -10,7 +10,7 @@
 #include "perimortem/serialization/json/node.hpp"
 
 #include "puffer/lsp/position_encoding.hpp"
-#include "ttx/lexical/associations.hpp"
+#include "tetrodotoxin/source/lexical/associations.hpp"
 
 namespace Puffer::Lsp {
 
@@ -21,7 +21,7 @@ auto inlay_hints_for(
     Perimortem::Memory::Allocator::Arena& arena,
     Perimortem::Core::View::Bytes source,
     const PositionEncoding& encoding,
-    const Ttx::Lexical::Associations& associations,
+    const Tetrodotoxin::Source::Lexical::Associations& associations,
     const PositionEncoding::Position& start,
     const PositionEncoding::Position& end)
     -> Perimortem::Serialization::Json::Node;

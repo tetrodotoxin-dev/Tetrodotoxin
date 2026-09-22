@@ -1,34 +1,58 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "puffer/lsp/methods.hpp"
+
+#include <limits.h>
+#include <unistd.h>
 
 #include "perimortem/core/diagnostics/log.hpp"
 #include "perimortem/core/null_terminated.hpp"
 
 #include "perimortem/memory/allocator/arena.hpp"
 #include "perimortem/memory/dynamic/bytes.hpp"
+#include "perimortem/memory/managed/bytes.hpp"
 #include "perimortem/memory/managed/vector.hpp"
 
+#include "perimortem/system/path.hpp"
 #include "perimortem/serialization/json/blueprint.hpp"
 #include "perimortem/serialization/json/node.hpp"
 
+#include "puffer/lsp/completion.hpp"
 #include "puffer/lsp/documents.hpp"
 #include "puffer/lsp/hover.hpp"
 #include "puffer/lsp/inlay_hints.hpp"
 #include "puffer/lsp/rpc/executor.hpp"
-#include "puffer/lsp/semantic.hpp"
 #include "puffer/lsp/semantic_tokens.hpp"
-#include "tetrodotoxin/library/language/model/addressable.hpp"
-#include "tetrodotoxin/library/language/model/callable.hpp"
-#include "tetrodotoxin/library/language/model/type.hpp"
-#include "ttx/lexical/formatter.hpp"
-#include "ttx/model/alias.hpp"
+#include "tetrodotoxin/formatting/terminal.hpp"
+#include "tetrodotoxin/source/lexical/formatter.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Serialization;
 using namespace Puffer;
+
+auto Lsp::run(View::Bytes pipe) -> S32 {
+  Allocator::Arena arena;
+  char executable[PATH_MAX];
+  const auto length =
+      readlink("/proc/self/exe", executable, sizeof(executable));
+  if (length <= 0 || length == sizeof(executable)) {
+    return 1;
+  }
+  Perimortem::System::Path binary(
+      {reinterpret_cast<const U8*>(executable), Count(length)});
+  Managed::Bytes root(arena, binary.get_directory());
+  root.concat("/../standard"_view);
+  auto repository = Tetrodotoxin::Package::Repository::Repository::create(
+      arena, root.get_view());
+  if (!repository) {
+    return 1;
+  }
+  Executor executor(*repository);
+  executor.execute(pipe);
+  return 0;
+}
 
 static auto publish_diagnostics(
     Lsp::Documents& documents,
@@ -40,16 +64,16 @@ static auto publish_diagnostics(
   const Lsp::PositionEncoding& encoding = documents.get_position_encoding();
   auto selected = documents.get_diagnostics(uri);
   if (selected) {
-    const Ttx::Lexical::Errors& errors = selected->get_errors();
+    const Tetrodotoxin::Source::Lexical::Errors& errors = selected->get_errors();
     View::Bytes source_name = selected->get_source_name();
     for (Count index = 0; index < errors.get_size(); index++) {
       if (errors.get_source_name(index) != source_name) {
         continue;
       }
 
-      Ttx::Lexical::Anchor anchor = errors.get_anchor(index);
-      Ttx::Lexical::Token token = anchor.get_token();
-      Ttx::Lexical::Span span = anchor.get_span();
+      Tetrodotoxin::Source::Lexical::Anchor anchor = errors.get_anchor(index);
+      Tetrodotoxin::Source::Lexical::Token token = anchor.get_token();
+      Tetrodotoxin::Source::Lexical::Span span = anchor.get_span();
       Count start_offset =
           token ? token.get_offset() : (span ? span.get_offset() : Count(0));
       Count size =
@@ -136,6 +160,15 @@ auto Puffer::Lsp::initialize(Documents& documents, const Rpc::Message& message)
              {"hoverProvider"_view, True},
              {"inlayHintProvider"_view, True},
              {"definitionProvider"_view, True},
+             {"completionProvider"_view,
+              {
+                {"triggerCharacters"_view,
+                 {
+                   "."_view,
+                   ":"_view,
+                   ">"_view,
+                 }},
+              }},
              {"documentFormattingProvider"_view, True},
              {"semanticTokensProvider"_view,
               {
@@ -154,8 +187,12 @@ auto Puffer::Lsp::document_formatting(
       message.get_params()["textDocument"_view]["uri"_view].decode_string(
           arena);
   View::Bytes source = documents.get_text(uri);
-  Ttx::Lexical::Tokenizer tokenizer(arena, source, uri);
-  Dynamic::Bytes formatted = Ttx::Lexical::Formatter(tokenizer).format();
+  Tetrodotoxin::Source::Lexical::Tokenizer tokenizer(arena, source, uri);
+  auto completed = documents.get_completed_monograph(uri);
+  Dynamic::Bytes formatted =
+      completed
+          ? Tetrodotoxin::Formatting::Terminal::format(*completed, tokenizer)
+          : Tetrodotoxin::Source::Lexical::Formatter(tokenizer).format();
   View::Bytes formatted_text = arena.proxy(formatted.get_view());
   auto end =
       documents.get_position_encoding().locate(source, source.get_size());
@@ -246,7 +283,7 @@ auto Puffer::Lsp::semantic_tokens(
       message.get_params()["textDocument"_view]["uri"_view].decode_string(
           message.get_arena());
   View::Bytes source = documents.get_text(uri);
-  View::Vector<Ttx::Lexical::Token> tokens = documents.get_tokens(uri);
+  View::Vector<Tetrodotoxin::Source::Lexical::Token> tokens = documents.get_tokens(uri);
   auto associations = documents.get_associations(uri);
   return message.report_result(
       Lsp::semantic_tokens_for(
@@ -326,30 +363,25 @@ auto Puffer::Lsp::definition(Documents& documents, const Rpc::Message& message)
     return message.report_result(Json::Node());
   }
 
-  auto semantic = documents.find_semantic(
-      uri, PositionEncoding::Position(
-               Count(line.get_number()), Count(character.get_number())));
+  PositionEncoding::Position position(
+      Count(line.get_number()), Count(character.get_number()));
+  auto semantic = documents.find_semantic(uri, position);
   if (!semantic) {
     return message.report_result(Json::Node());
   }
 
-  const Ttx::Concept::Abstract& subject = semantic_subject(*semantic);
-  Bool definable =
-      subject.is<Ttx::Model::Alias>() ||
-      subject.is<Tetrodotoxin::Library::Language::Model::Addressable>() ||
-      subject.is<Tetrodotoxin::Library::Language::Model::Callable>() ||
-      subject.is<Tetrodotoxin::Library::Language::Model::Type>();
-  if (!definable) {
-    return message.report_result(Json::Node());
+  Option<Tetrodotoxin::Environment::Workspace::AuthoredLocation> location =
+      documents.find_acquired_definition(uri, position, *semantic);
+  if (!location) {
+    location = documents.find_definition(uri, *semantic);
   }
-  auto location = documents.find_definition(uri, subject);
   if (!location) {
     return message.report_result(Json::Node());
   }
 
-  Ttx::Lexical::Anchor anchor = location->get_anchor();
-  Ttx::Lexical::Token focus = anchor.get_token();
-  Ttx::Lexical::Span span = anchor.get_span();
+  Tetrodotoxin::Source::Lexical::Anchor anchor = location->get_anchor();
+  Tetrodotoxin::Source::Lexical::Token focus = anchor.get_token();
+  Tetrodotoxin::Source::Lexical::Span span = anchor.get_span();
   Count start_offset =
       focus ? focus.get_offset() : (span ? span.get_offset() : Count(0));
   Count size = focus ? focus.get_size() : (span ? span.get_size() : Count(0));

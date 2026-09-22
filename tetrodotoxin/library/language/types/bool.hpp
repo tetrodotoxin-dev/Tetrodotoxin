@@ -1,10 +1,10 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
 
 #include "tetrodotoxin/library/language/model/types/flag.hpp"
-#include "ttx/model/documentations/comment.hpp"
+#include "tetrodotoxin/source/documentations/comment.hpp"
 
 namespace Tetrodotoxin::Library::Language::Types {
 
@@ -28,11 +28,6 @@ class Boolean : public Model::Types::Flag {
   auto fold_propagation(Model::Pack& source) const -> Perimortem::Utility::
       Result<Perimortem::Core::Option<Model::Pack&>, Bool> override;
 
-  auto lower_propagation(
-      Llvm::Builder& body,
-      const Model::Pack& result,
-      const Model::Pack& source,
-      const Model::Pack& escape) const -> Bool override;
   constexpr auto get_width() const -> Count override { return 1; }
   constexpr auto get_size() const -> Count override { return sizeof(::Bool); }
   constexpr auto get_alignment() const -> Count override {
@@ -40,7 +35,7 @@ class Boolean : public Model::Types::Flag {
   }
 
  private:
-  static constexpr Ttx::Model::Documentations::Comment documentation{
+  static constexpr Tetrodotoxin::Source::Documentations::Comment documentation{
     "Bool is stored as a 1 byte logical value."_view,
   };
 };

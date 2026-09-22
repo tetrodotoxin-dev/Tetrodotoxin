@@ -1,7 +1,9 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/language/error.hpp"
+
+#include "tetrodotoxin/source/documentation.hpp"
 
 #include "validation/unit_test.hpp"
 
@@ -10,14 +12,15 @@
 #include "perimortem/memory/allocator/arena.hpp"
 
 #include "tetrodotoxin/language/resource.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Tetrodotoxin;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Validation;
 
 enum class TestCause : U8 {
@@ -59,12 +62,12 @@ PERIMORTEM_UNIT_TEST(LanguageError, category_contract) {
   EXPECT(abstract.is<Language::Error>());
   EXPECT(abstract.is<Abstract>());
   EXPECT_NOT(abstract.is<Language::Resource>());
-  EXPECT_NOT(abstract.is<Invalid>());
-  EXPECT_NOT(abstract.is<Ttx::Model::Type>());
+  EXPECT_NOT(abstract.is<Unknown>());
+  EXPECT_NOT(abstract.is<Tetrodotoxin::Source::Type>());
   EXPECT_TEXT(error.get_name(), "Error"_view);
 
-  const Documentation& documentation = error.get_documentation();
-  EXPECT(&documentation == &Documentation::get_empty());
+  const Tetrodotoxin::Source::Documentation& documentation = error.get_documentation();
+  EXPECT(&documentation == &Tetrodotoxin::Source::Documentation::get_empty());
   EXPECT(documentation.is_empty());
   EXPECT_EQ(documentation.line_count(), 0);
 }
@@ -74,7 +77,7 @@ PERIMORTEM_UNIT_TEST(LanguageError, stable_identity) {
   ContextError first(TestCause::Unreadable, context);
   ContextError second(TestCause::Unreadable, context);
   const Abstract& first_abstract = first;
-  const Invalid& invalid = Invalid::get_invalid();
+  const Unknown& invalid = Unknown::get_unknown();
   const Abstract& invalid_abstract = invalid;
 
   EXPECT(&first != &second);
@@ -96,10 +99,10 @@ PERIMORTEM_UNIT_TEST(LanguageError, context_rejection) {
     View::Bytes(binary_route, sizeof(binary_route)),
   };
   ContextError error(TestCause::Unreadable, "resources/table.bin"_view);
-  const Invalid& invalid = Invalid::get_invalid();
+  const None& none = None::get_none();
 
   for (View::Bytes route : routes) {
-    EXPECT(&error.resolve_context(route) == &invalid);
+    EXPECT(&error.resolve_concept(route) == &none);
   }
 }
 

@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -8,7 +8,7 @@
 
 #include "perimortem/memory/allocator/arena.hpp"
 #include "perimortem/memory/dynamic/bytes.hpp"
-#include "perimortem/memory/managed/map.hpp"
+#include "perimortem/memory/dynamic/map.hpp"
 
 #include "perimortem/system/file.hpp"
 
@@ -20,7 +20,7 @@ namespace Tetrodotoxin::Package {
 // exact opened member before reusing an immutable byte value.
 class Snapshots {
  public:
-  Snapshots() : entries(arena) {}
+  Snapshots() = default;
 
   auto read(
       const Perimortem::System::File::Root& root,
@@ -60,8 +60,10 @@ class Snapshots {
       Perimortem::Core::View::Bytes logical_route)
       -> Perimortem::Core::Option<Entry&>;
 
+  // The Arena gives lookup keys stable storage while the Dynamic map gives
+  // each owned byte value its ordinary destructor when this cache is released.
   Perimortem::Memory::Allocator::Arena arena;
-  Perimortem::Memory::Managed::Map<Perimortem::Core::View::Bytes, Entry&>
+  Perimortem::Memory::Dynamic::Map<Perimortem::Core::View::Bytes, Entry>
       entries;
 };
 

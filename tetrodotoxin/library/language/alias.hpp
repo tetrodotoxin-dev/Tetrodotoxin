@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -9,58 +9,74 @@
 
 #include "tetrodotoxin/language/definition.hpp"
 #include "tetrodotoxin/library/language/type_reference.hpp"
-#include "ttx/lexical/cursor.hpp"
-#include "ttx/model/alias.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 namespace Tetrodotoxin::Library::Language {
 
-// Alias is one authored Library Type namespace redirection. Parsing reserves
-// its stable identity and TypeReference. Link binds one exact target only after
-// every surrounding Type identity exists. TTX Alias remains opaque, so no
-// consumer can inspect or operate on the stored target edge directly.
-class Alias : public Ttx::Model::Alias {
+// This declaration owns the authored name, documentation, and route selecting
+// a Type. Those facts remain visible even before the selected Type completes.
+// They cannot belong to transparent TTX Alias, whose entire surface is the
+// referent's answer. The declaration therefore retains its own Definition and
+// delegates other questions through its TypeReference, where the supplying
+// policy remains visible. Its borrowed native Type is the separate answer
+// needed by compilation, rather than a shortcut for that delegation.
+class Alias : public Tetrodotoxin::Source::Abstract {
  private:
   constexpr Alias(
       Perimortem::Memory::Allocator::Arena& domain,
       Tetrodotoxin::Language::Definition& definition,
       TypeReference target_reference)
-      : Ttx::Model::Alias(
-            definition.get_name(),
-            definition.get_documentation()),
-        definition(definition),
+      : definition(definition),
         domain(domain),
         target_reference(target_reference) {}
 
  public:
-  TTX_CONTRACT(Alias, Ttx::Model::Alias);
+  TTX_CONTRACT(Alias, Tetrodotoxin::Source::Abstract);
+  TTX_NAME(definition.get_name());
 
-  static auto interpret(
-      Ttx::Lexical::Cursor& cursor,
-      Tetrodotoxin::Language::Definition& definition)
-      -> Perimortem::Core::Option<Alias&>;
+  auto resolve() const -> const Tetrodotoxin::Source::Abstract& override;
+  auto get_type() const -> const Tetrodotoxin::Source::Abstract& override;
+  auto resolve_concept(Perimortem::Core::View::Bytes name) const
+      -> const Tetrodotoxin::Source::Abstract& override;
+  auto visit_concepts(Tetrodotoxin::Source::Abstract::Visitor visitor) const
+      -> void override;
+  auto bind_interface(Perimortem::System::Uuid requested) const
+      -> Perimortem::Utility::Result<
+          Ttx::Semantic::Negotiation::Binding,
+          Ttx::Semantic::Negotiation::Binding::Failure> override;
 
-  static auto restore(
-      Archive::Reader& reader,
-      Perimortem::Memory::Allocator::Arena& arena,
-      Ttx::Concept::Abstract& host) -> Perimortem::Core::Option<Alias&>;
+  static auto create_authored(
+      Perimortem::Memory::Allocator::Arena& domain,
+      Tetrodotoxin::Language::Definition& definition,
+      TypeReference target_reference) -> Alias&;
 
-  auto get_documentation() const -> const Ttx::Concept::Documentation& override;
+  static auto create(
+      Perimortem::Memory::Allocator::Arena& domain,
+      Tetrodotoxin::Language::Definition& definition,
+      TypeReference target_reference) -> Alias&;
+
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override;
 
   constexpr auto get_definition() const
       -> const Tetrodotoxin::Language::Definition& {
     return definition;
   }
 
-  constexpr auto get_anchor() const -> Ttx::Lexical::Anchor {
-    return definition.get_anchor();
+  constexpr auto get_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor {
+    return definition.get_authored().get_anchor();
   }
 
   // Source orders Alias completion across its whole declaration tree. Alias
-  // itself only resolves its retained route and binds the resulting Type.
+  // itself resolves its retained route and retains the resulting TTX Type. A
+  // value consumer separately proves the narrower Library Type protocol.
   auto link() -> Bool;
-  auto report_unresolved(Ttx::Lexical::Cursor& cursor) const -> void;
+  auto report_unresolved(Tetrodotoxin::Source::Lexical::Cursor& cursor) const -> void;
 
-  auto persist(Archive::Writer& writer) const -> Bool;
+  constexpr auto get_target_reference() const -> const TypeReference& {
+    return target_reference;
+  }
 
   constexpr auto is_linked() const -> Bool { return linked; }
 
@@ -68,7 +84,9 @@ class Alias : public Ttx::Model::Alias {
   Tetrodotoxin::Language::Definition& definition;
   Perimortem::Memory::Allocator::Arena& domain;
   TypeReference target_reference;
-  Perimortem::Core::Option<const Ttx::Concept::Documentation&> documentation;
+  Perimortem::Core::Option<const Tetrodotoxin::Source::Documentation&> documentation;
+  Perimortem::Core::Option<Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type>>
+      target;
   Bool linked = False;
 };
 

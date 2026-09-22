@@ -2,6 +2,22 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "[TTX] Flow Tests (Linux)",
+      "type": "lldb",
+      "request": "launch",
+      "terminal": "integrated",
+      "program": "${workspaceFolder}/.bin/bin/validation/unit_tests/ttx/semantic/flow_tests",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "sourceMap": {
+        "/proc/self/cwd/": "${workspaceFolder}"
+      },
+      "initCommands": [
+        "command source '${workspaceFolder}/.vscode/perimortem.lldb'"
+      ],
+      "preLaunchTask": "TTX Flow Tests Build (Linux) [Debug]"
+    },
+    {
       "name": "[Tests] Perimortem (Linux)",
       "type": "lldb",
       "request": "launch",
@@ -94,7 +110,7 @@
       "type": "lldb",
       "request": "launch",
       "terminal": "integrated",
-      "program": "${workspaceFolder}/.bin/bin/apps/ttx/echo/echo",
+      "program": "${workspaceFolder}/apps/ttx/echo/build/Application",
       "args": [],
       "cwd": "${workspaceFolder}",
       "sourceLanguages": [
@@ -110,6 +126,31 @@
         "command script import '${workspaceFolder}/extension/lldb/tetrodotoxin.py'"
       ],
       "preLaunchTask": "TTX Echo Build (Linux) [Debug]",
+      "presentation": {
+        "clear": true
+      }
+    },
+    {
+      "name": "[TTX] Launch Scene Lifetime (Linux)",
+      "type": "lldb",
+      "request": "launch",
+      "terminal": "integrated",
+      "program": "${workspaceFolder}/apps/ttx/scene_lifetime/build/SceneLifetime",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "sourceLanguages": [
+        "tetrodotoxin"
+      ],
+      // Why are you like this VSCode???
+      "sourceMap": {
+        "/proc/self/cwd/external/": "${workspaceFolder}/.bin/Perimortem/external/",
+        "/proc/self/cwd/": "${workspaceFolder}"
+      },
+      "initCommands": [
+        "command source '${workspaceFolder}/.vscode/perimortem.lldb'",
+        "command script import '${workspaceFolder}/extension/lldb/tetrodotoxin.py'"
+      ],
+      "preLaunchTask": "TTX Scene Lifetime Build (Linux) [Debug]",
       "presentation": {
         "clear": true
       }

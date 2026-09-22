@@ -1,40 +1,41 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/operations/equal.hpp"
 
 #include "tetrodotoxin/library/language/constants/bytes.hpp"
+#include "tetrodotoxin/library/language/constants/enumeration.hpp"
 #include "tetrodotoxin/library/language/constants/false.hpp"
 #include "tetrodotoxin/library/language/constants/true.hpp"
 #include "tetrodotoxin/library/language/model/types/flag.hpp"
 #include "tetrodotoxin/library/language/model/types/value.hpp"
-#include "tetrodotoxin/library/language/parser/expression.hpp"
+#include "tetrodotoxin/library/language/types/enumeration.hpp"
 #include "tetrodotoxin/library/language/types/view.hpp"
-#include "tetrodotoxin/library/llvm/builder.hpp"
-#include "ttx/concept/invalid.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
 using namespace Tetrodotoxin::Library;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 
 static auto select_operand_type(
-    const Language::Expression& left,
-    const Language::Expression& right) -> const Abstract& {
+    const Language::Model::Pack& left,
+    const Language::Model::Pack& right) -> const Abstract& {
   const Abstract& left_resolved = left.get_type().resolve();
   const Abstract& right_resolved = right.get_type().resolve();
   auto left_type = left_resolved.select<Language::Model::Type>();
   auto right_type = right_resolved.select<Language::Model::Type>();
   if (!left_type || !right_type) {
-    return Invalid::get_invalid();
+    return Unknown::get_unknown();
   }
 
   if (&left_resolved == &right_resolved &&
       (left_resolved
            .is<Tetrodotoxin::Library::Language::Model::Types::Value>() ||
-       (left.is<Language::Constants::Bytes>() &&
-        right.is<Language::Constants::Bytes>()))) {
+       left_resolved.is<Language::Types::Enumeration>() ||
+       (left.is_identity<Language::Constants::Bytes>() &&
+        right.is_identity<Language::Constants::Bytes>()))) {
     return left_resolved;
   }
 
@@ -45,9 +46,10 @@ static auto select_operand_type(
     return *left_view;
   }
 
-  // Bytes is a complete Constant payload domain rather than a universal Type
-  // category. Admitting both values here keeps that ownership distinction.
-  return Invalid::get_invalid();
+  // Bytes is a complete Tetrodotoxin::Library::Language::Constant payload
+  // domain rather than a universal Type category. Admitting both values here
+  // keeps that ownership distinction.
+  return Unknown::get_unknown();
 }
 
 static auto make_result(
@@ -70,63 +72,39 @@ static auto accepts_constant(
     return scalar->accepts_constant(constant);
   }
 
+  if (selected.is<Language::Types::Enumeration>()) {
+    return constant.is_identity<Language::Constants::Enumeration>() &&
+           &constant.get_type().resolve() == &selected;
+  }
+
   auto type = selected.select<Language::Model::Type>();
-  return type && constant.is<Language::Constants::Bytes>() &&
+  return type && constant.is_identity<Language::Constants::Bytes>() &&
          type->accepts(constant);
 }
 
-TTX_BINARY_PARSE(Equal, CmpOp);
-
 TTX_BINARY_OP(Equal);
 
-auto Language::Operations::Equal::lower(Llvm::Builder& body) const -> Bool {
-  auto folded = lower_folded(body);
-  if (folded) {
-    return *folded;
-  }
-
-  auto inputs = get_inputs();
-  const Expression& left = inputs.get_data()[0].get();
-  const Expression& right = inputs.get_data()[1].get();
-  auto carrier = left.get_type().resolve().select<Ttx::Model::Type>();
-
-  if (!carrier) {
-    return False;
-  }
-
-  Bool lowered = lower_inputs(body);
-  if (!lowered) {
-    return False;
-  }
-
-  if (carrier->is<Language::Types::View>()) {
-    return body.compare_bytes(
-        Llvm::Builder::Comparison::Equal, *this, left, right);
-  }
-
-  return body.compare(
-      Llvm::Builder::Comparison::Equal, *carrier, *this, left, right);
-}
-
 auto Language::Operations::Equal::select_type(
-    const Ttx::Concept::Abstract& context) const
+    const Tetrodotoxin::Source::Abstract& context) const
     -> Core::Option<const Language::Model::Type&> {
   auto inputs = get_inputs();
-  const Expression& left = inputs.get_data()[0].get();
-  const Expression& right = inputs.get_data()[1].get();
+  const Model::Pack& left = inputs.get_data()[0].get();
+  const Model::Pack& right = inputs.get_data()[1].get();
   if (!select_operand_type(left, right).resolve().is<Language::Model::Type>()) {
     return {};
   }
 
-  return context.resolve_context("Bool"_view).select<Language::Model::Type>();
+  return context.resolve_concept("Bool"_view).select<Language::Model::Type>();
 }
 
 auto Language::Operations::Equal::evaluate_constants(
     Memory::Allocator::Arena& domain)
-    -> Utility::Result<Core::Option<Constant&>, Expression::Error> {
+    -> Utility::Result<
+        Core::Option<Tetrodotoxin::Library::Language::Constant&>,
+        Expression::Error> {
   auto inputs = get_inputs();
-  Expression& authored_left = inputs.get_data()[0].get();
-  Expression& authored_right = inputs.get_data()[1].get();
+  Model::Pack& authored_left = inputs.get_data()[0].get();
+  Model::Pack& authored_right = inputs.get_data()[1].get();
   auto left = get_folded_input(0);
   auto right = get_folded_input(1);
   auto result_type =
@@ -137,17 +115,18 @@ auto Language::Operations::Equal::evaluate_constants(
 
   const Abstract& selected = select_operand_type(authored_left, authored_right);
 
-  // The scalar Type proves its own Constant carrier. Bytes remains the one
-  // complete non scalar Constant domain admitted by this operator.
-  auto left_value = left->select<Constant>();
-  auto right_value = right->select<Constant>();
+  // The scalar Type proves its own Tetrodotoxin::Library::Language::Constant
+  // carrier. Bytes remains the one complete non scalar
+  // Tetrodotoxin::Library::Language::Constant domain admitted by this operator.
+  auto left_value = left->select<Tetrodotoxin::Library::Language::Constant>();
+  auto right_value = right->select<Tetrodotoxin::Library::Language::Constant>();
   if (!left_value || !accepts_constant(selected, *left_value)) {
-    return Expression::Error(
+    return Expression::Error::from_pack(
         Expression::Error::Type::InvalidConstant, authored_left);
   }
 
   if (!right_value || !accepts_constant(selected, *right_value)) {
-    return Expression::Error(
+    return Expression::Error::from_pack(
         Expression::Error::Type::InvalidConstant, authored_right);
   }
 

@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/types/object.hpp"
@@ -16,13 +16,13 @@
 #include "tetrodotoxin/library/language/monograph.hpp"
 #include "tetrodotoxin/library/language/types/source.hpp"
 #include "tetrodotoxin/library/language/types/structure.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/lexical/errors.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 using Tetrodotoxin::Environment::Workspace;
 using namespace Validation;
@@ -38,24 +38,10 @@ static auto interpret(Workspace& workspace, Errors& errors, View::Bytes source)
   return static_cast<Language::Monograph&>(*interpreted);
 }
 
-static auto rejects_interpretation(View::Bytes source) -> Bool {
-  auto workspace_toolchain = create_library_toolchain();
-  Workspace workspace(*workspace_toolchain);
-  Errors errors;
-  auto monograph = interpret(workspace, errors, source);
-  return !monograph && !errors.is_empty();
-}
-
-static auto rejects_link(View::Bytes source) -> Bool {
-  auto workspace_toolchain = create_library_toolchain();
-  Workspace workspace(*workspace_toolchain);
-  Errors errors;
-  auto monograph = interpret(workspace, errors, source);
-  return !monograph && !errors.is_empty();
-}
-
-static auto rejects_finalize(View::Bytes source) -> Bool {
-  auto workspace_toolchain = create_library_toolchain();
+static auto rejects_source(View::Bytes source) -> Bool {
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
@@ -78,13 +64,15 @@ PERIMORTEM_UNIT_TEST(ObjectTests, field_writability) {
       "  public const fixed : Bool = false;\n"
       "  private const hidden_const : Bool = false;\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
   ASSERT(monograph);
 
-  const Abstract& selected = monograph->resolve_context("Session"_view);
+  const Abstract& selected = monograph->resolve_concept("Session"_view);
   ASSERT(selected.is<Language::Types::Object>());
   const auto& object = static_cast<const Language::Types::Object&>(selected);
   auto fields = object.get_addressables();
@@ -130,13 +118,15 @@ PERIMORTEM_UNIT_TEST(ObjectTests, field_writability) {
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(ObjectTests, exact_collision_domain) {
+PERIMORTEM_UNIT_TEST(ObjectTests, collision_domain) {
   static constexpr Static::Vector<View::Bytes, 2> accepted = {{
     "// Object test.\ndialect : Library; public Session : object { public value : func = [] -> [] {} private state value : Bool = false; }"_view,
     "// Object test.\ndialect : Library; public Session : object { private state value : Bool = false; public value : func = [] -> [] {} }"_view,
   }};
   for (Count i = 0; i < accepted.get_size(); i++) {
-    auto workspace_toolchain = create_library_toolchain();
+    Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+    auto workspace_toolchain =
+        Validation::create_library_toolchain(workspace_toolchain_library);
     Workspace workspace(*workspace_toolchain);
     Errors errors;
     auto monograph = interpret(workspace, errors, accepted[i]);
@@ -154,7 +144,7 @@ PERIMORTEM_UNIT_TEST(ObjectTests, exact_collision_domain) {
   }};
 
   for (Count i = 0; i < rejected.get_size(); i++) {
-    EXPECT(rejects_interpretation(rejected[i]));
+    EXPECT(rejects_source(rejected[i]));
   }
 }
 
@@ -170,11 +160,11 @@ PERIMORTEM_UNIT_TEST(ObjectTests, malformed_grammar) {
   }};
 
   for (Count i = 0; i < sources.get_size(); i++) {
-    EXPECT(rejects_interpretation(sources[i]));
+    EXPECT(rejects_source(sources[i]));
   }
 }
 
-PERIMORTEM_UNIT_TEST(ObjectTests, private_exposure_rejected) {
+PERIMORTEM_UNIT_TEST(ObjectTests, private_exposure) {
   static constexpr Static::Vector<View::Bytes, 4> sources = {{
     "// Object test.\ndialect : Library; private Hidden : object { private state value : Bool = false; } public reveal : func = [.hidden : Hidden] -> [] {}"_view,
     "// Object test.\ndialect : Library; private Hidden : object { private state value : Bool = false; } public Holder : struct { public state hidden : Hidden; }"_view,
@@ -183,11 +173,11 @@ PERIMORTEM_UNIT_TEST(ObjectTests, private_exposure_rejected) {
   }};
 
   for (Count i = 0; i < sources.get_size(); i++) {
-    EXPECT(rejects_finalize(sources[i]));
+    EXPECT(rejects_source(sources[i]));
   }
 }
 
-PERIMORTEM_UNIT_TEST(ObjectTests, private_surface_retained_locally) {
+PERIMORTEM_UNIT_TEST(ObjectTests, private_surface) {
   static constexpr View::Bytes source =
       "// Object test.\n"
       "dialect : Library;\n"
@@ -198,7 +188,9 @@ PERIMORTEM_UNIT_TEST(ObjectTests, private_surface_retained_locally) {
       "}\n"
       "}\n"
       "private root : func = [.value : Hidden] -> Hidden { return value; }"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
@@ -213,13 +205,13 @@ PERIMORTEM_UNIT_TEST(ObjectTests, private_surface_retained_locally) {
   ASSERT((*source_callables).get().is<Language::Function>());
   const auto& root =
       static_cast<const Language::Function&>((*source_callables).get());
-  const Abstract& holder = monograph->resolve_context("Holder"_view);
+  const Abstract& holder = monograph->resolve_concept("Holder"_view);
   EXPECT(hidden.is<Language::Types::Object>());
   ASSERT(holder.is<Language::Types::Object>());
-  EXPECT(&monograph->resolve_context("Hidden"_view) == &Invalid::get_invalid());
-  EXPECT(&holder.resolve_context("hidden"_view) == &Invalid::get_invalid());
-  EXPECT(&holder.resolve_context("reveal"_view) == &Invalid::get_invalid());
-  EXPECT(&monograph->resolve_context("root"_view) == &Invalid::get_invalid());
+  EXPECT(&monograph->resolve_concept("Hidden"_view) == &Unknown::get_unknown());
+  EXPECT(&holder.resolve_concept("hidden"_view) == &Unknown::get_unknown());
+  EXPECT(&holder.resolve_concept("reveal"_view) == &Unknown::get_unknown());
+  EXPECT(&monograph->resolve_concept("root"_view) == &Unknown::get_unknown());
   const auto& holder_object =
       static_cast<const Language::Types::Object&>(holder);
   auto fields = holder_object.get_addressables();
@@ -229,51 +221,33 @@ PERIMORTEM_UNIT_TEST(ObjectTests, private_surface_retained_locally) {
   ASSERT((*callables).get().is<Language::Function>());
   const auto& reveal =
       static_cast<const Language::Function&>((*callables).get());
-  EXPECT(&reveal.resolve_context("hidden"_view) == &Invalid::get_invalid());
-  EXPECT(&reveal.resolve_context("Hidden"_view) == &hidden);
-  EXPECT(&root.resolve_context("Hidden"_view) == &hidden);
+  EXPECT(&reveal.resolve_concept("hidden"_view) == &Unknown::get_unknown());
+  EXPECT(&reveal.resolve_concept("Hidden"_view) == &hidden);
+  EXPECT(&root.resolve_concept("Hidden"_view) == &hidden);
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(ObjectTests, inherited_initializer_mismatch) {
-  static constexpr View::Bytes source =
-      "// Object initializer test.\n"
-      "dialect : Library;\n"
-      "public Session : object { private state value : U8 = false; }"_view;
-  auto workspace_toolchain = create_library_toolchain();
-  Workspace workspace(*workspace_toolchain);
-  Errors errors;
-  auto monograph = interpret(workspace, errors, source);
-  EXPECT_NOT(monograph);
-  EXPECT(
-      &workspace.resolve_context("ObjectTest"_view) == &Invalid::get_invalid());
-  EXPECT_NOT(errors.is_empty());
+PERIMORTEM_UNIT_TEST(ObjectTests, member_rejections) {
+  static constexpr Static::Vector<View::Bytes, 3> sources = {{
+    "// Bad initializer.\ndialect : Library;\npublic Session : object { private state value : U8 = false; }"_view,
+    "// Unresolved initializer.\ndialect : Library;\npublic Session : object { expose state value : Bool = missing; }"_view,
+    "// Missing Type.\ndialect : Library;\npublic Session : object { private state value : Missing = false; }"_view,
+  }};
+
+  for (Count index = 0; index < sources.get_size(); index++) {
+    Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+    auto workspace_toolchain =
+        Validation::create_library_toolchain(workspace_toolchain_library);
+    Workspace workspace(*workspace_toolchain);
+    Errors errors;
+    auto monograph = interpret(workspace, errors, sources[index]);
+    EXPECT_NOT(monograph);
+    EXPECT(retains_library_source(workspace, "ObjectTest"_view));
+    EXPECT_NOT(errors.is_empty());
+  }
 }
 
-PERIMORTEM_UNIT_TEST(ObjectTests, link_failure_keeps_publication_empty) {
-  static constexpr View::Bytes source =
-      "// Object test.\n"
-      "dialect : Library;\n"
-      "public Session : object { expose state value : Bool = missing; }"_view;
-  auto workspace_toolchain = create_library_toolchain();
-  Workspace workspace(*workspace_toolchain);
-  Errors errors;
-  auto monograph = interpret(workspace, errors, source);
-  EXPECT_NOT(monograph);
-  EXPECT(
-      &workspace.resolve_context("ObjectTest"_view) == &Invalid::get_invalid());
-  EXPECT_NOT(errors.is_empty());
-}
-
-PERIMORTEM_UNIT_TEST(ObjectTests, missing_type_rejected) {
-  static constexpr View::Bytes source =
-      "// Object test.\n"
-      "dialect : Library;\n"
-      "public Session : object { private state value : Missing = false; }"_view;
-  EXPECT(rejects_link(source));
-}
-
-PERIMORTEM_UNIT_TEST(ObjectTests, inferred_object_identity) {
+PERIMORTEM_UNIT_TEST(ObjectTests, inferred_identity) {
   static constexpr View::Bytes source =
       "// Object inference test.\n"
       "dialect : Library;\n"
@@ -282,13 +256,15 @@ PERIMORTEM_UNIT_TEST(ObjectTests, inferred_object_identity) {
       "  private child : Child;\n"
       "  private copy := child;\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
   ASSERT(monograph);
-  const Abstract& child_identity = monograph->resolve_context("Child"_view);
-  const Abstract& holder_identity = monograph->resolve_context("Holder"_view);
+  const Abstract& child_identity = monograph->resolve_concept("Child"_view);
+  const Abstract& holder_identity = monograph->resolve_concept("Holder"_view);
   ASSERT(child_identity.is<Language::Types::Object>());
   ASSERT(holder_identity.is<Language::Types::Object>());
   const auto& child =
@@ -306,7 +282,8 @@ PERIMORTEM_UNIT_TEST(ObjectTests, inferred_object_identity) {
   EXPECT(&child_field.get_type() == &child);
   EXPECT(&copy_field.get_type() == &child);
   ASSERT(copy_field.get_initializer());
-  ASSERT(copy_field.get_initializer()->is<Language::Expressions::Identifier>());
+  ASSERT(copy_field.get_initializer()
+             ->is_identity<Language::Expressions::Identifier>());
   const auto& identifier =
       static_cast<const Language::Expressions::Identifier&>(
           *copy_field.get_initializer());

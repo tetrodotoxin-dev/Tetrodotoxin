@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -15,28 +15,30 @@ class Dialect : public Tetrodotoxin::Language::Dialect {
  public:
   TTX_CONTRACT(Dialect, Tetrodotoxin::Language::Dialect);
 
-  Dialect(Perimortem::Core::View::Bytes name = "Library"_view)
-      : Tetrodotoxin::Language::Dialect(name) {}
+  Dialect() = default;
+
+  TTX_NAME("Library"_view);
+
+  auto bind_interface(Perimortem::System::Uuid requested) const
+      -> Perimortem::Utility::Result<
+          Ttx::Semantic::Negotiation::Binding,
+          Ttx::Semantic::Negotiation::Binding::Failure> override;
 
   auto interpret(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Documentation& documentation,
-      const Ttx::Lexical::Anchor& source_anchor,
-      Ttx::Concept::Abstract& context)
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Documentation& documentation,
+      const Tetrodotoxin::Source::Lexical::Anchor& source_anchor,
+      Tetrodotoxin::Source::Abstract& context)
       -> Perimortem::Core::Option<Tetrodotoxin::Language::Monograph&> override;
 
-  auto encode(
-      const Ttx::Concept::Abstract& monograph,
-      Tetrodotoxin::Language::Persistence::Profile profile) const
+  auto encode(const Tetrodotoxin::Source::Abstract& monograph) const
       -> Perimortem::Core::Option<Perimortem::Memory::Dynamic::Bytes> override;
 
-  auto restore(
+  auto decode(
       Perimortem::Memory::Allocator::Arena& arena,
       Perimortem::Core::View::Bytes payload,
-      Tetrodotoxin::Language::Persistence::Profile profile,
-      const Ttx::Concept::Documentation& documentation,
-      Ttx::Concept::Abstract& context)
-      -> Perimortem::Core::Option<Tetrodotoxin::Language::Monograph&> override;
+      Tetrodotoxin::Source::Abstract& context)
+      -> Perimortem::Core::Option<Tetrodotoxin::Source::Abstract&> override;
 };
 
 }  // namespace Tetrodotoxin::Library

@@ -1,12 +1,18 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
 // Library source acceptance.
 dialect : Library;
 
 @catalog("scalar") @catalog("scalar")
 public CountAlias : alias = U64;
 
+// Field Attributes remain source facts even when no Terminal consumes them.
 @initializer @abi("C")
 public session : Session = new[Session](.id = 7);
 
+// One exact override keeps the positive legacy C symbol case beside the
+// rejection tests for malformed and duplicate requests.
 @abi("C") @symbol("source_acceptance") @tooling("entry") @tooling("entry")
 public exported : func = [] -> CountAlias : return 7;
 

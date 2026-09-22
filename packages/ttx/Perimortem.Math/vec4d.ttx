@@ -1,0 +1,18 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+// A four component real vector shared across CPU and GPU contracts.
+//
+dialect : Library;
+
+// Vec4D stores four ordered R32 components named x, y, z, and w.
+//
+// Its neutral shape lets CPU and GPU contracts share one Type while each
+// domain retains the meaning it assigns to those components.
+@capability("vector")
+public Vec4D : struct {
+  public state x : R32;
+  public state y : R32;
+  public state z : R32;
+  public state w : R32;
+}

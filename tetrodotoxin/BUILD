@@ -1,3 +1,6 @@
+# # Tetrodotoxin
+# Copyright (c) 2023-present Matt Kaes and contributors
+
 """
 Tetrodotoxin - A saltless engine language (.ttx)
 """
@@ -7,20 +10,10 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 package(default_visibility = ["//visibility:public"])
 
 cc_library(
-    name = "language",
-    srcs = glob([
-        "language/**/*.cpp",
-    ]),
-    hdrs = glob([
-        "language/**/*.hpp",
-    ]),
-    includes = ["."],
-    deps = [
-        "//perimortem",
-        "//ttx:concept",
-        "//ttx:lexical",
-        "//ttx:model",
-    ],
+    name = "build",
+    srcs = glob(["build/**/*.cpp"]),
+    hdrs = glob(["build/**/*.hpp"]),
+    deps = ["//tetrodotoxin/language", "//ttx"],
 )
 
 cc_library(
@@ -33,12 +26,13 @@ cc_library(
     ]),
     includes = ["."],
     deps = [
-        ":language",
         ":linker",
-        "//perimortem",
+        "//perimortem:headless",
+        "//tetrodotoxin/library",
+        "//tetrodotoxin/language",
         "//ttx:concept",
-        "//ttx:lexical",
-        "//ttx:model",
+        "//tetrodotoxin/source:lexical",
+        "//tetrodotoxin/source",
     ],
 )
 
@@ -52,116 +46,29 @@ cc_library(
     ]),
     includes = ["."],
     deps = [
-        "//perimortem",
+        "//perimortem:headless",
     ],
 )
 
 cc_library(
-    name = "app",
+    name = "formatting",
     srcs = glob([
-        "app/**/*.cpp",
+        "formatting/**/*.cpp",
     ]),
     hdrs = glob([
-        "app/**/*.hpp",
+        "formatting/**/*.hpp",
     ]),
     includes = ["."],
     deps = [
-        ":language",
-        ":library",
-        ":linker",
-        "//perimortem",
-        "//ttx:concept",
-        "//ttx:lexical",
-        "//ttx:model",
+        "//perimortem:headless",
+        "//tetrodotoxin/language",
+        "//tetrodotoxin/source:lexical",
     ],
 )
 
-cc_library(
+alias(
     name = "library",
-    srcs = glob(
-        [
-            "library/**/*.cpp",
-            "library/llvm/**/*.hpp",
-        ],
-        exclude = [
-            "library/llvm/builder.hpp",
-            "library/llvm/carriers.hpp",
-            "library/llvm/compiler.hpp",
-            "library/llvm/debug.hpp",
-            "library/llvm/failure.hpp",
-            "library/llvm/functions.hpp",
-            "library/llvm/globals.hpp",
-            "library/llvm/products.hpp",
-            "library/llvm/request.hpp",
-            "library/llvm/target.hpp",
-        ],
-    ),
-    hdrs = glob(
-        [
-            "library/**/*.hpp",
-        ],
-        exclude = [
-            "library/llvm/**/*.hpp",
-        ],
-    ) + [
-        "library/llvm/builder.hpp",
-        "library/llvm/carriers.hpp",
-        "library/llvm/compiler.hpp",
-        "library/llvm/debug.hpp",
-        "library/llvm/failure.hpp",
-        "library/llvm/functions.hpp",
-        "library/llvm/globals.hpp",
-        "library/llvm/products.hpp",
-        "library/llvm/request.hpp",
-        "library/llvm/target.hpp",
-    ],
-    includes = ["."],
-    deps = [
-        ":language",
-        ":linker",
-        "//perimortem",
-        "//toolchain/llvm:sdk",
-        "//ttx:concept",
-        "//ttx:lexical",
-        "//ttx:model",
-    ],
-)
-
-cc_library(
-    name = "library_llvm",
-    deps = [":library"],
-)
-
-cc_library(
-    name = "scene",
-    srcs = glob([
-        "scene/**/*.cpp",
-    ]),
-    hdrs = glob([
-        "scene/**/*.hpp",
-    ]),
-    includes = ["."],
-    deps = [
-        ":language",
-        ":library",
-        "//perimortem",
-        "//ttx:concept",
-        "//ttx:lexical",
-    ],
-)
-
-cc_library(
-    name = "shader",
-    srcs = glob([
-        "shader/**/*.cpp",
-    ]),
-    hdrs = glob([
-        "shader/**/*.hpp",
-    ]),
-    includes = ["."],
-    deps = [
-        "//perimortem",
-    ],
+    actual = "//tetrodotoxin/library",
 )
 
 cc_library(
@@ -174,7 +81,7 @@ cc_library(
     ]),
     includes = ["."],
     deps = [
-        "//perimortem",
+        "//perimortem:headless",
     ],
 )
 
@@ -188,10 +95,10 @@ cc_library(
     ]),
     includes = ["."],
     deps = [
-        ":language",
         ":package",
-        "//perimortem",
+        "//perimortem:headless",
+        "//tetrodotoxin/language",
         "//ttx:concept",
-        "//ttx:model",
+        "//tetrodotoxin/source",
     ],
 )

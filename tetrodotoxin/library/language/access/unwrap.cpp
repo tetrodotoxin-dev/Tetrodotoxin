@@ -1,22 +1,21 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/access/unwrap.hpp"
 
 #include "tetrodotoxin/library/language/constants/option.hpp"
 #include "tetrodotoxin/library/language/types/option.hpp"
-#include "tetrodotoxin/library/llvm/builder.hpp"
-#include "ttx/concept/invalid.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
 static auto select_option_constant(Language::Model::Pack& source)
     -> Core::Option<Language::Constants::Option&> {
-  auto direct = source.select<Language::Constants::Option>();
+  auto direct = source.select_identity<Language::Constants::Option>();
   if (direct) {
     return *direct;
   }
@@ -28,34 +27,24 @@ static auto select_option_constant(Language::Model::Pack& source)
       [](const Abstract& selected)
           -> Core::Option<Language::Constants::Option&> {
         auto pack =
-            const_cast<Abstract&>(selected).select<Language::Model::Pack>();
-        return pack ? pack->select<Language::Constants::Option>()
+            Language::Model::Pack::from(const_cast<Abstract&>(selected));
+        return pack ? pack->select_identity<Language::Constants::Option>()
                     : Core::Option<Language::Constants::Option&>();
       });
 }
 
-auto Language::Access::Unwrap::parse(
-    const Abstract&,
-    Cursor& cursor,
-    Expression& receiver) -> Core::Option<Expression&> {
-  Memory::Allocator::Arena& domain = cursor.get_arena();
-  Token operation = cursor.require(
-      Code::Type::NotOp, "Library Option unwrap requires postfix `!`."_view);
-  BAIL_IF(!operation);
-
-  auto receiver_anchor = receiver.get_anchor();
-  BAIL_IF(!receiver_anchor);
-  Anchor anchor =
-      Anchor::create(operation, receiver_anchor->get_span(), Span(operation));
-  Unwrap& unwrap = Expression::create_authored<Unwrap>(
+auto Language::Access::Unwrap::create_authored(
+    Memory::Allocator::Arena& domain,
+    Model::Pack& receiver,
+    Anchor anchor) -> Unwrap& {
+  return Expression::create_authored<Unwrap>(
       domain, anchor, [&](Core::Option<Anchor> source) -> Unwrap {
         return Unwrap(receiver, source);
       });
-  return unwrap;
 }
 
 auto Language::Access::Unwrap::link(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& lexical_context,
     Core::Option<const Abstract&> access_scope) -> Bool {
   BAIL_IF(!receiver.link(cursor, lexical_context, access_scope));
@@ -82,13 +71,13 @@ auto Language::Access::Unwrap::link(
   auto selected_fallback =
       option->get_element_type().create_default(cursor.get_arena());
   BAIL_IF(!selected_fallback);
-  fallback = Reference<Model::Pack>(*selected_fallback);
+  fallback = Tetrodotoxin::Source::PackReference<Model::Pack>(*selected_fallback);
   return Expression::link(cursor, lexical_context, access_scope);
 }
 
 auto Language::Access::Unwrap::get_type() const -> const Abstract& {
   return element_type.visit(
-      []() -> const Abstract& { return Invalid::get_invalid(); },
+      []() -> const Abstract& { return Unknown::get_unknown(); },
       [](const Reference<const Language::Model::Type>& selected)
           -> const Abstract& { return selected.get(); });
 }
@@ -98,43 +87,11 @@ auto Language::Access::Unwrap::finalize(Cursor& cursor) -> void {
   Expression::finalize(cursor);
 }
 
-auto Language::Access::Unwrap::lower(Llvm::Builder& body) const -> Bool {
-  auto folded = lower_folded(body);
-  if (folded) {
-    return *folded;
-  }
-
-  auto selected_fallback = get_fallback();
-  auto carrier = receiver.get_type().resolve().select<Ttx::Model::Type>();
-  auto element = get_type().resolve().select<Ttx::Model::Type>();
-
-  if (!selected_fallback || !carrier || !element) {
-    return False;
-  }
-
-  Bool receiver_lowered = receiver.lower(body);
-  if (!receiver_lowered) {
-    return False;
-  }
-
-  auto state = body.begin_unwrap(*carrier, *element, receiver);
-  if (!state) {
-    return False;
-  }
-
-  Bool fallback_lowered = selected_fallback->lower(body);
-  if (!fallback_lowered) {
-    return False;
-  }
-
-  return body.end_unwrap(*state, *element, *this, *selected_fallback);
-}
-
 auto Language::Access::Unwrap::evaluate()
     -> Utility::Result<Core::Option<Model::Pack&>, Expression::Error> {
   Core::Option<Model::Pack&> folded;
   Core::Option<Expression::Error> error;
-  receiver.fold().visit(
+  Expression::fold(receiver).visit(
       [&](const Core::Option<Model::Pack&>& selected) { folded = selected; },
       [&](const Expression::Error& selected) { error = selected; });
   if (error) {

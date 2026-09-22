@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "validation/unit_test.hpp"
@@ -13,6 +13,7 @@
 
 #include "tetrodotoxin/environment/workspace.hpp"
 #include "tetrodotoxin/library/dialect.hpp"
+#include "tetrodotoxin/library/interpreter/expression.hpp"
 #include "tetrodotoxin/library/language/access/call.hpp"
 #include "tetrodotoxin/library/language/access/propagate.hpp"
 #include "tetrodotoxin/library/language/access/unwrap.hpp"
@@ -26,20 +27,19 @@
 #include "tetrodotoxin/library/language/function.hpp"
 #include "tetrodotoxin/library/language/model/type.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
-#include "tetrodotoxin/library/language/parser/expression.hpp"
 #include "tetrodotoxin/library/language/types/composite.hpp"
 #include "tetrodotoxin/library/language/types/object.hpp"
 #include "tetrodotoxin/library/language/types/option.hpp"
 #include "tetrodotoxin/library/language/types/result.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::System;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 using Tetrodotoxin::Environment::Workspace;
 using namespace Validation;
@@ -89,7 +89,7 @@ static auto parse_expression(
     Allocator::Arena& domain,
     const Abstract& context,
     Cursor& cursor) -> Option<Language::Model::Pack&> {
-  auto parsed = Language::Parser::Expression::parse(context, cursor);
+  auto parsed = Interpreter::Expression::parse(context, cursor);
   if (!parsed || !cursor.matches(Code::Type::Terminal)) {
     return {};
   }
@@ -98,24 +98,25 @@ static auto parse_expression(
 }
 
 static auto rejects_link(View::Bytes source) -> Bool {
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
   return !monograph && !errors.is_empty() &&
-         &workspace.resolve_context("OptionAccessTest"_view) ==
-             &Invalid::get_invalid();
+         retains_library_source(workspace, "OptionAccessTest"_view);
 }
 
 static auto rejects_link(View::Bytes source, View::Bytes diagnostic) -> Bool {
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
   BAIL_IF(monograph || errors.is_empty());
-  BAIL_IF(
-      &workspace.resolve_context("OptionAccessTest"_view) !=
-      &Invalid::get_invalid());
+  BAIL_IF(!retains_library_source(workspace, "OptionAccessTest"_view));
 
   Allocator::Arena render_arena;
   for (Count index = 0; index < errors.get_size(); index++) {
@@ -130,7 +131,7 @@ static auto rejects_link(View::Bytes source, View::Bytes diagnostic) -> Bool {
 
 static auto select_unsigned(const Language::Model::Pack& pack)
     -> Option<const Language::Constants::Unsigned&> {
-  auto direct = pack.select<Language::Constants::Unsigned>();
+  auto direct = pack.select_identity<Language::Constants::Unsigned>();
   if (direct) {
     return *direct;
   }
@@ -143,19 +144,21 @@ static auto select_unsigned(const Language::Model::Pack& pack)
       });
 }
 
-PERIMORTEM_UNIT_TEST(PropagationAccessTests, receiving_type_owns_target_fit) {
+PERIMORTEM_UNIT_TEST(PropagationAccessTests, receiving_type_fit) {
   static constexpr View::Bytes source =
       "// Receiving Type policy.\n"
       "dialect : Library;\n"
       "public Maybe : alias = Option[U64];\n"
       "private const present : Maybe = 7;"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
   ASSERT(monograph);
 
-  auto maybe = monograph->resolve_context("Maybe"_view)
+  auto maybe = monograph->resolve_concept("Maybe"_view)
                    .resolve()
                    .select<Language::Types::Option>();
   ASSERT(maybe);
@@ -165,7 +168,8 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, receiving_type_owns_target_fit) {
 
   Allocator::Arena fitted_arena;
   auto& empty = Language::Model::Pack::create_folded(
-      fitted_arena, View::Vector<Reference<Language::Model::Pack>>());
+      fitted_arena,
+      View::Vector<Tetrodotoxin::Source::PackReference<Language::Model::Pack>>());
   auto& value = Language::Constants::Unsigned::create_synthetic(
       fitted_arena, *element, U64(7));
 
@@ -177,8 +181,8 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, receiving_type_owns_target_fit) {
   auto absent = maybe->create_fitted(fitted_arena, empty);
   auto present = maybe->create_fitted(fitted_arena, value);
   ASSERT(absent && present);
-  auto absent_option = absent->select<Language::Constants::Option>();
-  auto present_option = present->select<Language::Constants::Option>();
+  auto absent_option = absent->select_identity<Language::Constants::Option>();
+  auto present_option = present->select_identity<Language::Constants::Option>();
   ASSERT(absent_option && present_option);
   EXPECT(absent_option->get_kind() == Language::Types::Option::Kind::Absent);
   EXPECT_NOT(absent_option->get_payload());
@@ -189,7 +193,7 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, receiving_type_owns_target_fit) {
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(PropagationAccessTests, target_fit_and_unwrap) {
+PERIMORTEM_UNIT_TEST(PropagationAccessTests, target_unwrap) {
   static constexpr View::Bytes source =
       "// Option target fitting and unwrap.\n"
       "dialect : Library;\n"
@@ -205,7 +209,9 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, target_fit_and_unwrap) {
       "}\n"
       "private absent_call := Options -> consume(());\n"
       "private present_call := Options -> consume(8);"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
@@ -232,8 +238,10 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, target_fit_and_unwrap) {
   ASSERT(absent_copy_constant && present_copy_constant);
   EXPECT(&*absent_copy_constant == &*absent_constant);
   EXPECT(&*present_copy_constant == &*present_constant);
-  auto absent_option = absent_constant->select<Language::Constants::Option>();
-  auto present_option = present_constant->select<Language::Constants::Option>();
+  auto absent_option =
+      absent_constant->select_identity<Language::Constants::Option>();
+  auto present_option =
+      present_constant->select_identity<Language::Constants::Option>();
   ASSERT(absent_option && present_option);
   EXPECT(absent_option->get_kind() == Language::Types::Option::Kind::Absent);
   EXPECT_NOT(absent_option->get_payload());
@@ -258,7 +266,7 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, target_fit_and_unwrap) {
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(PropagationAccessTests, propagation_edges_and_folding) {
+PERIMORTEM_UNIT_TEST(PropagationAccessTests, edge_folding) {
   static constexpr View::Bytes source =
       "// Option propagation.\n"
       "dialect : Library;\n"
@@ -273,15 +281,17 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, propagation_edges_and_folding) {
       "  return;\n"
       "}\n"
       "public chain : func = [] -> [] { return; }\n"
-      "public absent : func = [] -> Maybe { return; }\n"
-      "public present : func = [] -> Maybe { return 9; }\n"
+      "public return_absent : func = [] -> Maybe { return; }\n"
+      "public return_present : func = [] -> Maybe { return 9; }\n"
       "public assign : func = [] -> Maybe {\n"
       "  state value : Maybe = ();\n"
       "  value = 4;\n"
       "  value = ();\n"
       "  return value;\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
@@ -299,26 +309,26 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, propagation_edges_and_folding) {
   Allocator::Arena domain;
   Errors expression_errors;
   Tokenizer pass_tokenizer(domain, "value?"_view, "option-expression.ttx"_view);
-  Ttx::Lexical::Associations pass_associations(pass_tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations pass_associations(pass_tokenizer.get_arena());
   Cursor pass_cursor(pass_tokenizer, expression_errors, pass_associations);
   Tokenizer stop_tokenizer(domain, "value?"_view, "option-expression.ttx"_view);
-  Ttx::Lexical::Associations stop_associations(stop_tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations stop_associations(stop_tokenizer.get_arena());
   Cursor stop_cursor(stop_tokenizer, expression_errors, stop_associations);
   auto pass_pack = parse_expression(domain, *monograph, pass_cursor);
   auto stop_pack = parse_expression(domain, *monograph, stop_cursor);
   auto pass_propagate = pass_pack.visit(
       []() -> Option<Language::Access::Propagate&> { return {}; },
       [](Language::Model::Pack& selected) {
-        return selected.select<Language::Access::Propagate>();
+        return selected.select_identity<Language::Access::Propagate>();
       });
   auto stop_propagate = stop_pack.visit(
       []() -> Option<Language::Access::Propagate&> { return {}; },
       [](Language::Model::Pack& selected) {
-        return selected.select<Language::Access::Propagate>();
+        return selected.select_identity<Language::Access::Propagate>();
       });
   ASSERT(pass_propagate && stop_propagate);
 
-  const Language::Expression* pass_receiver = &pass_propagate->get_receiver();
+  const Language::Model::Pack* pass_receiver = &pass_propagate->get_receiver();
   const Language::Model::Pack* pass_empty = &pass_propagate->get_escape();
   ASSERT(
       pass_propagate->link(pass_cursor, *pass->get_body(), pass->get_host()));
@@ -334,8 +344,7 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, propagation_edges_and_folding) {
   EXPECT(stop_propagate->get_escape().get_layout().is_empty());
   EXPECT(pass_propagate->get_escape().fits(pass->get_results()));
   EXPECT(stop_propagate->get_escape().fits(stop->get_results()));
-  EXPECT(
-      &pass_propagate->get_escape().resolve() == &pass_propagate->get_escape());
+  EXPECT(pass_propagate->get_escape().is_complete());
   auto option = pass_propagate->get_receiver()
                     .get_type()
                     .resolve()
@@ -361,13 +370,13 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, propagation_edges_and_folding) {
   // authored branch because an empty Pack cannot replace a one value output.
   Tokenizer present_tokenizer(
       domain, "present?"_view, "option-expression.ttx"_view);
-  Ttx::Lexical::Associations present_associations(
+  Tetrodotoxin::Source::Lexical::Associations present_associations(
       present_tokenizer.get_arena());
   Cursor present_cursor(
       present_tokenizer, expression_errors, present_associations);
   Tokenizer absent_tokenizer(
       domain, "absent?"_view, "option-expression.ttx"_view);
-  Ttx::Lexical::Associations absent_associations(absent_tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations absent_associations(absent_tokenizer.get_arena());
   Cursor absent_cursor(
       absent_tokenizer, expression_errors, absent_associations);
   auto present_pack = parse_expression(domain, *monograph, present_cursor);
@@ -375,12 +384,12 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, propagation_edges_and_folding) {
   auto present_propagate = present_pack.visit(
       []() -> Option<Language::Access::Propagate&> { return {}; },
       [](Language::Model::Pack& selected) {
-        return selected.select<Language::Access::Propagate>();
+        return selected.select_identity<Language::Access::Propagate>();
       });
   auto absent_propagate = absent_pack.visit(
       []() -> Option<Language::Access::Propagate&> { return {}; },
       [](Language::Model::Pack& selected) {
-        return selected.select<Language::Access::Propagate>();
+        return selected.select_identity<Language::Access::Propagate>();
       });
   ASSERT(present_propagate && absent_propagate);
   ASSERT(present_propagate->link(
@@ -414,24 +423,23 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, propagation_edges_and_folding) {
   EXPECT(absent_fold_succeeded);
   EXPECT_NOT(absent_folded);
   EXPECT(absent_propagate->get_escape().get_layout().is_empty());
-  EXPECT(
-      &absent_propagate->get_escape().resolve() ==
-      &absent_propagate->get_escape());
+  EXPECT(absent_propagate->get_escape().is_complete());
 
   // The outer unwrap retains Propagate as its receiver. An absent inner value
   // leaves the chain unfolded instead of evaluating the right suffix.
   Tokenizer chain_tokenizer(
       domain, "nested_absent?!"_view, "option-expression.ttx"_view);
-  Ttx::Lexical::Associations chain_associations(chain_tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations chain_associations(chain_tokenizer.get_arena());
   Cursor chain_cursor(chain_tokenizer, expression_errors, chain_associations);
   auto chain_pack = parse_expression(domain, *monograph, chain_cursor);
   auto unwrap = chain_pack.visit(
       []() -> Option<Language::Access::Unwrap&> { return {}; },
       [](Language::Model::Pack& selected) {
-        return selected.select<Language::Access::Unwrap>();
+        return selected.select_identity<Language::Access::Unwrap>();
       });
   ASSERT(unwrap);
-  auto inner = unwrap->get_receiver().select<Language::Access::Propagate>();
+  auto inner =
+      unwrap->get_receiver().select_identity<Language::Access::Propagate>();
   ASSERT(inner);
   EXPECT(&unwrap->get_receiver() == &*inner);
   ASSERT(unwrap->link(chain_cursor, *chain->get_body(), chain->get_host()));
@@ -455,13 +463,16 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, propagation_edges_and_folding) {
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(PropagationAccessTests, production_propagation_fixture) {
+PERIMORTEM_UNIT_TEST(PropagationAccessTests, propagation_fixture) {
   static constexpr View::Bytes path =
       "validation/data/ttx/library/propagation.ttx"_view;
   auto source = File::read(path);
   ASSERT(source);
 
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
 
   Workspace workspace(*workspace_toolchain);
   Errors errors;
@@ -470,25 +481,25 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, production_propagation_fixture) {
   ASSERT(interpreted && interpreted->is<Language::Monograph>());
   auto& monograph = static_cast<Language::Monograph&>(*interpreted);
   EXPECT_TEXT(
-      monograph.get_documentation().get_line(0),
+      monograph.get_documentation().get_line(1),
       "Library propagation and sum Type acceptance."_view);
 
   EXPECT(
-      &workspace.resolve_context("PropagationAcceptance"_view) == &monograph);
+      &workspace.resolve_concept("PropagationAcceptance"_view) == &monograph);
 
   const auto& source_type = monograph.get_source();
-  auto maybe = source_type.resolve_context("Maybe"_view)
+  auto maybe = source_type.resolve_concept("Maybe"_view)
                    .resolve()
                    .select<Language::Types::Option>();
-  auto session = source_type.resolve_context("Session"_view)
+  auto session = source_type.resolve_concept("Session"_view)
                      .select<Language::Types::Object>();
-  auto outcome = source_type.resolve_context("Outcome"_view)
+  auto outcome = source_type.resolve_concept("Outcome"_view)
                      .resolve()
                      .select<Language::Types::Result>();
   ASSERT(maybe && session && outcome);
-  EXPECT(&maybe->get_element_type() == &monograph.resolve_context("U64"_view));
-  EXPECT(&outcome->get_value_type() == &monograph.resolve_context("U64"_view));
-  EXPECT(&outcome->get_error_type() == &monograph.resolve_context("Bool"_view));
+  EXPECT(&maybe->get_element_type() == &monograph.resolve_concept("U64"_view));
+  EXPECT(&outcome->get_value_type() == &monograph.resolve_concept("U64"_view));
+  EXPECT(&outcome->get_error_type() == &monograph.resolve_concept("Bool"_view));
 
   // Published Fields expose fitting and scalar defaults as retained Packs.
   auto absent = find_field(source_type, "absent"_view);
@@ -510,12 +521,12 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, production_propagation_fixture) {
   auto absent_option = absent_constant.visit(
       []() -> Option<Language::Constants::Option&> { return {}; },
       [](Language::Model::Pack& value) {
-        return value.select<Language::Constants::Option>();
+        return value.select_identity<Language::Constants::Option>();
       });
   auto present_option = present_constant.visit(
       []() -> Option<Language::Constants::Option&> { return {}; },
       [](Language::Model::Pack& value) {
-        return value.select<Language::Constants::Option>();
+        return value.select_identity<Language::Constants::Option>();
       });
   ASSERT(absent_option && present_option);
   EXPECT(absent_option->get_kind() == Language::Types::Option::Kind::Absent);
@@ -583,7 +594,7 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, production_propagation_fixture) {
   auto session_option = absent_session_constant.visit(
       []() -> Option<Language::Constants::Option&> { return {}; },
       [](Language::Model::Pack& value) {
-        return value.select<Language::Constants::Option>();
+        return value.select_identity<Language::Constants::Option>();
       });
   ASSERT(session_option);
   EXPECT(session_option->get_kind() == Language::Types::Option::Kind::Absent);
@@ -598,12 +609,12 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, production_propagation_fixture) {
   auto first_unwrap = first_authored.visit(
       []() -> Option<const Language::Access::Unwrap&> { return {}; },
       [](const Language::Model::Pack& value) {
-        return value.select<Language::Access::Unwrap>();
+        return value.select_identity<Language::Access::Unwrap>();
       });
   auto second_unwrap = second_authored.visit(
       []() -> Option<const Language::Access::Unwrap&> { return {}; },
       [](const Language::Model::Pack& value) {
-        return value.select<Language::Access::Unwrap>();
+        return value.select_identity<Language::Access::Unwrap>();
       });
   ASSERT(first_unwrap && second_unwrap);
   EXPECT(&*first_unwrap != &*second_unwrap);
@@ -622,9 +633,9 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, production_propagation_fixture) {
   ASSERT(first_default && second_default);
   EXPECT(&*first_default != &*second_default);
   auto first_initializer =
-      first_default->select<Language::Expressions::Initializer>();
+      first_default->select_identity<Language::Expressions::Initializer>();
   auto second_initializer =
-      second_default->select<Language::Expressions::Initializer>();
+      second_default->select_identity<Language::Expressions::Initializer>();
   ASSERT(first_initializer && second_initializer);
   EXPECT(&first_initializer->get_type() == &*session);
   EXPECT(&second_initializer->get_type() == &*session);
@@ -663,7 +674,7 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, production_propagation_fixture) {
                            .select<Language::Flow::Return>();
   ASSERT(result_return);
   auto result_propagation =
-      result_return->get_pack().select<Language::Access::Propagate>();
+      result_return->get_pack().select_identity<Language::Access::Propagate>();
   ASSERT(result_propagation);
   EXPECT(
       &result_propagation->get_type().resolve() == &outcome->get_value_type());
@@ -681,7 +692,7 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, production_propagation_fixture) {
   ASSERT(flag_propagation);
   EXPECT(
       &flag_propagation->get_type().resolve() ==
-      &monograph.resolve_context("Bool"_view));
+      &monograph.resolve_concept("Bool"_view));
   EXPECT(flag_propagation->get_escape().get_layout().is_empty());
 
   auto statements = choose->get_body()->get_statements();
@@ -695,7 +706,7 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, production_propagation_fixture) {
   EXPECT(*case_kind == Language::Flow::Match::CaseKind::Value);
   auto payload = match->get_case_payload(0);
   ASSERT(payload);
-  EXPECT(&payload->get_type() == &monograph.resolve_context("U64"_view));
+  EXPECT(&payload->get_type() == &monograph.resolve_concept("U64"_view));
   ASSERT(match->get_case_body(0));
   ASSERT(match->get_default());
 
@@ -703,7 +714,7 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, production_propagation_fixture) {
   const Language::Flow::Match* retained_match = &*match;
   Allocator::Arena repeated_domain;
   Tokenizer repeated_tokenizer(repeated_domain, *source, path);
-  Ttx::Lexical::Associations repeated_associations(
+  Tetrodotoxin::Source::Lexical::Associations repeated_associations(
       repeated_tokenizer.get_arena());
   Cursor repeated_cursor(repeated_tokenizer, errors, repeated_associations);
   ASSERT(monograph.link(repeated_cursor));
@@ -723,7 +734,7 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, production_propagation_fixture) {
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(PropagationAccessTests, propagation_rejections_are_exact) {
+PERIMORTEM_UNIT_TEST(PropagationAccessTests, exact_rejections) {
   static constexpr Static::Vector<View::Bytes, 4> sources = {{
     "// Propagation receiver mismatch.\ndialect : Library; private invalid : func = [.value : U64] -> [] { state selected := value?; return; }"_view,
     "// Propagation result mismatch.\ndialect : Library; private invalid : func = [.value : Option[U64]] -> U64 { return value?; }"_view,
@@ -742,17 +753,15 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, propagation_rejections_are_exact) {
   }
 }
 
-PERIMORTEM_UNIT_TEST(
-    PropagationAccessTests,
-    result_alternatives_are_unambiguous) {
+PERIMORTEM_UNIT_TEST(PropagationAccessTests, result_alternatives) {
   static constexpr View::Bytes identical =
       "// Identical Result alternatives.\n"
       "dialect : Library;\n"
-      "private Invalid : alias = Result[U64, U64];"_view;
+      "private Unknown : alias = Result[U64, U64];"_view;
   static constexpr View::Bytes empty =
       "// Empty Result alternative.\n"
       "dialect : Library;\n"
-      "private Invalid : alias = Result[Empty, Bool];\n"
+      "private Unknown : alias = Result[Empty, Bool];\n"
       "private Empty : struct {}"_view;
 
   EXPECT(rejects_link(identical));
@@ -761,7 +770,7 @@ PERIMORTEM_UNIT_TEST(
       "Result alternatives must each produce one nonempty value Type."_view));
 }
 
-PERIMORTEM_UNIT_TEST(PropagationAccessTests, invalid_elimination_is_rejected) {
+PERIMORTEM_UNIT_TEST(PropagationAccessTests, invalid_elimination) {
   static constexpr Static::Vector<View::Bytes, 5> sources = {{
     "// Unwrap receiver mismatch.\ndialect : Library; private invalid : func = [.value : Bool] -> Bool { return value!; }"_view,
     "// Option slice.\ndialect : Library; private invalid : func = [.value : Option[U64]] -> U64 { return value:[0]; }"_view,

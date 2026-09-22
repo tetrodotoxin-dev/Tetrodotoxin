@@ -13,9 +13,6 @@
           "include": "#comments"
         },
         {
-          "include": "#disabled"
-        },
-        {
           "include": "#modifiers"
         },
         {
@@ -37,6 +34,9 @@
           "include": "#control_keywords"
         },
         {
+          "include": "#function_declarations"
+        },
+        {
           "include": "#shared_keywords"
         },
         {
@@ -44,9 +44,6 @@
         },
         {
           "include": "#intrinsic_types"
-        },
-        {
-          "include": "#function_declarations"
         },
         {
           "include": "#function_calls"
@@ -72,12 +69,16 @@
       ]
     },
     "comments": {
-      "name": "comment.line.double-slash.tetrodotoxin",
-      "match": "//.*$"
-    },
-    "disabled": {
-      "name": "comment.line.disabled.tetrodotoxin",
-      "match": "/>.*$"
+      "patterns": [
+        {
+          "name": "comment.line.raw.tetrodotoxin",
+          "match": "///.*$"
+        },
+        {
+          "name": "comment.line.double-slash.tetrodotoxin",
+          "match": "//.*$"
+        }
+      ]
     },
     "modifiers": {
       "patterns": [
@@ -155,7 +156,7 @@
         },
         {
           "name": "keyword.other.tetrodotoxin",
-          "match": "\\b(dialect|foreign|func|self|new|object|struct|enum|alias|emit|resolve|source|using|from)\\b"
+          "match": "\\b(dialect|foreign|func|self|new|object|struct|interface|implementation|enum|alias|namespace|emit|source|package|using|implements|stage|resource|uniform|read|write|bridge|runtime|lifecycle|initial|on|replace|push|pop|exit|signal)\\b"
         }
       ]
     },
@@ -164,13 +165,13 @@
       "match": "(?<![A-Za-z0-9_])(?:U(?:8|16|32|64)|S(?:8|16|32|64)|R(?:32|64)|Bool)(?![A-Za-z0-9_])"
     },
     "function_declarations": {
-      "match": "\\b(func)\\s+([a-z_][a-zA-Z0-9_]*)",
+      "match": "\\b([a-z_][a-zA-Z0-9_]*)(\\s*:\\s*)(func|stage)\\b",
       "captures": {
         "1": {
-          "name": "keyword.other.tetrodotoxin"
-        },
-        "2": {
           "name": "entity.name.function.tetrodotoxin"
+        },
+        "3": {
+          "name": "keyword.other.tetrodotoxin"
         }
       }
     },

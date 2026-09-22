@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/system/uuid.hpp"
@@ -41,7 +41,7 @@ static Harness SystemUuid = {
 };
 
 PERIMORTEM_BENCHMARK(SystemUuid, generate_v4_x1024) {
-  // Full UUID generation: entropy read + Philox seeding + 128-bit construction.
+  // Full UUID generation: entropy read + Philox seeding + 128 bit construction.
   Count value = 0;
   for (Count i = 0; i < uuid_batch; i++) {
     auto uuid = Uuid::generate_v4();

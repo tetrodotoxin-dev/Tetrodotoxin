@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/compression/bit_stream/writer.hpp"
@@ -11,7 +11,7 @@ using namespace Perimortem;
 // Append complete bytes from the accumulator to the output buffer.
 // Leaves at most 7 bits (the partial final byte) in the accumulator.
 //
-// The accumulator is little-endian so byte 0 is the LSB which maps to
+// The accumulator is little endian so byte 0 is the LSB which maps to
 // the bit ordering required by RFC 1951.
 //
 // TODO: If we ever support ARM we'll need to fix the LSB ordering.
@@ -36,7 +36,7 @@ auto Compression::BitStream::Writer::write_bits(U32 value, Count length)
   }
 }
 
-// Huffman codes stored in the Huffman table are already bit-reversed into
+// Huffman codes stored in the Huffman table are already bit reversed into
 // stream order so they slot directly into the accumulator without further
 // reversal.
 auto Compression::BitStream::Writer::write_code(U32 code, Count length)

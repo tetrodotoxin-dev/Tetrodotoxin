@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/system/uuid.hpp"
@@ -26,7 +26,10 @@ static auto generate_uuid_v4() -> __m128i {
 }
 
 static auto generate_uuid_v7() -> __m128i {
-  const U64 timestamp = Time::now().get_stamp() / 1'000'000;
+  // A retained identifier needs a timestamp with the same origin after a
+  // restart. The wall clock supplies Unix time, while Time::now measures
+  // intervals within the current boot.
+  const U64 timestamp = Time::clock().get_stamp() / 1'000'000;
   const U64 time_and_random =
       ((timestamp & 0xFFFFFFFFFFFF) << 16) | (Random::generate() & 0xFFFF);
   const auto value = _mm_set_epi64x(time_and_random, Random::generate());
@@ -92,7 +95,7 @@ static constexpr auto convert_to_nibble(__m256i ascii) -> __m256i {
 
 static constexpr auto deserialize_ascii(
     __m256i ascii_buffer,
-    Static::Vector<U64, 2>& high_low) -> void {
+    perimortem_uuid& value) -> void {
   const auto nibbles = convert_to_nibble(ascii_buffer);
   auto nibble_high = _mm256_slli_epi16(nibbles, 12);
   auto spaced_bytes = _mm256_or_si256(nibbles, nibble_high);
@@ -104,13 +107,13 @@ static constexpr auto deserialize_ascii(
       15);
   auto packed_bytes = _mm256_shuffle_epi8(spaced_bytes, packing_shuffle);
 
-  high_low[1] = _mm256_extract_epi64(packed_bytes, 2);
-  high_low[0] = _mm256_extract_epi64(packed_bytes, 0);
+  value.low = _mm256_extract_epi64(packed_bytes, 2);
+  value.high = _mm256_extract_epi64(packed_bytes, 0);
 }
 
 auto Uuid::deserialize(const Static::Bytes<36>& uuid_string) -> Uuid& {
-  // RFC-4122 spec:
-  // 8-4-4-4-12
+  // RFC 4122 groups hexadecimal digits in widths of eight, four, four, four,
+  // and twelve.
   const auto buffer =
       _mm256_loadu_si256(Data::cast<const __m256i>(uuid_string.get_data()));
   const auto offset_buffer =
@@ -131,7 +134,7 @@ auto Uuid::deserialize(const Static::Bytes<36>& uuid_string) -> Uuid& {
   auto dash_fill = _mm256_shuffle_epi8(offset_buffer, dash_shuffle);
   auto ascii_buffer = _mm256_or_si256(packed_bytes, dash_fill);
 
-  deserialize_ascii(ascii_buffer, this->high_low);
+  deserialize_ascii(ascii_buffer, this->value);
   return *this;
 }
 
@@ -139,7 +142,7 @@ auto Uuid::deserialize(const Static::Bytes<32>& uuid_string) -> Uuid& {
   const auto ascii_buffer =
       _mm256_loadu_si256(Data::cast<const __m256i>(uuid_string.get_data()));
 
-  deserialize_ascii(ascii_buffer, this->high_low);
+  deserialize_ascii(ascii_buffer, this->value);
   return *this;
 }
 
@@ -147,7 +150,7 @@ auto Uuid::serialize() const -> const Static::Bytes<36> {
   Static::Bytes<36> uuid_string;
   auto byte_buffer = uuid_string.get_access().get_data();
 
-  const __m128i packed = _mm_loadu_si128(Data::cast<const __m128i>(&high_low));
+  const __m128i packed = _mm_loadu_si128(Data::cast<const __m128i>(&value));
 
   const auto nibbles = nibbler(packed);
   const auto ascii = convert_to_ascii(nibbles);

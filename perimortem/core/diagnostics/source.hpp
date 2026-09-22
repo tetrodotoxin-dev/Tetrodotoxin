@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 // Should only be included in cpp files
@@ -38,8 +38,8 @@ namespace Perimortem::Core::Diagnostics {
 // are already in a diagnostics slow path.
 struct Source {
  public:
-  // Captures the call site via the standard function-default-param pattern.
-  // The __impl pointer points to read-only data in the binary.
+  // Captures the call site via the standard function default parameter pattern.
+  // The __impl pointer points to read only data in the binary.
   static consteval auto current(
       const std::source_location::__impl* impl = __builtin_source_location())
       -> Source {

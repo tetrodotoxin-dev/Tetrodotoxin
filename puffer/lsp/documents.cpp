@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "puffer/lsp/documents.hpp"
@@ -10,18 +10,24 @@
 #include "perimortem/system/path.hpp"
 #include "perimortem/system/version.hpp"
 
+#include "puffer/dependencies.hpp"
 #include "tetrodotoxin/app/dialect.hpp"
 #include "tetrodotoxin/environment/workspace.hpp"
 #include "tetrodotoxin/language/dialect.hpp"
 #include "tetrodotoxin/library/dialect.hpp"
+#include "tetrodotoxin/library/language/monograph.hpp"
 #include "tetrodotoxin/package/dialect.hpp"
 #include "tetrodotoxin/package/language/monograph.hpp"
 #include "tetrodotoxin/package/storage.hpp"
+#include "tetrodotoxin/render/dialect.hpp"
 #include "tetrodotoxin/scene/dialect.hpp"
-#include "ttx/lexical/associations.hpp"
-#include "ttx/lexical/cursor.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/shader/dialect.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/associations.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
@@ -93,6 +99,7 @@ static auto encode_file_uri(View::Bytes path) -> Dynamic::Bytes {
     uri.concat(hexadecimal.slice(byte >> 4, 1));
     uri.concat(hexadecimal.slice(byte & 0x0F, 1));
   }
+
   return uri;
 }
 
@@ -102,6 +109,7 @@ static auto join_path(View::Bytes directory, View::Bytes file)
   if (!joined.is_empty() && joined[joined.get_size() - 1] != '/') {
     joined.append('/');
   }
+
   joined.concat(file);
   return joined;
 }
@@ -118,30 +126,6 @@ static auto relative_path(View::Bytes root, View::Bytes path)
                               : Dynamic::Bytes(relative.get_view());
 }
 
-static auto manifest_claims(
-    Environment::Toolchain& toolchain,
-    View::Bytes manifest_path,
-    View::Bytes manifest_source,
-    View::Bytes logical_route) -> Bool {
-  Allocator::Arena transaction;
-  Ttx::Lexical::Errors errors;
-  Ttx::Lexical::Tokenizer tokenizer(
-      transaction, manifest_source, manifest_path);
-  Ttx::Lexical::Associations associations(transaction);
-  Ttx::Lexical::Cursor cursor(tokenizer, errors, associations);
-  Environment::Workspace context(toolchain);
-  auto interpreted = Tetrodotoxin::Language::Dialect::interpret_source(
-      toolchain.get_dialects(), cursor, context);
-  BAIL_IF(!interpreted);
-
-  auto manifest = interpreted->select<Package::Language::Monograph>();
-  BAIL_IF(!manifest);
-  return manifest->get_sources().contains(
-      [&](const Package::Language::Source& source) {
-        return source.get_source_path() == logical_route;
-      });
-}
-
 struct PackageLocation {
   PackageLocation(View::Bytes root, View::Bytes route)
       : root(root), route(route) {}
@@ -151,180 +135,60 @@ struct PackageLocation {
 };
 
 static auto find_package(
-    Environment::Toolchain& toolchain,
     Dynamic::Record<Package::Snapshots> snapshots,
-    View::Bytes path,
-    View::Bytes source) -> Option<PackageLocation> {
+    View::Bytes path) -> Option<PackageLocation> {
   Path normalized(path);
-  View::Bytes directory = normalized.get_directory();
-  View::Bytes file = normalized.get_file();
+  Dynamic::Bytes directory(normalized.get_directory());
   while (!directory.is_empty()) {
-    Dynamic::Bytes manifest_path = join_path(directory, "package.ttx"_view);
+    Dynamic::Bytes package_source_path =
+        join_path(directory.get_view(), "package.ttx"_view);
     Allocator::Arena acquisition;
-    auto storage =
-        File::exists(manifest_path.get_view())
-            ? Package::Storage::open(acquisition, directory, snapshots)
-            : Option<Package::Storage>();
-    Option<Package::Content&> manifest;
+    auto storage = File::exists(package_source_path.get_view())
+                       ? Package::Storage::open(
+                             acquisition, directory.get_view(), snapshots)
+                       : Option<Package::Storage>();
+    Option<Package::Content&> package_source;
     if (storage) {
       storage->read("package.ttx"_view)
           .visit(
-              [&](Package::Content& content) { manifest = content; },
+              [&](Package::Content& content) { package_source = content; },
               [](const Package::Storage::Failure&) {});
     }
-    if (manifest) {
-      Dynamic::Bytes route = relative_path(directory, normalized.get_view());
-      if (!route.is_empty()) {
-        Dynamic::Bytes manifest_source;
-        if (file == "package.ttx"_view &&
-            manifest_path.get_view() == normalized.get_view()) {
-          manifest_source = source;
-        } else {
-          manifest_source = manifest->get_contents();
-        }
 
-        Bool claimed = route == "package.ttx"_view ||
-                       (!manifest_source.is_empty() &&
-                        manifest_claims(
-                            toolchain, manifest_path.get_view(),
-                            manifest_source.get_view(), route.get_view()));
-        if (claimed) {
-          return PackageLocation(directory, route.get_view());
-        }
+    if (package_source) {
+      Dynamic::Bytes route =
+          relative_path(directory.get_view(), normalized.get_view());
+      if (!route.is_empty()) {
+        return PackageLocation(directory.get_view(), route.get_view());
       }
     }
 
-    Path current(directory);
+    Path current(directory.get_view());
     View::Bytes parent = current.get_directory();
-    if (parent == directory) {
+    if (parent == directory.get_view()) {
       break;
     }
+
+    // Path lends its directory view. Owning the current spelling keeps the
+    // next ascent valid after the temporary Path leaves this iteration.
     directory = parent;
   }
 
   return {};
 }
 
-class PackageRequest {
- public:
-  PackageRequest(View::Bytes identity, Version version, View::Bytes root)
-      : identity(identity), version(version), root(root) {}
-
-  auto matches(View::Bytes selected_identity, Version selected_version) const
-      -> Bool {
-    return identity == selected_identity && version == selected_version;
-  }
-
-  constexpr auto get_root() const -> View::Bytes { return root; }
-
- private:
-  Dynamic::Bytes identity;
-  Version version;
-  Dynamic::Bytes root;
-};
-
-static auto contains_request(
-    View::Vector<PackageRequest> requests,
-    View::Bytes identity,
-    Version version) -> Bool {
-  return requests.contains([&](const PackageRequest& request) {
-    return request.matches(identity, version);
-  });
-}
-
-static auto inspect_package(
-    Environment::Toolchain& toolchain,
-    Environment::Workspace& workspace,
-    Ttx::Lexical::Errors& errors,
-    Dynamic::Record<Package::Snapshots> snapshots,
-    View::Bytes package_root,
-    Allocator::Arena& transaction) -> Option<Package::Language::Monograph&> {
-  Allocator::Arena acquisition;
-  auto storage = Package::Storage::open(acquisition, package_root, snapshots);
-  BAIL_IF(!storage);
-
-  Option<Package::Content&> manifest;
-  storage->read("package.ttx"_view)
-      .visit(
-          [&](Package::Content& content) { manifest = content; },
-          [](const Package::Storage::Failure&) {});
-  BAIL_IF(!manifest);
-
-  View::Bytes source = transaction.proxy(manifest->get_contents());
-  View::Bytes path = transaction.proxy(manifest->get_diagnostic_path());
-  Ttx::Lexical::Tokenizer tokenizer(transaction, source, path);
-  Ttx::Lexical::Associations associations(transaction);
-  Ttx::Lexical::Cursor cursor(tokenizer, errors, associations);
-  auto interpreted = Tetrodotoxin::Language::Dialect::interpret_source(
-      toolchain.get_dialects(), cursor, workspace);
-  return interpreted ? interpreted->select<Package::Language::Monograph>()
-                     : Option<Package::Language::Monograph&>();
-}
-
-static auto import_package(
-    Environment::Toolchain& toolchain,
-    Environment::Workspace& workspace,
-    Ttx::Lexical::Errors& errors,
-    Dynamic::Record<Package::Snapshots> snapshots,
-    View::Bytes packages_root,
-    View::Bytes package_root,
-    View::Bytes semantic_name,
-    View::Bytes identity,
-    Version version,
-    Dynamic::Vector<PackageRequest>& loaded,
-    Dynamic::Vector<PackageRequest>& active) -> Bool {
-  if (contains_request(loaded, identity, version)) {
-    return True;
-  }
-
-  BAIL_IF(contains_request(active, identity, version));
-  active.emplace(PackageRequest(identity, version, package_root));
-
-  Allocator::Arena inspection;
-  auto manifest = inspect_package(
-      toolchain, workspace, errors, snapshots, package_root, inspection);
-  if (!manifest) {
-    active.remove(active.get_size() - 1);
-    return False;
-  }
-
-  Bool dependencies_loaded = True;
-  for (const Package::Language::Dependency& dependency :
-       manifest->get_dependencies()) {
-    Dynamic::Bytes dependency_root =
-        join_path(packages_root, dependency.get_package_name());
-    dependencies_loaded &= import_package(
-        toolchain, workspace, errors, snapshots, packages_root,
-        dependency_root.get_view(), dependency.get_package_name(),
-        dependency.get_package_name(), dependency.get_version(), loaded,
-        active);
-  }
-
-  Bool imported = False;
-  if (dependencies_loaded) {
-    imported = Bool(workspace.import_package(
-        errors, package_root, semantic_name, "package.ttx"_view, identity,
-        version));
-  }
-
-  active.remove(active.get_size() - 1);
-  if (imported) {
-    loaded.emplace(PackageRequest(identity, version, package_root));
-  }
-  return imported;
-}
-
-Lsp::Documents::Documents(View::Bytes selected_packages_root)
-    : snapshots(), packages_root(selected_packages_root) {
-  auto package = toolchain.install<Package::Dialect>("Package"_view);
-  auto library = toolchain.install<Library::Dialect>("Library"_view);
-  auto app = toolchain.install<App::Dialect>("App"_view);
-  if (!package || !library || !app) {
-    return;
-  }
-
-  toolchain_ready =
-      Bool(toolchain.install<Scene::Dialect>("Scene"_view, *library));
+Lsp::Documents::Documents(Package::Repository::Repository& selected_repository)
+    : package(library),
+      scene(library),
+      shader(library, render),
+      snapshots(),
+      repository(selected_repository) {
+  toolchain_ready = toolchain.install(library);
+  toolchain_ready &= toolchain.install(package);
+  toolchain_ready &= toolchain.install(app);
+  toolchain_ready &= toolchain.install(render);
+  toolchain_ready &= toolchain.install(scene);
+  toolchain_ready &= toolchain.install(shader);
 }
 
 auto Lsp::Documents::find(View::Bytes uri) const -> Count {
@@ -383,7 +247,7 @@ auto Lsp::Documents::upsert(View::Bytes uri, View::Bytes source) -> void {
 
   Dynamic::Bytes path = decode_file_uri(uri);
   if (document.package_root.is_empty() && !path.is_empty()) {
-    auto package = find_package(toolchain, snapshots, path.get_view(), source);
+    auto package = find_package(snapshots, path.get_view());
     if (package) {
       document.package_root = package->root;
       document.logical_route = package->route;
@@ -460,7 +324,6 @@ auto Lsp::Documents::erase(View::Bytes uri) -> void {
       sessions[selected].root.clear();
       sessions[selected].errors = {};
       sessions[selected].workspace = {};
-      sessions[selected].dependencies.clear();
     }
   }
 }
@@ -476,24 +339,25 @@ auto Lsp::Documents::create_workspace(Document& document)
 
   auto session = select_session(document);
   if (session) {
-    session->errors = Dynamic::Record<Ttx::Lexical::Errors>();
+    Allocator::Arena discovery;
+    Dependencies dependencies(discovery, repository, {});
+    dependencies.discover(
+        toolchain, document.package_root.get_view(), "puffer.package"_view,
+        "package.ttx"_view, snapshots);
+
+    session->errors = Dynamic::Record<Tetrodotoxin::Source::Lexical::Errors>();
     session->workspace =
         Dynamic::Record<Environment::Workspace>(toolchain, snapshots);
-    Dynamic::Vector<PackageRequest> loaded;
-    Dynamic::Vector<PackageRequest> active;
-    import_package(
-        toolchain, **session->workspace, **session->errors, snapshots,
-        packages_root.get_view(), document.package_root.get_view(),
-        "puffer.package"_view, document.package_root.get_view(), Version(1, 0),
-        loaded, active);
-    session->dependencies.clear();
-    for (const PackageRequest& dependency : loaded.get_view()) {
-      session->dependencies.insert(Dynamic::Bytes(dependency.get_root()));
-    }
+    dependencies.restore(**session->workspace);
+    (*session->workspace)
+        ->import_package(
+            **session->errors, document.package_root.get_view(),
+            "puffer.package"_view, "package.ttx"_view);
+
     return **session->workspace;
   }
 
-  document.standalone_errors = Dynamic::Record<Ttx::Lexical::Errors>();
+  document.standalone_errors = Dynamic::Record<Tetrodotoxin::Source::Lexical::Errors>();
   document.standalone_workspace =
       Dynamic::Record<Environment::Workspace>(toolchain);
   (*document.standalone_workspace)
@@ -518,19 +382,19 @@ auto Lsp::Documents::get_workspace(Document& document)
 }
 
 auto Lsp::Documents::get_errors(Document& document)
-    -> Option<const Ttx::Lexical::Errors&> {
+    -> Option<const Tetrodotoxin::Source::Lexical::Errors&> {
   BAIL_IF(!get_workspace(document));
 
   auto session = select_session(document);
   if (session) {
     return session->errors
-               ? Option<const Ttx::Lexical::Errors&>(**session->errors)
-               : Option<const Ttx::Lexical::Errors&>();
+               ? Option<const Tetrodotoxin::Source::Lexical::Errors&>(**session->errors)
+               : Option<const Tetrodotoxin::Source::Lexical::Errors&>();
   }
 
   return document.standalone_errors
-             ? Option<const Ttx::Lexical::Errors&>(**document.standalone_errors)
-             : Option<const Ttx::Lexical::Errors&>();
+             ? Option<const Tetrodotoxin::Source::Lexical::Errors&>(**document.standalone_errors)
+             : Option<const Tetrodotoxin::Source::Lexical::Errors&>();
 }
 
 auto Lsp::Documents::get_diagnostics(View::Bytes uri) -> Option<Diagnostics> {
@@ -549,7 +413,7 @@ auto Lsp::Documents::get_diagnostics(View::Bytes uri) -> Option<Diagnostics> {
 auto Lsp::Documents::find_semantic(
     View::Bytes uri,
     const PositionEncoding::Position& position)
-    -> Option<const Ttx::Concept::Abstract&> {
+    -> Option<const Tetrodotoxin::Source::Abstract&> {
   Count slot = find(uri);
   BAIL_IF(slot == Count(-1));
 
@@ -566,9 +430,16 @@ auto Lsp::Documents::find_semantic(
                                 : document.logical_route.get_view();
   auto workspace = get_workspace(document);
   BAIL_IF(!workspace);
-  auto associations = workspace->get_associations(source_name);
-  return associations ? associations->find_at(*offset)
-                      : Option<const Ttx::Concept::Abstract&>();
+  auto associations = document.package_root.is_empty()
+                          ? workspace->get_associations(source_name)
+                          : workspace->get_associations(
+                                document.package_root.get_view(),
+                                document.logical_route.get_view());
+  auto semantic = associations ? associations->find_at(*offset)
+                               : Option<const Tetrodotoxin::Source::Abstract&>();
+  BAIL_IF(!semantic);
+
+  return semantic;
 }
 
 auto Lsp::Documents::set_position_encoding(PositionEncoding selected) -> void {
@@ -580,7 +451,7 @@ auto Lsp::Documents::get_position_encoding() const -> const PositionEncoding& {
 }
 
 auto Lsp::Documents::get_associations(View::Bytes uri)
-    -> Option<const Ttx::Lexical::Associations&> {
+    -> Option<const Tetrodotoxin::Source::Lexical::Associations&> {
   Count slot = find(uri);
   BAIL_IF(slot == Count(-1));
 
@@ -590,11 +461,51 @@ auto Lsp::Documents::get_associations(View::Bytes uri)
   View::Bytes source_name = document.package_root.is_empty()
                                 ? document.uri.get_view()
                                 : document.logical_route.get_view();
-  return workspace->get_associations(source_name);
+  return document.package_root.is_empty()
+             ? workspace->get_associations(source_name)
+             : workspace->get_associations(
+                   document.package_root.get_view(),
+                   document.logical_route.get_view());
+}
+
+auto Lsp::Documents::get_monograph(View::Bytes uri)
+    -> Option<const Tetrodotoxin::Language::Monograph&> {
+  Count slot = find(uri);
+  BAIL_IF(slot == Count(-1));
+
+  Document& document = records[slot];
+  auto workspace = get_workspace(document);
+  BAIL_IF(!workspace);
+  View::Bytes source_name = document.package_root.is_empty()
+                                ? document.uri.get_view()
+                                : document.logical_route.get_view();
+  return document.package_root.is_empty()
+             ? workspace->get_monograph(source_name)
+             : workspace->get_monograph(
+                   document.package_root.get_view(),
+                   document.logical_route.get_view());
+}
+
+auto Lsp::Documents::get_completed_monograph(View::Bytes uri)
+    -> Option<const Tetrodotoxin::Language::Monograph&> {
+  Count slot = find(uri);
+  BAIL_IF(slot == Count(-1));
+
+  Document& document = records[slot];
+  auto workspace = get_workspace(document);
+  BAIL_IF(!workspace);
+  View::Bytes source_name = document.package_root.is_empty()
+                                ? document.uri.get_view()
+                                : document.logical_route.get_view();
+  return document.package_root.is_empty()
+             ? workspace->get_completed_monograph(source_name)
+             : workspace->get_completed_monograph(
+                   document.package_root.get_view(),
+                   document.logical_route.get_view());
 }
 
 auto Lsp::Documents::get_tokens(View::Bytes uri)
-    -> View::Vector<Ttx::Lexical::Token> {
+    -> View::Vector<Tetrodotoxin::Source::Lexical::Token> {
   Count slot = find(uri);
   BAIL_IF(slot == Count(-1));
 
@@ -604,12 +515,16 @@ auto Lsp::Documents::get_tokens(View::Bytes uri)
   View::Bytes source_name = document.package_root.is_empty()
                                 ? document.uri.get_view()
                                 : document.logical_route.get_view();
-  return workspace->get_tokens(source_name);
+  return document.package_root.is_empty()
+             ? workspace->get_tokens(source_name)
+             : workspace->get_tokens(
+                   document.package_root.get_view(),
+                   document.logical_route.get_view());
 }
 
 auto Lsp::Documents::find_definition(
     View::Bytes source_uri,
-    const Ttx::Concept::Abstract& semantic)
+    const Tetrodotoxin::Source::Abstract& semantic)
     -> Option<Environment::Workspace::AuthoredLocation> {
   Count slot = find(source_uri);
   BAIL_IF(slot == Count(-1));
@@ -618,6 +533,35 @@ auto Lsp::Documents::find_definition(
   auto workspace = get_workspace(source_document);
   BAIL_IF(!workspace);
   return workspace->find_authored_location(semantic);
+}
+
+auto Lsp::Documents::find_acquired_definition(
+    View::Bytes source_uri,
+    const PositionEncoding::Position& position,
+    const Tetrodotoxin::Source::Abstract& semantic)
+    -> Option<Environment::Workspace::AuthoredLocation> {
+  Count slot = find(source_uri);
+  BAIL_IF(slot == Count(-1));
+
+  Document& document = records[slot];
+  BAIL_IF(document.package_root.is_empty());
+  auto offset =
+      position_encoding.find_offset(document.text.get_view(), position);
+  BAIL_IF(!offset);
+  auto workspace = get_workspace(document);
+  BAIL_IF(!workspace);
+
+  const Tetrodotoxin::Source::Abstract* acquired = &semantic;
+  const Tetrodotoxin::Source::Abstract& resource =
+      semantic.resolve_concept("resource"_view);
+  if (!resource.is<Tetrodotoxin::Source::None>() &&
+      !resource.is<Tetrodotoxin::Source::Unknown>()) {
+    acquired = &resource;
+  }
+
+  return workspace->find_acquired_location(
+      document.package_root.get_view(), document.logical_route.get_view(),
+      *offset, *acquired);
 }
 
 auto Lsp::Documents::resolve_uri(
@@ -630,6 +574,7 @@ auto Lsp::Documents::resolve_uri(
     if (!document.active) {
       continue;
     }
+
     Bool standalone = package_root.is_empty() &&
                       document.package_root.is_empty() &&
                       document.uri == diagnostic_path;
@@ -664,12 +609,7 @@ auto Lsp::Documents::resolve_uri(
 auto Lsp::Documents::invalidate_package(View::Bytes root) -> void {
   for (Count index = 0; index < sessions.get_size(); index++) {
     Session& session = sessions[index];
-    Bool affected =
-        session.root == root || session.dependencies.get_view().contains(
-                                    [&](const Dynamic::Bytes& dependency) {
-                                      return dependency == root;
-                                    });
-    if (session.active && affected) {
+    if (session.active && session.root == root) {
       session.errors = {};
       session.workspace = {};
     }
@@ -694,10 +634,7 @@ auto Lsp::Documents::invalidate(View::Bytes uri) -> void {
              path[root.get_size()] == '/';
     };
     Bool affected = contains_path(session.root.get_view()) ||
-                    session.dependencies.get_view().contains(
-                        [&](const Dynamic::Bytes& dependency) {
-                          return contains_path(dependency.get_view());
-                        });
+                    Path(path.get_view()).get_file() == "package.ttxp"_view;
     if (affected) {
       session.errors = {};
       session.workspace = {};

@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -49,7 +49,7 @@ constexpr auto align(Count offset) -> Count {
   constexpr Count alignment_filter = alignment_size - 1;
   // Check if alignment_size is a power of two, if it is we can avoid a modulo.
   // Any easy test for only a single set bit is to subtract one from the value
-  // and and it with itself. It will return non-zero for any non-power of two.
+  // and and it with itself. It will return nonzero for any non power of two.
   //
   // This technically let's zero through but we special case zero and one.
   if constexpr ((alignment_size & alignment_filter) == 0) {
@@ -140,7 +140,7 @@ constexpr auto write(storage_type* dest, storage_type value) -> void {
 
 // Swaps two objects using laundering mechanics to avoid intermediary objects.
 // For consteval move constructors are used.
-// For non-consteval a forgetful stack buffer is used to avoid constructing and
+// For non consteval a forgetful stack buffer is used to avoid constructing and
 // destructing a temporary or calling any move constructors.
 template <typename type>
 constexpr auto swap(type& a, type& b) -> void {

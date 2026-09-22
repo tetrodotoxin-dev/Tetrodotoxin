@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -10,7 +10,7 @@
 
 namespace Perimortem::Core::Writer {
 
-// Reads self-describing values from a serial bytes following the Perimortem
+// Reads self describing values from a serial bytes following the Perimortem
 // Serial format.
 //
 // Values are encoded as 1 type byte along with there minimum byte form and are

@@ -1,12 +1,15 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/monograph.hpp"
+
+#include "tetrodotoxin/source/documentation.hpp"
 
 #include "perimortem/core/diagnostics/log.hpp"
 
 #include "tetrodotoxin/library/language/generics/access.hpp"
 #include "tetrodotoxin/library/language/generics/fixed.hpp"
+#include "tetrodotoxin/library/language/generics/implementation.hpp"
 #include "tetrodotoxin/library/language/generics/object.hpp"
 #include "tetrodotoxin/library/language/generics/option.hpp"
 #include "tetrodotoxin/library/language/generics/range.hpp"
@@ -23,17 +26,22 @@
 #include "tetrodotoxin/library/language/types/u32.hpp"
 #include "tetrodotoxin/library/language/types/u64.hpp"
 #include "tetrodotoxin/library/language/types/u8.hpp"
-#include "ttx/concept/invalid.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
+
+static auto is_missing(const Abstract& abstract) -> Bool {
+  return abstract.is<Unknown>() || abstract.is<None>();
+}
 
 Library::Language::Monograph::Monograph(
     Allocator::Arena& arena,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     const Anchor& source_anchor,
     const Abstract& language,
     Abstract& context)
@@ -66,6 +74,7 @@ Library::Language::Monograph::Monograph(
     &domain.construct<Types::R64>(),
     &domain.construct<Generics::Access>(domain, *this),
     &domain.construct<Generics::Fixed>(domain, *this),
+    &domain.construct<Generics::Implementation>(domain, *this),
     &domain.construct<Generics::Option>(domain, *this),
     &domain.construct<Generics::Object>(domain, *this),
     &domain.construct<Generics::Range>(domain, *this),
@@ -78,47 +87,27 @@ Library::Language::Monograph::Monograph(
 }
 
 auto Library::Language::Monograph::create_authored(
-    Cursor& cursor,
-    const Documentation& documentation,
+    Allocator::Arena& arena,
+    const Tetrodotoxin::Source::Documentation& documentation,
     const Anchor& source_anchor,
     const Abstract& language,
     Abstract& context) -> Monograph& {
-  Allocator::Arena& arena = cursor.get_arena();
+  return create(arena, documentation, source_anchor, language, context);
+}
+
+auto Library::Language::Monograph::create(
+    Allocator::Arena& arena,
+    const Tetrodotoxin::Source::Documentation& documentation,
+    const Anchor& source_anchor,
+    const Abstract& language,
+    Abstract& context) -> Monograph& {
   return arena.construct_from<Monograph>([&]() -> Monograph {
     return Monograph(arena, documentation, source_anchor, language, context);
   });
 }
 
-auto Library::Language::Monograph::restore(
-    Archive::Reader& reader,
-    Allocator::Arena& arena,
-    Tetrodotoxin::Language::Persistence::Profile profile,
-    const Abstract& language,
-    Abstract& context) -> Option<Monograph&> {
-  auto record = reader.read_record();
-  BAIL_IF(
-      !record || record->get_tag() != U16(Archive::Tag::Source) ||
-      record->is_optional() || !reader.is_complete());
-
-  Archive::Reader contents(record->get_payload());
-  auto documentation = contents.read_documentation(arena);
-  BAIL_IF(!documentation);
-
-  Monograph& monograph = arena.construct_from<Monograph>([&]() -> Monograph {
-    return Monograph(
-        arena, *documentation, Anchor::create(Span()), language, context);
-  });
-  BAIL_IF(
-      !monograph.source.restore(contents, profile) || !contents.is_complete());
-  return monograph;
-}
-
-auto Library::Language::Monograph::parse(Cursor& cursor) -> Bool {
-  return source.parse(cursor);
-}
-
 auto Library::Language::Monograph::link(Cursor& cursor) -> Bool {
-  return source.link(cursor, context);
+  return source.link(cursor, *this);
 }
 
 auto Library::Language::Monograph::finalize(Cursor& cursor) -> Bool {
@@ -138,49 +127,35 @@ auto Library::Language::Monograph::finalize(Cursor& cursor) -> Bool {
 }
 
 auto Library::Language::Monograph::link_restored() -> Bool {
-  return source.link_restored(context);
+  return source.link_restored(*this);
 }
 
 auto Library::Language::Monograph::finalize_restored() -> Bool {
   return source.finalize_restored();
 }
 
-auto Library::Language::Monograph::lower(Llvm::Program& program) const
-    -> Option<Llvm::Program&> {
-  Bool reserved = source.reserve(program);
-  if (!reserved) {
-    Perimortem::Core::Diagnostics::Log::error(
-        "Library LLVM lowering failed while reserving source declarations."_view);
-    return {};
-  }
-
-  Bool completed = source.complete(program);
-  if (!completed) {
-    Perimortem::Core::Diagnostics::Log::error(
-        "Library LLVM lowering failed while completing source declarations."_view);
-    return {};
-  }
-
-  Bool lowered = source.lower(program);
-  if (!lowered) {
-    Perimortem::Core::Diagnostics::Log::error(
-        "Library LLVM lowering failed while emitting source declarations."_view);
-  }
-
-  return lowered ? Option<Llvm::Program&>(program) : Option<Llvm::Program&>();
-}
-
-auto Library::Language::Monograph::persist(Archive::Writer& writer) const
-    -> Bool {
-  return source.persist(writer);
-}
-
 auto Library::Language::Monograph::get_name() const -> View::Bytes {
   return "Library"_view;
 }
 
-auto Library::Language::Monograph::resolve_context(View::Bytes route) const
+auto Library::Language::Monograph::resolve_concept(View::Bytes route) const
     -> const Abstract& {
+  if (route == "static"_view || route == "instance"_view) {
+    return source.resolve_concept(route);
+  }
+  const Abstract& local = resolve_local_context(route);
+  return is_missing(local)
+             ? Tetrodotoxin::Language::Monograph::resolve_concept(route)
+             : local;
+}
+
+auto Library::Language::Monograph::visit_concepts(
+    Tetrodotoxin::Source::Abstract::Visitor visitor) const -> void {
+  source.visit_concepts(visitor);
+}
+
+auto Library::Language::Monograph::resolve_local_context(
+    View::Bytes route) const -> const Abstract& {
   // Source and Foreign are the two reserved authored contexts. Ordinary
   // declarations remain in Source while root vocabulary and using contexts
   // answer only names that those owned contexts leave unresolved.
@@ -193,16 +168,61 @@ auto Library::Language::Monograph::resolve_context(View::Bytes route) const
   }
 
   const Abstract& authored = source.resolve_local(route);
-  if (!authored.is<Invalid>()) {
+  if (!is_missing(authored)) {
     return authored;
   }
 
   const Abstract& root = resolve_root_context(route);
-  if (!root.is<Invalid>()) {
+  if (!is_missing(root)) {
     return root;
   }
 
-  return source.resolve_imports(route);
+  const Abstract& imported = source.resolve_imports(route);
+  return is_missing(imported)
+             ? resolve_type(route, Tetrodotoxin::Language::Visibility::Public)
+             : imported;
+}
+
+auto Library::Language::Monograph::resolve_lexical_context(
+    View::Bytes route) const -> const Abstract& {
+  if (route == "source"_view) {
+    return source;
+  }
+
+  if (route == "foreign"_view && source.get_foreign().is_authored()) {
+    return source.get_foreign();
+  }
+
+  const Abstract& authored =
+      source.resolve_local(route, Tetrodotoxin::Language::Visibility::Private);
+  if (!is_missing(authored)) {
+    return authored;
+  }
+
+  const Abstract& root = resolve_root_context(route);
+  if (!is_missing(root)) {
+    return root;
+  }
+
+  const Abstract& imported = source.resolve_imports(route);
+  return is_missing(imported)
+             ? Tetrodotoxin::Language::Monograph::resolve_lexical_context(route)
+             : imported;
+}
+
+auto Library::Language::Monograph::can_bind_source_type(View::Bytes name) const
+    -> Bool {
+  return resolve_root_context(name).is<Unknown>() &&
+         resolve_type(name, Tetrodotoxin::Language::Visibility::Private)
+             .is<Unknown>();
+}
+
+auto Library::Language::Monograph::retain_import(
+    const Tetrodotoxin::Language::Import::Description& description,
+    Option<Associations&> associations) -> Bool {
+  BAIL_IF(!can_bind_source_type(description.get_name()));
+  return Tetrodotoxin::Language::Monograph::retain_import(
+      description, associations);
 }
 
 auto Library::Language::Monograph::resolve_root_context(View::Bytes route) const
@@ -210,22 +230,10 @@ auto Library::Language::Monograph::resolve_root_context(View::Bytes route) const
   const Abstract& intrinsic = vocabulary.visit(
       route,
       [](const Abstract& selected) -> const Abstract& { return selected; },
-      []() -> const Abstract& { return Invalid::get_invalid(); });
-  if (!intrinsic.is<Invalid>()) {
+      []() -> const Abstract& { return Unknown::get_unknown(); });
+  if (!intrinsic.is<Unknown>()) {
     return intrinsic;
   }
 
-  return Tetrodotoxin::Language::Monograph::resolve_context(route);
-}
-
-auto Library::Language::Monograph::resolve_access(
-    const Abstract& host,
-    View::Bytes route) const -> const Abstract& {
-  return source.resolve_type_access(host, route, Model::Type::Access::Static);
-}
-
-auto Library::Language::Monograph::resolve_call(
-    const Abstract& host,
-    View::Bytes route) const -> const Abstract& {
-  return source.resolve_type_call(host, route, Model::Type::Access::Static);
+  return Unknown::get_unknown();
 }

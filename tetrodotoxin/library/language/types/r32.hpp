@@ -1,10 +1,10 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
 
 #include "tetrodotoxin/library/language/model/types/real.hpp"
-#include "ttx/model/documentations/comment.hpp"
+#include "tetrodotoxin/source/documentations/comment.hpp"
 
 namespace Tetrodotoxin::Library::Language::Types {
 
@@ -25,7 +25,7 @@ class R32 : public Model::Types::Real {
   }
 
  private:
-  static constexpr Ttx::Model::Documentations::Comment documentation{
+  static constexpr Tetrodotoxin::Source::Documentations::Comment documentation{
     "R32 is stored as a 4 byte IEEE floating value."_view,
   };
 };

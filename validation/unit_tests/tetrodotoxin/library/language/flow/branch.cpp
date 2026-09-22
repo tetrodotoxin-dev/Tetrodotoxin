@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/flow/branch.hpp"
@@ -16,14 +16,14 @@
 #include "tetrodotoxin/library/language/function.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
 #include "tetrodotoxin/library/language/types/composite.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Tetrodotoxin::Library;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using Tetrodotoxin::Environment::Workspace;
 using namespace Validation;
 
@@ -56,7 +56,9 @@ static auto find_function(
 }
 
 static auto rejects_link(View::Bytes source) -> Bool {
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
@@ -64,15 +66,16 @@ static auto rejects_link(View::Bytes source) -> Bool {
 }
 
 static auto rejects_interpretation(View::Bytes source) -> Bool {
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   return !interpret(workspace, errors, source) && !errors.is_empty() &&
-         &workspace.resolve_context("BranchTest"_view) ==
-             &Invalid::get_invalid();
+         retains_library_source(workspace, "BranchTest"_view);
 }
 
-PERIMORTEM_UNIT_TEST(BranchTests, retained_blocks_and_condition_pack) {
+PERIMORTEM_UNIT_TEST(BranchTests, branch_shape) {
   static constexpr View::Bytes source =
       "// Branch graph.\n"
       "dialect : Library;\n"
@@ -89,7 +92,9 @@ PERIMORTEM_UNIT_TEST(BranchTests, retained_blocks_and_condition_pack) {
       "  }\n"
       "  return outer;\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
@@ -122,18 +127,18 @@ PERIMORTEM_UNIT_TEST(BranchTests, retained_blocks_and_condition_pack) {
       "  }"_view);
 
   const Abstract& outer = statements.get_data()[0].get_root();
-  EXPECT(&conditional.get_body().resolve_context("outer"_view) == &outer);
-  const Abstract& inner = conditional.get_body().resolve_context("inner"_view);
+  EXPECT(&conditional.get_body().resolve_concept("outer"_view) == &outer);
+  const Abstract& inner = conditional.get_body().resolve_concept("inner"_view);
   EXPECT(inner.is<Language::Flow::Local>());
   auto alternate =
       conditional.get_alternate()->get_root().select<Language::Flow::Block>();
   ASSERT(alternate);
-  EXPECT(&alternate->resolve_context("outer"_view) == &outer);
+  EXPECT(&alternate->resolve_concept("outer"_view) == &outer);
 
   const Abstract& retained = statements.get_data()[1].get_root();
   Perimortem::Memory::Allocator::Arena transaction;
   Tokenizer tokenizer(transaction, source, "branch.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   ASSERT(monograph->link(cursor));
   ASSERT(monograph->finalize(cursor));
@@ -143,7 +148,7 @@ PERIMORTEM_UNIT_TEST(BranchTests, retained_blocks_and_condition_pack) {
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(BranchTests, terminal_if_covers_function_result) {
+PERIMORTEM_UNIT_TEST(BranchTests, terminal_if) {
   static constexpr View::Bytes source =
       "// Terminal branch.\n"
       "dialect : Library;\n"
@@ -154,7 +159,9 @@ PERIMORTEM_UNIT_TEST(BranchTests, terminal_if_covers_function_result) {
       "    return 2;\n"
       "  }\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
@@ -166,7 +173,7 @@ PERIMORTEM_UNIT_TEST(BranchTests, terminal_if_covers_function_result) {
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(BranchTests, else_if_retains_the_selected_statement) {
+PERIMORTEM_UNIT_TEST(BranchTests, else_if) {
   static constexpr View::Bytes source =
       "// Else if statement.\n"
       "dialect : Library;\n"
@@ -174,7 +181,9 @@ PERIMORTEM_UNIT_TEST(BranchTests, else_if_retains_the_selected_statement) {
       "{\n"
       "  if first : return 1; else if second : return 2; else : return 3;\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
@@ -195,7 +204,7 @@ PERIMORTEM_UNIT_TEST(BranchTests, else_if_retains_the_selected_statement) {
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(BranchTests, while_body_targets_its_branch) {
+PERIMORTEM_UNIT_TEST(BranchTests, while_branch) {
   static constexpr View::Bytes source =
       "// While control.\n"
       "dialect : Library;\n"
@@ -203,7 +212,9 @@ PERIMORTEM_UNIT_TEST(BranchTests, while_body_targets_its_branch) {
       "  while true : continue;\n"
       "  return;\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
@@ -222,7 +233,7 @@ PERIMORTEM_UNIT_TEST(BranchTests, while_body_targets_its_branch) {
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(BranchTests, incomplete_result_paths_are_rejected) {
+PERIMORTEM_UNIT_TEST(BranchTests, incomplete_paths) {
   static constexpr Static::Vector<View::Bytes, 3> sources = {{
     "// Missing alternate.\ndialect : Library; private invalid : func = [.flag : Bool] -> U64 { if flag { return 1; } }"_view,
     "// Falling alternate.\ndialect : Library; private invalid : func = [.flag : Bool] -> U64 { if flag { return 1; } else {} }"_view,
@@ -234,7 +245,7 @@ PERIMORTEM_UNIT_TEST(BranchTests, incomplete_result_paths_are_rejected) {
   }
 }
 
-PERIMORTEM_UNIT_TEST(BranchTests, first_condition_value_must_be_flag) {
+PERIMORTEM_UNIT_TEST(BranchTests, flag_condition) {
   static constexpr Static::Vector<View::Bytes, 4> sources = {{
     "// Empty condition.\ndialect : Library; private invalid : func = [] -> [] { if () {} return; }"_view,
     "// Numeric condition.\ndialect : Library; private invalid : func = [] -> [] { if 1 {} return; }"_view,
@@ -247,7 +258,7 @@ PERIMORTEM_UNIT_TEST(BranchTests, first_condition_value_must_be_flag) {
   }
 }
 
-PERIMORTEM_UNIT_TEST(BranchTests, malformed_branch_is_rejected) {
+PERIMORTEM_UNIT_TEST(BranchTests, malformed_branch) {
   static constexpr Static::Vector<View::Bytes, 2> sources = {{
     "// Missing body.\ndialect : Library; private invalid : func = [] -> [] { if true return; }"_view,
     "// Missing alternate body.\ndialect : Library; private invalid : func = [] -> [] { if true {} else return; }"_view,

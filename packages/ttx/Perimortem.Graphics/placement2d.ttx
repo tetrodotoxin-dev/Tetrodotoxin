@@ -1,0 +1,16 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+// The shared semantic requirement for two dimensional placement.
+//
+dialect : Library;
+
+public Transform2D : alias = source("transform2d.ttx")::Transform2D;
+
+// Placement2D lets Graphics read the transform and frame ordering of a real Object
+// without implying that the Object hosts children or contributes a draw.
+public Placement2D : struct {
+  public state transform : Transform2D;
+  public state visible   : Bool = true;
+  public state z_index   : S64;
+}

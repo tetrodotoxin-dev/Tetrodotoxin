@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/types/view.hpp"
@@ -8,8 +8,7 @@
 #include "tetrodotoxin/library/builtin/view/slice.hpp"
 #include "tetrodotoxin/library/language/constants/bytes.hpp"
 #include "tetrodotoxin/library/language/model/types/unsigned.hpp"
-#include "tetrodotoxin/library/llvm/builder.hpp"
-#include "ttx/concept/invalid.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Tetrodotoxin::Library::Language;
@@ -47,48 +46,4 @@ auto Types::View::accepts(const Model::Pack& source) const -> Bool {
           : Option<const Model::Types::Unsigned&>();
   return source_view && target_element && source_element &&
          target_element->get_width() == 8 && source_element->get_width() == 8;
-}
-
-auto Types::View::reserve(Llvm::Program& program) const -> Bool {
-  const auto& carriers = program.get_carriers();
-  auto reserved = carriers.reserve(program, *this, Llvm::Carriers::Kind::View);
-  if (!reserved) {
-    return False;
-  }
-
-  if (!*reserved) {
-    return True;
-  }
-
-  Bool element_reserved = element.reserve(program);
-  if (!element_reserved) {
-    return False;
-  }
-
-  return reserve_callables(program);
-}
-
-auto Types::View::complete(Llvm::Program& program) const -> Bool {
-  const auto& carriers = program.get_carriers();
-  auto began = carriers.begin_completion(program, *this);
-  if (!began) {
-    return False;
-  }
-
-  if (!*began) {
-    return True;
-  }
-
-  Bool completed = element.complete(program);
-  if (!completed) {
-    return False;
-  }
-
-  if (!complete_callables(program)) {
-    return False;
-  }
-
-  Bool carrier_completed =
-      carriers.complete(program, *this, Llvm::Carriers::Kind::View);
-  return carrier_completed && complete_debug(program);
 }

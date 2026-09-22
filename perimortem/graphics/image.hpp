@@ -1,131 +1,74 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
 
+#include "perimortem/core/object.hpp"
+#include "perimortem/core/option.hpp"
 #include "perimortem/core/view/vector.hpp"
-#include "perimortem/core/data.hpp"
-#include "perimortem/core/math.hpp"
-#include "perimortem/core/perimortem.hpp"
 
 #include "perimortem/memory/dynamic/vector.hpp"
 
 #include "perimortem/graphics/pixel.hpp"
+#include "perimortem/graphics/size_2d.hpp"
 
 namespace Perimortem::Graphics {
 
-// A raster image stored as RGBA pixels in row-major order that provides safe
-// pixel level access as well as raw buffer access for speed.
-//
-// The only supported format is currently 8 bits per channel.
+// Image is one shared decoded RGBA identity. Copies retain the same worker
+// local content, while target images and sampling policy remain independent
+// runtime facts.
 class Image {
  public:
-  enum class Addressing : U8 {
-    Zero,
-    Clamp,
-    Wrap,
-  };
+  Image();
+  Image(U32 width, U32 height);
+  Image(Memory::Dynamic::Vector<Pixel>&& source, U32 width, U32 height);
+  Image(const Image& source);
+  Image(Image&& source);
+  ~Image();
 
-  Image() = default;
-  Image(U32 width, U32 height, Addressing addressing = Addressing::Zero)
-      : pixels(Count(width) * Count(height)),
-        width(width),
-        height(height),
-        addressing(addressing) {
-    pixels.forgetful_resize(Count(width) * Count(height));
-    auto bytes = pixels.get_access().get_bytes();
-    Core::Data::set(bytes.get_data(), 0x00, bytes.get_size());
-  }
+  auto operator=(const Image& source) -> Image&;
+  auto operator=(Image&& source) -> Image&;
 
-  Image(
-      Memory::Dynamic::Vector<Pixel>&& source,
-      U32 width,
-      U32 height,
-      Addressing addressing = Addressing::Zero)
-      : pixels(Core::Data::take(source)),
-        width(width),
-        height(height),
-        addressing(addressing) {
-    const Count target_size = Count(width) * Count(height);
-    if (pixels.get_size() != target_size) {
-      const auto original_size = pixels.get_size();
-      pixels.resize(target_size);
+  auto get_width() const -> U32;
+  auto get_height() const -> U32;
+  auto get_size_pixels() const -> Size2D;
+  // The returned row-major pixels borrow this Image lifetime.
+  auto get_pixels() const -> Core::View::Vector<Pixel>;
+  auto get_pixel(S32 x, S32 y) const -> Pixel;
+  auto is_drawable() const -> Bool;
+  constexpr auto get_object() const -> Core::Object<> { return object; }
 
-      // Clear out the new size if any.
-      if (original_size < target_size) {
-        auto bytes = pixels.get_access().get_bytes();
-        Core::Data::set(
-            bytes.get_data() + original_size * sizeof(Pixel), 0,
-            (bytes.get_size() - original_size) * sizeof(Pixel));
-      }
-    }
-  }
+  static auto retain(Core::Object<> object) -> Core::Option<Image>;
 
-  auto get_width() const -> U32 { return width; }
-  auto get_height() const -> U32 { return height; }
-
-  // Returns the contiguous row-major pixel buffer.
-  auto get_pixels() const -> Core::View::Vector<Pixel> {
-    return pixels.get_view();
-  }
-
-  // Returns the pixel at column x, row y. [0, 0] is the top-left corner, x
-  // increases to the right, and y increases downward.
-  //
-  // Negative values are valid given the addressing mode which allows for
-  // different wrapping modes.
-  //
-  // Use get_pixels() for operations that process the buffer in bulk.
-  auto get_pixel(S32 x, S32 y) const -> Pixel {
-    if (width == 0 || height == 0) {
-      return Pixel();
-    }
-
-    switch (addressing) {
-      // Any out of bounds values are saturated to U8(0)
-    case Addressing::Zero:
-      if (x < 0 || x >= width || y < 0 || y >= height) {
-        return Pixel();
-      }
-
-      break;
-
-      // Any out of bounds values are clamped to the edges of the image.
-    case Addressing::Clamp:
-      x = Core::Math::clamp(x, S32(0), S32(width - 1));
-      y = Core::Math::clamp(y, S32(0), S32(height - 1));
-      break;
-
-      // Performs domain wrapping for both X and Y.
-    case Addressing::Wrap:
-      x = Core::Math::wrap(x, S32(width));
-      y = Core::Math::wrap(y, S32(height));
-      break;
-    }
-
-    return pixels.get_view().get_data()[Count(y) * Count(width) + Count(x)];
-  }
-
-  // Returns the number of bits that are used to represent a single value of any
-  // given channel.
   static constexpr auto get_color_depth() -> U8 { return color_depth; }
-
-  // The number of channels used per logical pixel.
-  //
-  // The size of a logical pixel in bits is equal to the image's color depth
-  // multiplied by the number of channels.
   static constexpr auto get_channel_count() -> U8 { return channel_count; }
 
  private:
-  // Currently only 8 bit is supported.
-  static constexpr U8 color_depth = 8;
-  // Currently only RGBA is supported.
-  static constexpr U8 channel_count = 4;
+  class Payload {
+   public:
+    Core::Object<Pixel> pixels;
+    Count pixel_count = 0;
+    Size2D size_pixels;
+  };
+  static_assert(__builtin_offsetof(Payload, pixels) == 0);
+  static_assert(__builtin_offsetof(Payload, pixel_count) == sizeof(U8*));
+  static_assert(
+      __builtin_offsetof(Payload, size_pixels) == sizeof(U8*) + sizeof(Count));
+  static_assert(
+      sizeof(Payload) == sizeof(U8*) + sizeof(Count) + sizeof(Size2D));
 
-  Memory::Dynamic::Vector<Pixel> pixels;
-  U32 width = 0;
-  U32 height = 0;
-  Addressing addressing = Addressing::Zero;
+  explicit Image(Core::Object<> object) : object(object) {}
+  static auto finalize(U8* payload) -> void;
+  auto get_payload() -> Payload&;
+  auto get_payload() const -> const Payload&;
+
+  static constexpr U8 color_depth = 8;
+  static constexpr U8 channel_count = 4;
+  static const Core::Object<>::Descriptor descriptor;
+  Core::Object<> object;
 };
+
+static_assert(sizeof(Image) == sizeof(U8*));
+static_assert(alignof(Image) == alignof(U8*));
 
 }  // namespace Perimortem::Graphics

@@ -1,5 +1,0 @@
-// Rejects an unquoted floating-point package version.
-dialect : Package;
-
-resolve Math : Perimortem.Math = 1.2;
-source Main from "main.ttx";

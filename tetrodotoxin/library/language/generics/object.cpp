@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/generics/object.hpp"
@@ -12,11 +12,11 @@
 using namespace Tetrodotoxin::Library::Language;
 
 static auto materialize_contiguous(
-    const Ttx::Concept::Abstract& context,
+    const Tetrodotoxin::Source::Abstract& context,
     Perimortem::Core::View::Bytes name,
     const Model::Type& element)
     -> Perimortem::Core::Option<const Model::Type&> {
-  auto generic = context.resolve_context(name).resolve().select<Generic>();
+  auto generic = context.resolve_concept(name).resolve().select<Generic>();
   if (!generic) {
     return {};
   }
@@ -46,9 +46,9 @@ auto Generics::Object::create(
   }
 
   auto size_type =
-      get_context().resolve_context("U64"_view).resolve().select<Model::Type>();
+      get_context().resolve_concept("U64"_view).resolve().select<Model::Type>();
   auto flag_type = get_context()
-                       .resolve_context("Bool"_view)
+                       .resolve_concept("Bool"_view)
                        .resolve()
                        .select<Model::Type>();
   auto view = materialize_contiguous(get_context(), "View"_view, *element);

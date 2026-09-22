@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -7,7 +7,7 @@
 
 #include "tetrodotoxin/language/definition.hpp"
 #include "tetrodotoxin/library/language/types/composite.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Language::Types {
 
@@ -17,41 +17,38 @@ class Structure : public Composite {
  public:
   TTX_CONTRACT(Structure, Composite);
 
-  static auto interpret(
-      Ttx::Lexical::Cursor& cursor,
-      Tetrodotoxin::Language::Definition& definition)
-      -> Perimortem::Core::Option<Structure&>;
+  static auto create_authored(
+      Perimortem::Memory::Allocator::Arena& domain,
+      Tetrodotoxin::Language::Definition& definition) -> Structure&;
 
-  static auto restore(
-      Archive::Reader& reader,
-      Perimortem::Memory::Allocator::Arena& arena,
-      Ttx::Concept::Abstract& host,
-      Tetrodotoxin::Language::Persistence::Profile profile)
-      -> Perimortem::Core::Option<Structure&>;
+  static auto create_restored(
+      Perimortem::Memory::Allocator::Arena& domain,
+      Tetrodotoxin::Language::Definition& definition) -> Structure&;
 
   Structure(const Structure&) = delete;
   Structure(Structure&&) = delete;
   auto operator=(const Structure&) -> Structure& = delete;
   auto operator=(Structure&&) -> Structure& = delete;
 
-  auto resolve_context(Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract& override;
+  auto resolve_concept(Perimortem::Core::View::Bytes route) const
+      -> const Tetrodotoxin::Source::Abstract& override;
 
   auto create_default(Perimortem::Memory::Allocator::Arena& arena) const
       -> Perimortem::Core::Option<Model::Pack&> override;
 
-  auto lower_provider(
-      Llvm::Builder& body,
-      const Model::Pack& result,
-      const Model::Pack& arguments) const -> Bool override;
+  auto create_fitted(
+      Perimortem::Memory::Allocator::Arena& arena,
+      Model::Pack& source) const
+      -> Perimortem::Core::Option<Model::Pack&> override;
 
-  auto reserve(Llvm::Program& program) const -> Bool override;
+  constexpr auto has_initialization_provider() const -> Bool {
+    return provides_initialization;
+  }
 
-  auto complete(Llvm::Program& program) const -> Bool override;
-
-  auto lower(Llvm::Program& program) const -> Bool override;
-
-  auto persist(Archive::Writer& writer) const -> Bool override;
+  // The closing brace fixes member identity and source order even though
+  // individual Type edges settle later. Source interpretation calls this once
+  // after the complete authored body has been retained.
+  auto complete_body() -> void override;
 
  protected:
   Structure(
@@ -60,16 +57,6 @@ class Structure : public Composite {
       Bool provides_initialization = True)
       : Composite(domain, definition),
         provides_initialization(provides_initialization) {}
-
-  auto interpret_body(
-      Ttx::Lexical::Cursor& cursor,
-      Tetrodotoxin::Language::Definition& definition,
-      Ttx::Lexical::Token kind_token) -> Bool;
-
-  auto reserve_carrier(Llvm::Program& program) const
-      -> Perimortem::Core::Option<Bool> override;
-
-  auto complete_carrier(Llvm::Program& program) const -> Bool override;
 
   constexpr auto owns_initialization() const -> Bool {
     return provides_initialization;

@@ -1,0 +1,30 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+// Builds the multi-Scene validation application from explicit SDK providers.
+dialect : Build;
+
+// Environment opens this live source graph rather than restoring an archive.
+private Product : alias = source("package.ttx");
+
+// Each language and output provider enters the child Toolchain in dependency
+// order, making the Scene and Shader relationships visible to the Build.
+environment = Environment {
+  .output_root = "build",
+  .reachable_roots = [".", sdk],
+  .repositories = [sdk_repository("standard")],
+  .plugins = [
+    sdk("Tetrodotoxin.Library"),
+    sdk("Tetrodotoxin.App"),
+    sdk("Tetrodotoxin.Render"),
+    sdk("Tetrodotoxin.Scene"),
+    sdk("Tetrodotoxin.Shader"),
+    sdk("Tetrodotoxin.LLVM"),
+    sdk("Perimortem.System"),
+  ],
+}
+
+// The package export already owns the App and every Scene it can reach.
+public SceneLifetime : product = Product::MainSource {
+  .terminal = sdk("Tetrodotoxin.LLVM")::NativeExecutable,
+};

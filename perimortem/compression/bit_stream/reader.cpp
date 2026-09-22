@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/compression/bit_stream/reader.hpp"
@@ -9,14 +9,14 @@ using namespace Perimortem::Core;
 using namespace Perimortem;
 
 // Loads bytes from the stream into buffer until it buffers at least 57 bits or
-// the stream is exhausted. 57 bits guarantees a 9-bit peek after consuming up
-// to a 48-bit code + extra-bits pair without a second fill.
+// the stream is exhausted. 57 bits guarantees a 9 bit peek after consuming up
+// to a 48 bit code + extra bits pair without a second fill.
 auto Compression::BitStream::Reader::fill() -> void {
   const Count size = data.get_size();
   const U8* source_pointer = data.get_data();
 
-  // Fast path: enough bytes remain for a single unaligned 64-bit load.
-  // On little-endian hosts (x86) stream byte order matches load order directly.
+  // Fast path: enough bytes remain for a single unaligned 64 bit load.
+  // On little endian hosts (x86) stream byte order matches load order directly.
   //
   // TODO: Support Big endian at some point.
   if (byte_position + Count(sizeof(U64)) <= size) {
@@ -71,7 +71,7 @@ auto Compression::BitStream::Reader::read_raw_bytes(Count count)
   const Count fractional_bits = buffered_bits & 7;
   advance_bits(fractional_bits);
 
-  // Rewind any whole bytes pre-loaded into buffer but not yet used.
+  // Rewind any whole bytes preloaded into buffer but not yet used.
   byte_position -= buffered_bits >> 3;
   buffer = 0;
   buffered_bits = 0;

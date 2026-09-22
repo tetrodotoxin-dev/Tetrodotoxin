@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -10,31 +10,37 @@
 #include "tetrodotoxin/library/language/flow/block.hpp"
 #include "tetrodotoxin/library/language/model/pack.hpp"
 #include "tetrodotoxin/library/language/statement.hpp"
-#include "ttx/concept/abstract.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Language::Flow {
 
 // Branch owns one complete authored `if` or `while` statement. Its condition
 // keeps the complete Pack even though control flow selects the first value.
 // Each body is a real nested Block with the enclosing Block as lexical parent.
-class Branch : public Ttx::Concept::Abstract {
+class Branch : public Tetrodotoxin::Source::Abstract {
  public:
   enum class Kind : U8 {
     If,
     While,
   };
 
-  TTX_CONTRACT(Branch, Ttx::Concept::Abstract);
+  TTX_CONTRACT(Branch, Tetrodotoxin::Source::Abstract);
 
-  static auto interpret(
-      Ttx::Lexical::Cursor& cursor,
-      Block& lexical_context,
-      Model::Callable& function,
-      const Model::Type& access_scope) -> Perimortem::Core::Option<Branch&>;
+  static auto create_authored(
+      Perimortem::Memory::Allocator::Arena& domain,
+      Kind kind,
+      Model::Pack& condition,
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> Branch&;
+
+  auto complete_body(Block& selected) -> Bool;
+
+  auto complete_alternate(Statement selected) -> Bool;
+
+  auto complete_anchor(Tetrodotoxin::Source::Lexical::Anchor selected) -> void;
 
   Branch(const Branch&) = delete;
   Branch(Branch&&) = delete;
@@ -42,19 +48,16 @@ class Branch : public Ttx::Concept::Abstract {
   auto operator=(Branch&&) -> Branch& = delete;
 
   auto link(
-      Ttx::Lexical::Cursor& cursor,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
       Scope& lexical_context,
       const Model::Type& access_scope) -> Bool;
 
-  auto finalize(Ttx::Lexical::Cursor& cursor) -> void;
-
-  auto lower(Llvm::Builder& body) const -> Bool;
+  auto finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> void;
 
   auto reaches_next_statement() const -> Bool;
 
   TTX_NAME("Branch"_view);
   TTX_EMPTY_DOCUMENTATION();
-  TTX_INVALID_CONTEXT;
 
   constexpr auto get_kind() const -> Kind { return kind; }
 
@@ -72,20 +75,20 @@ class Branch : public Ttx::Concept::Abstract {
             -> Perimortem::Core::Option<const Statement&> { return selected; });
   }
 
-  constexpr auto get_anchor() const -> Ttx::Lexical::Anchor { return anchor; }
+  constexpr auto get_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor { return anchor; }
 
  private:
   constexpr Branch(
       Kind kind,
       Model::Pack& condition,
-      Ttx::Lexical::Anchor anchor)
+      Tetrodotoxin::Source::Lexical::Anchor anchor)
       : kind(kind), condition(condition), anchor(anchor) {}
 
   Kind kind;
-  Ttx::Concept::Reference<Model::Pack> condition;
-  Perimortem::Core::Option<Ttx::Concept::Reference<Block>> body;
+  Tetrodotoxin::Source::PackReference<Model::Pack> condition;
+  Perimortem::Core::Option<Tetrodotoxin::Source::Reference<Block>> body;
   Perimortem::Core::Option<Statement> alternate;
-  Ttx::Lexical::Anchor anchor;
+  Tetrodotoxin::Source::Lexical::Anchor anchor;
   Bool linked = False;
 };
 

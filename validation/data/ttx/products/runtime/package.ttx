@@ -1,0 +1,8 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+
+dialect : Package;
+package(.name = "Validation.Runtime", .version = "1.0");
+
+public Runtime : alias = source("runtime.ttx");

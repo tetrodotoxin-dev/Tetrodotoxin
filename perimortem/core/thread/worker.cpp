@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/core/thread/worker.hpp"
@@ -21,7 +21,8 @@ static_assert(
 using namespace Perimortem::Core;
 
 // Stores the logical thread id.
-// Any thread not spawned by Perimortem uses id -1 and is marked as "main".
+// A thread created outside Perimortem uses the negative one id and represents
+// the main thread for worker queries.
 static thread_local U64 this_thread_id = Count(-1);
 static thread_local View::Bytes this_thread_name = ""_view;
 
@@ -29,7 +30,7 @@ using WorkerJobFunction = Thread::Worker::JobFunction;
 
 // ThreadInitializer owns the full worker startup transaction.
 // Constructing it blocks the host thread long enough for the spawned thread to
-// copy every caller-owned view into its own thread-local storage. That keeps
+// copy every caller owned view into its own thread local storage. That keeps
 // the safe handoff automatic instead of making every caller remember the
 // lifetime rules.
 class ThreadInitializer {

@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/types/object_storage.hpp"
@@ -10,7 +10,6 @@
 #include "tetrodotoxin/library/builtin/object/reserve.hpp"
 #include "tetrodotoxin/library/builtin/object/view.hpp"
 #include "tetrodotoxin/library/language/constants/object.hpp"
-#include "tetrodotoxin/library/llvm/builder.hpp"
 
 using namespace Perimortem::Core;
 using namespace Tetrodotoxin::Library::Language;
@@ -42,40 +41,4 @@ Types::ObjectStorage::ObjectStorage(
 auto Types::ObjectStorage::create_default(
     Perimortem::Memory::Allocator::Arena& arena) const -> Option<Model::Pack&> {
   return Constants::Object::create(arena, *this);
-}
-
-auto Types::ObjectStorage::reserve(Llvm::Program& program) const -> Bool {
-  const auto& carriers = program.get_carriers();
-  auto reserved =
-      carriers.reserve(program, *this, Llvm::Carriers::Kind::ObjectStorage);
-  if (!reserved) {
-    return False;
-  }
-
-  if (!*reserved) {
-    return True;
-  }
-
-  return element.reserve(program) && reserve_callables(program);
-}
-
-auto Types::ObjectStorage::complete(Llvm::Program& program) const -> Bool {
-  const auto& carriers = program.get_carriers();
-  auto began = carriers.begin_completion(program, *this);
-  if (!began) {
-    return False;
-  }
-
-  if (!*began) {
-    return True;
-  }
-
-  Bool completed = element.complete(program) && complete_callables(program);
-  if (!completed) {
-    return False;
-  }
-
-  Bool carrier_completed =
-      carriers.complete(program, *this, Llvm::Carriers::Kind::ObjectStorage);
-  return carrier_completed && complete_debug(program);
 }

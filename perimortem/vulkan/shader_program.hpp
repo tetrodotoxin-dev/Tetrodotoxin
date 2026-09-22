@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -8,19 +8,21 @@
 #include "perimortem/core/view/vector.hpp"
 #include "perimortem/core/static/vector.hpp"
 
-#include "perimortem/graphics/render/program.hpp"
+#include "perimortem/graphics/frame/pipeline.hpp"
+#include "perimortem/vulkan/description/program.hpp"
 
 namespace Perimortem::Vulkan {
 
-// Owns a Vulkan graphics pipeline built from Render::Program metadata and the
-// native layout data needed to record commands against it. Per-draw values are
-// supplied to the command methods and are never retained by the program.
+// Owns a Vulkan graphics pipeline built from one Description::Program and one
+// backend-neutral fixed-state selection. Per-draw values such as vertex count
+// and host inputs are supplied to command methods and are never retained.
 class ShaderProgram {
  public:
   static auto create(
       VkDevice device,
       VkFormat color_format,
-      const Graphics::Render::Program& source,
+      const Description::Program& source,
+      Perimortem::Graphics::Frame::Pipeline pipeline,
       Core::View::Vector<VkDescriptorSetLayout> descriptor_set_layouts)
       -> ShaderProgram;
 

@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/access/address.hpp"
@@ -13,12 +13,12 @@
 #include "tetrodotoxin/library/language/field.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
 #include "tetrodotoxin/library/language/types/source.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/lexical/errors.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
 
 using namespace Perimortem::Core;
 using namespace Tetrodotoxin;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Validation;
 
 static Harness AddressTests = {
@@ -38,8 +38,8 @@ static auto interpret(
   return static_cast<Library::Language::Monograph&>(*interpreted);
 }
 
-PERIMORTEM_UNIT_TEST(AddressTests, descendant_private_authority) {
-  static constexpr View::Bytes source =
+PERIMORTEM_UNIT_TEST(AddressTests, private_access) {
+  static constexpr View::Bytes accepted =
       "// Descendant private Address access.\n"
       "dialect : Library;\n"
       "public Outer : struct {\n"
@@ -50,16 +50,16 @@ PERIMORTEM_UNIT_TEST(AddressTests, descendant_private_authority) {
       "    }\n"
       "  }\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Environment::Workspace workspace(*workspace_toolchain);
   Errors errors;
-  auto monograph = interpret(workspace, errors, source);
+  auto monograph = interpret(workspace, errors, accepted);
   ASSERT(monograph);
   EXPECT(errors.is_empty());
-}
 
-PERIMORTEM_UNIT_TEST(AddressTests, sibling_private_denied) {
-  static constexpr View::Bytes source =
+  static constexpr View::Bytes rejected =
       "// Sibling private Address access.\n"
       "dialect : Library;\n"
       "public Outer : struct {\n"
@@ -70,15 +70,18 @@ PERIMORTEM_UNIT_TEST(AddressTests, sibling_private_denied) {
       "    }\n"
       "  }\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
-  Environment::Workspace workspace(*workspace_toolchain);
-  Errors errors;
-  auto monograph = interpret(workspace, errors, source);
-  EXPECT_NOT(monograph);
-  EXPECT_NOT(errors.is_empty());
+  Tetrodotoxin::Library::Dialect rejected_toolchain_library;
+  auto rejected_toolchain =
+      Validation::create_library_toolchain(rejected_toolchain_library);
+  Environment::Workspace rejected_workspace(*rejected_toolchain);
+  Errors rejected_errors;
+  auto rejected_monograph =
+      interpret(rejected_workspace, rejected_errors, rejected);
+  EXPECT_NOT(rejected_monograph);
+  EXPECT_NOT(rejected_errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(AddressTests, receiver_storage_categories) {
+PERIMORTEM_UNIT_TEST(AddressTests, receiver_storage) {
   static constexpr View::Bytes accepted =
       "// Address receiver categories.\n"
       "dialect : Library;\n"
@@ -92,9 +95,10 @@ PERIMORTEM_UNIT_TEST(AddressTests, receiver_storage_categories) {
       "private from_source := source.source_static;\n"
       "private from_type := Data.static_value;\n"
       "private from_instance := data.instance_value;\n"
-      "private const_from_type := Data.fixed;\n"
-      "private const_from_instance := data.fixed;"_view;
-  auto workspace_toolchain = create_library_toolchain();
+      "private const_from_type := Data.fixed;"_view;
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Environment::Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, accepted);
@@ -102,24 +106,23 @@ PERIMORTEM_UNIT_TEST(AddressTests, receiver_storage_categories) {
 
   const auto& source = monograph->get_source();
   const auto& data = static_cast<const Library::Language::Types::Composite&>(
-      source.resolve_context("Data"_view));
+      source.resolve_concept("Data"_view));
   auto fields = data.get_addressables();
   auto field = fields.begin();
   ASSERT(field != fields.end());
-  const Ttx::Concept::Abstract& static_identity = (*field).get();
+  const Tetrodotoxin::Source::Abstract& static_identity = (*field).get();
   ++field;
   ASSERT(field != fields.end());
-  const Ttx::Concept::Abstract& state_identity = (*field).get();
+  const Tetrodotoxin::Source::Abstract& state_identity = (*field).get();
   auto layout_state = data.get_layout().get_abstract(0);
   ASSERT(layout_state);
   EXPECT(&*layout_state == &state_identity);
   EXPECT(
-      &data.resolve_type_access(
-          data, "static_value"_view,
-          Library::Language::Model::Type::Access::Static) == &static_identity);
+      &data.resolve_concept("static"_view)
+           .resolve_concept("static_value"_view) == &static_identity);
   EXPECT(
-      &data.resolve_context("instance_value"_view) ==
-      &Ttx::Concept::Invalid::get_invalid());
+      &data.resolve_concept("instance"_view)
+           .resolve_concept("instance_value"_view) == &state_identity);
   EXPECT(errors.is_empty());
 
   static constexpr Static::Vector<View::Bytes, 2> rejected = {{
@@ -127,7 +130,9 @@ PERIMORTEM_UNIT_TEST(AddressTests, receiver_storage_categories) {
     "// Type rejects state.\ndialect : Library; public Data : struct { public state instance_value : Bool; } private invalid := Data.instance_value;"_view,
   }};
   for (Count index = 0; index < rejected.get_size(); index++) {
-    auto rejected_workspace_toolchain = create_library_toolchain();
+    Tetrodotoxin::Library::Dialect rejected_workspace_toolchain_library;
+    auto rejected_workspace_toolchain = Validation::create_library_toolchain(
+        rejected_workspace_toolchain_library);
     Environment::Workspace rejected_workspace(*rejected_workspace_toolchain);
     Errors rejected_errors;
     auto rejected_monograph =

@@ -1,7 +1,9 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/operations/modulo.hpp"
+
+#include "tetrodotoxin/source/documentation.hpp"
 
 #include "validation/unit_test.hpp"
 #include "validation/unit_tests/tetrodotoxin/library/language/fixture.hpp"
@@ -10,6 +12,7 @@
 
 #include "tetrodotoxin/language/monograph.hpp"
 #include "tetrodotoxin/library/dialect.hpp"
+#include "tetrodotoxin/library/interpreter/operation.hpp"
 #include "tetrodotoxin/library/language/constants/bytes.hpp"
 #include "tetrodotoxin/library/language/constants/real.hpp"
 #include "tetrodotoxin/library/language/constants/signed.hpp"
@@ -21,16 +24,17 @@
 #include "tetrodotoxin/library/language/types/s8.hpp"
 #include "tetrodotoxin/library/language/types/u16.hpp"
 #include "tetrodotoxin/library/language/types/u8.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Utility;
+using namespace Tetrodotoxin::Library;
 using namespace Tetrodotoxin::Library::Language;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Validation;
 
 static Harness LibraryModulo = {
@@ -42,7 +46,7 @@ static auto link_operation(Operation& operation, const Abstract& context)
   Allocator::Arena transaction;
   Errors errors;
   Tokenizer tokenizer(transaction, {}, "<operation>"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   return operation.link(cursor, context);
 }
@@ -53,8 +57,8 @@ class ModuloExpression : public Expression {
       : Expression({}), name(name), type(type) {}
 
   auto get_name() const -> View::Bytes override { return name; }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
   auto get_type() const -> const Abstract& override { return type; }
 
@@ -63,17 +67,17 @@ class ModuloExpression : public Expression {
   const Abstract& type;
 };
 
-class ModuloUnresolvedType : public Ttx::Model::Type {
+class ModuloUnresolvedType : public Tetrodotoxin::Source::Type {
  public:
   auto get_name() const -> View::Bytes override { return "Unresolved"_view; }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
   auto resolve() const -> const Abstract& override {
-    return Invalid::get_invalid();
+    return Unknown::get_unknown();
   }
-  auto resolve_context(View::Bytes) const -> const Abstract& override {
-    return Invalid::get_invalid();
+  auto resolve_concept(View::Bytes) const -> const Abstract& override {
+    return Unknown::get_unknown();
   }
 };
 
@@ -81,27 +85,28 @@ class ModuloFoldInput : public Operation {
  public:
   ModuloFoldInput(
       Allocator::Arena& domain,
-      Expression& input,
-      Constant& result,
+      Model::Pack& input,
+      Tetrodotoxin::Library::Language::Constant& result,
       const Model::Type& type,
       Bool fails = False)
       : Operation(
             domain,
-            Static::Vector<Reference<Expression>, 1>{{input}},
+            Static::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>, 1>{{input}},
             {}),
         result(result),
         type(type),
         fails(fails) {}
 
   auto get_name() const -> View::Bytes override { return "Fold input"_view; }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
   auto get_evaluations() const -> Count { return evaluations; }
 
  protected:
-  auto evaluate_constants(Allocator::Arena&)
-      -> Result<Option<Constant&>, Expression::Error> override {
+  auto evaluate_constants(Allocator::Arena&) -> Result<
+      Option<Tetrodotoxin::Library::Language::Constant&>,
+      Expression::Error> override {
     evaluations++;
     if (fails) {
       return Expression::Error(Expression::Error::Type::InvalidConstant, *this);
@@ -116,7 +121,7 @@ class ModuloFoldInput : public Operation {
   }
 
  private:
-  Constant& result;
+  Tetrodotoxin::Library::Language::Constant& result;
   const Model::Type& type;
   Bool fails;
   Count evaluations = 0;
@@ -124,34 +129,41 @@ class ModuloFoldInput : public Operation {
 
 static auto selected(
     const Result<Option<Model::Pack&>, Expression::Error>& result)
-    -> Option<Expression&> {
+    -> Option<Tetrodotoxin::Library::Language::Constant&> {
   return result.visit(
-      [](const Option<Model::Pack&>& folded) -> Option<Expression&> {
+      [](const Option<Model::Pack&>& folded)
+          -> Option<Tetrodotoxin::Library::Language::Constant&> {
         return folded.visit(
-            []() -> Option<Expression&> { return {}; },
-            [](Model::Pack& selected) -> Option<Expression&> {
-              return selected.select<Expression>();
+            []() -> Option<Tetrodotoxin::Library::Language::Constant&> {
+              return {};
+            },
+            [](Model::Pack& selected)
+                -> Option<Tetrodotoxin::Library::Language::Constant&> {
+              return selected
+                  .select_identity<Tetrodotoxin::Library::Language::Constant>();
             });
       },
-      [](const Expression::Error&) -> Option<Expression&> { return {}; });
+      [](const Expression::Error&)
+          -> Option<Tetrodotoxin::Library::Language::Constant&> { return {}; });
 }
 
 static auto reports(
     const Result<Option<Model::Pack&>, Expression::Error>& result,
     Expression::Error::Type expected,
-    const Expression& origin) -> Bool {
+    const Abstract& origin) -> Bool {
   return result.visit(
       [](const Option<Model::Pack&>&) { return False; },
       [&](const Expression::Error& error) {
-        return error.get_type() == expected &&
-                       &error.get_expression() == &origin
+        return error.get_type() == expected && &error.get_subject() == &origin
                    ? True
                    : False;
       });
 }
 
 template <typename constant_type, typename value_type>
-static auto get_value(const Expression& expression) -> Option<value_type> {
+static auto get_value(
+    const Tetrodotoxin::Library::Language::Constant& expression)
+    -> Option<value_type> {
   return expression.visit<constant_type>(
       [](const constant_type& constant) -> Option<value_type> {
         return constant.get_value();
@@ -160,13 +172,14 @@ static auto get_value(const Expression& expression) -> Option<value_type> {
 }
 
 template <typename constant_type, typename value_type>
-static auto value_is(const Expression& expression, value_type expected)
-    -> Bool {
+static auto value_is(
+    const Tetrodotoxin::Library::Language::Constant& expression,
+    value_type expected) -> Bool {
   auto value = get_value<constant_type, value_type>(expression);
   return value && *value == expected ? True : False;
 }
 
-PERIMORTEM_UNIT_TEST(LibraryModulo, type_selection_and_partial) {
+PERIMORTEM_UNIT_TEST(LibraryModulo, type_selection) {
   Allocator::Arena domain;
   Tetrodotoxin::Library::Dialect producer;
   auto& source = create_library_monograph(domain, producer);
@@ -184,7 +197,7 @@ PERIMORTEM_UNIT_TEST(LibraryModulo, type_selection_and_partial) {
   ModuloExpression unsigned_right("unsigned right"_view, u8);
   ModuloExpression other("other"_view, u16);
   ModuloExpression unresolved("unresolved"_view, unresolved_type);
-  ModuloExpression invalid("invalid"_view, Invalid::get_invalid());
+  ModuloExpression invalid("invalid"_view, Unknown::get_unknown());
   auto& real = Constants::Real::create_synthetic(domain, r32, 1.0);
   auto& truth = Constants::True::create_synthetic(domain, boolean);
   auto& bytes =
@@ -204,28 +217,31 @@ PERIMORTEM_UNIT_TEST(LibraryModulo, type_selection_and_partial) {
   auto& byte_values =
       Operations::Modulo::create_synthetic(domain, bytes, bytes);
 
-  EXPECT(signed_exact.get_type().resolve().is<Invalid>());
+  EXPECT(signed_exact.get_type().resolve().is<Unknown>());
   EXPECT_NOT(signed_exact.get_anchor());
   EXPECT(link_operation(signed_exact, source));
   EXPECT(link_operation(unsigned_exact, source));
   EXPECT(!link_operation(mismatch, source));
   EXPECT(!link_operation(unresolved_pair, source));
   EXPECT(!link_operation(invalid_pair, source));
-  EXPECT(!link_operation(real_values, source));
+  EXPECT(link_operation(real_values, source));
   EXPECT(!link_operation(flags, source));
   EXPECT(!link_operation(byte_values, source));
 
   auto retained = selected(unsigned_exact.fold());
+  auto real_retained = selected(real_values.fold());
 
   EXPECT(&signed_exact.get_type() == &s8);
   EXPECT(&unsigned_exact.get_type() == &u8);
   EXPECT_NOT(retained);
-  EXPECT(mismatch.get_type().resolve().is<Invalid>());
-  EXPECT(unresolved_pair.get_type().resolve().is<Invalid>());
-  EXPECT(invalid_pair.get_type().resolve().is<Invalid>());
-  EXPECT(real_values.get_type().resolve().is<Invalid>());
-  EXPECT(flags.get_type().resolve().is<Invalid>());
-  EXPECT(byte_values.get_type().resolve().is<Invalid>());
+  ASSERT(real_retained);
+  EXPECT(value_is<Constants::Real>(*real_retained, R64(0.0)));
+  EXPECT(mismatch.get_type().resolve().is<Unknown>());
+  EXPECT(unresolved_pair.get_type().resolve().is<Unknown>());
+  EXPECT(invalid_pair.get_type().resolve().is<Unknown>());
+  EXPECT(&real_values.get_type() == &r32);
+  EXPECT(flags.get_type().resolve().is<Unknown>());
+  EXPECT(byte_values.get_type().resolve().is<Unknown>());
 }
 
 PERIMORTEM_UNIT_TEST(LibraryModulo, integer_remainders) {
@@ -292,7 +308,7 @@ PERIMORTEM_UNIT_TEST(LibraryModulo, integer_remainders) {
   auto& unsigned_width = Operations::Modulo::create_synthetic(
       domain, invalid_unsigned_left, invalid_unsigned_right);
 
-  EXPECT(positive_result.get_type().resolve().is<Invalid>());
+  EXPECT(positive_result.get_type().resolve().is<Unknown>());
   EXPECT(link_operation(positive_result, source));
   EXPECT(link_operation(negative_dividend, source));
   EXPECT(link_operation(negative_divisor, source));
@@ -353,7 +369,7 @@ PERIMORTEM_UNIT_TEST(LibraryModulo, integer_remainders) {
       unsigned_width));
 }
 
-PERIMORTEM_UNIT_TEST(LibraryModulo, recursive_provenance_and_atomicity) {
+PERIMORTEM_UNIT_TEST(LibraryModulo, atomic_provenance) {
   Allocator::Arena domain;
   Tetrodotoxin::Library::Dialect producer;
   auto& source = create_library_monograph(domain, producer);
@@ -369,7 +385,7 @@ PERIMORTEM_UNIT_TEST(LibraryModulo, recursive_provenance_and_atomicity) {
   auto& failure =
       Operations::Modulo::create_synthetic(domain, failing, divisor);
 
-  EXPECT(modulo.get_type().resolve().is<Invalid>());
+  EXPECT(modulo.get_type().resolve().is<Unknown>());
   EXPECT(link_operation(modulo, source));
   EXPECT(link_operation(modulo, source));
   EXPECT(link_operation(failure, source));
@@ -387,7 +403,7 @@ PERIMORTEM_UNIT_TEST(LibraryModulo, recursive_provenance_and_atomicity) {
   const auto& parser_type = resolve_library_signed(source, "S64"_view);
   Errors success_errors;
   Tokenizer success_tokens(domain, "-7 % -3"_view, "modulo.ttx"_view);
-  Ttx::Lexical::Associations success_associations(success_tokens.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations success_associations(success_tokens.get_arena());
   Cursor success_cursor(success_tokens, success_errors, success_associations);
   Token success_left_trigger = success_cursor.consume();
   Token success_left_end = success_cursor.consume();
@@ -395,12 +411,12 @@ PERIMORTEM_UNIT_TEST(LibraryModulo, recursive_provenance_and_atomicity) {
       success_left_trigger, Span(success_left_trigger, success_left_end));
   auto& success_left = Constants::Signed::create_authored(
       domain, parser_type, -7, success_left_anchor);
-  auto parsed = Operations::Modulo::parse(
-      source, success_cursor, success_left,
+  auto parsed = Interpreter::Operation::parse_binary(
+      Code::Type::ModOp, source, success_cursor, success_left,
       Span(success_left_trigger, success_left_end));
   Errors failure_errors;
   Tokenizer failure_tokens(domain, "-7 % true"_view, "modulo.ttx"_view);
-  Ttx::Lexical::Associations failure_associations(failure_tokens.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations failure_associations(failure_tokens.get_arena());
   Cursor failure_cursor(failure_tokens, failure_errors, failure_associations);
   Token failure_left_trigger = failure_cursor.consume();
   Token failure_left_end = failure_cursor.consume();
@@ -408,20 +424,22 @@ PERIMORTEM_UNIT_TEST(LibraryModulo, recursive_provenance_and_atomicity) {
       failure_left_trigger, Span(failure_left_trigger, failure_left_end));
   auto& failure_left = Constants::Signed::create_authored(
       domain, parser_type, -7, failure_left_anchor);
-  auto rejected = Operations::Modulo::parse(
-      source, failure_cursor, failure_left,
+  auto rejected = Interpreter::Operation::parse_binary(
+      Code::Type::ModOp, source, failure_cursor, failure_left,
       Span(failure_left_trigger, failure_left_end));
 
   ASSERT(parsed);
-  EXPECT(parsed->is<Operations::Modulo>());
-  EXPECT(parsed->get_type().resolve().is<Invalid>());
+  EXPECT(parsed->is_identity<Operations::Modulo>());
+  EXPECT(parsed->get_type().resolve().is<Unknown>());
   EXPECT(success_cursor.matches(Code::Type::Terminal));
   EXPECT(success_errors.is_empty());
   EXPECT(parsed->link(success_cursor, source));
 
   auto parsed_fold = parsed->visit<Operation>(
       [&](Operation& operation) { return selected(operation.fold()); },
-      [](Abstract&) -> Option<Expression&> { return {}; });
+      [](Abstract&) -> Option<Tetrodotoxin::Library::Language::Constant&> {
+        return {};
+      });
   auto parsed_value = parsed_fold
                           ? get_value<Constants::Signed, S64>(*parsed_fold)
                           : Option<S64>();
@@ -431,11 +449,11 @@ PERIMORTEM_UNIT_TEST(LibraryModulo, recursive_provenance_and_atomicity) {
   EXPECT(&parsed->get_type() == &parser_type);
 
   ASSERT(rejected);
-  EXPECT(rejected->is<Operations::Modulo>());
-  EXPECT(rejected->get_type().resolve().is<Invalid>());
+  EXPECT(rejected->is_identity<Operations::Modulo>());
+  EXPECT(rejected->get_type().resolve().is<Unknown>());
   EXPECT(failure_cursor.matches(Code::Type::Terminal));
   EXPECT(failure_errors.is_empty());
   EXPECT_NOT(rejected->link(failure_cursor, source));
-  EXPECT(rejected->get_type().resolve().is<Invalid>());
+  EXPECT(rejected->get_type().resolve().is<Unknown>());
   EXPECT_EQ(failure_errors.get_size(), Count(1));
 }

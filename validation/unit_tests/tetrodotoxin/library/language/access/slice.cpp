@@ -1,7 +1,9 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/access/slice.hpp"
+
+#include "tetrodotoxin/source/documentation.hpp"
 
 #include "validation/unit_test.hpp"
 #include "validation/unit_tests/tetrodotoxin/library/language/fixture.hpp"
@@ -33,15 +35,15 @@
 #include "tetrodotoxin/library/language/types/u64.hpp"
 #include "tetrodotoxin/library/language/types/u8.hpp"
 #include "tetrodotoxin/library/language/types/view.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Utility;
 using namespace Tetrodotoxin::Library::Language;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Validation;
 using Tetrodotoxin::Library::Language::Access::Slice;
 
@@ -53,56 +55,58 @@ static auto link_expression(
     Allocator::Arena& domain,
     Expression& expression,
     const Abstract& context) -> Bool {
-  Ttx::Lexical::Errors errors;
-  Ttx::Lexical::Tokenizer tokenizer(domain, {}, "slice-expression.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
-  Ttx::Lexical::Cursor cursor(tokenizer, errors, associations);
+  Tetrodotoxin::Source::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Tokenizer tokenizer(domain, {}, "slice-expression.ttx"_view);
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Cursor cursor(tokenizer, errors, associations);
   return expression.link(cursor, context);
 }
 
 static auto create_slice(
     Allocator::Arena& domain,
-    Expression& receiver,
-    Expression& index) -> Slice& {
+    Model::Pack& receiver,
+    Model::Pack& index) -> Slice& {
   return Slice::create_authored(
       domain, receiver, index,
-      Ttx::Lexical::Anchor::create(Ttx::Lexical::Span()));
+      Tetrodotoxin::Source::Lexical::Anchor::create(Tetrodotoxin::Source::Lexical::Span()));
 }
 
 static auto create_slice(
     Allocator::Arena& domain,
-    Expression& receiver,
-    Expression& start,
-    Expression& count) -> Slice& {
+    Model::Pack& receiver,
+    Model::Pack& start,
+    Model::Pack& count) -> Slice& {
   return Slice::create_authored(
       domain, receiver, start, count,
-      Ttx::Lexical::Anchor::create(Ttx::Lexical::Span()));
+      Tetrodotoxin::Source::Lexical::Anchor::create(Tetrodotoxin::Source::Lexical::Span()));
 }
 
 class ValueExpression : public Expression {
  public:
-  ValueExpression(View::Bytes name, const Ttx::Model::Type& type)
+  ValueExpression(View::Bytes name, const Tetrodotoxin::Source::Type& type)
       : Expression({}), name(name), type(type) {}
 
   auto get_name() const -> View::Bytes override { return name; }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
-  auto get_type() const -> const Ttx::Model::Type& override { return type; }
+  auto get_type() const -> const Tetrodotoxin::Source::Type& override { return type; }
 
  private:
   View::Bytes name;
-  const Ttx::Model::Type& type;
+  const Tetrodotoxin::Source::Type& type;
 };
 
-class ValueConstant : public Constant {
+class ValueConstant : public Tetrodotoxin::Library::Language::Constant {
  public:
-  explicit ValueConstant(const Model::Type& type) : Constant({}), type(type) {}
+  explicit ValueConstant(const Model::Type& type)
+      : Tetrodotoxin::Library::Language::Constant({}), type(type) {}
 
   constexpr auto get_type() const -> const Model::Type& override {
     return type;
   }
-  constexpr auto equals(const Constant& rhs) const -> Bool override {
+  constexpr auto equals(const Tetrodotoxin::Library::Language::Constant& rhs)
+      const -> Bool override {
     return has_same_type(rhs);
   }
 
@@ -114,26 +118,27 @@ class ValueFoldOperation : public Operation {
  public:
   ValueFoldOperation(
       Allocator::Arena& domain,
-      Expression& input,
-      Constant& result,
+      Model::Pack& input,
+      Tetrodotoxin::Library::Language::Constant& result,
       const Model::Type& type,
       Bool fails = False)
       : Operation(
             domain,
-            Static::Vector<Reference<Expression>, 1>{{input}},
+            Static::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>, 1>{{input}},
             {}),
         result(result),
         type(type),
         fails(fails) {}
 
   auto get_name() const -> View::Bytes override { return "Fold size"_view; }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
 
  protected:
-  auto evaluate_constants(Allocator::Arena&)
-      -> Result<Option<Constant&>, Expression::Error> override {
+  auto evaluate_constants(Allocator::Arena&) -> Result<
+      Option<Tetrodotoxin::Library::Language::Constant&>,
+      Expression::Error> override {
     if (fails) {
       return Expression::Error(Expression::Error::Type::InvalidConstant, *this);
     }
@@ -147,7 +152,7 @@ class ValueFoldOperation : public Operation {
   }
 
  private:
-  Constant& result;
+  Tetrodotoxin::Library::Language::Constant& result;
   const Model::Type& type;
   Bool fails;
 };
@@ -163,16 +168,22 @@ static auto is_dynamic(
 
 static auto selected(
     const Result<Option<Model::Pack&>, Expression::Error>& result)
-    -> Option<Expression&> {
+    -> Option<Tetrodotoxin::Library::Language::Constant&> {
   return result.visit(
-      [](const Option<Model::Pack&>& folded) -> Option<Expression&> {
+      [](const Option<Model::Pack&>& folded)
+          -> Option<Tetrodotoxin::Library::Language::Constant&> {
         return folded.visit(
-            []() -> Option<Expression&> { return {}; },
-            [](Model::Pack& selected) -> Option<Expression&> {
-              return selected.select<Expression>();
+            []() -> Option<Tetrodotoxin::Library::Language::Constant&> {
+              return {};
+            },
+            [](Model::Pack& selected)
+                -> Option<Tetrodotoxin::Library::Language::Constant&> {
+              return selected
+                  .select_identity<Tetrodotoxin::Library::Language::Constant>();
             });
       },
-      [](const Expression::Error&) -> Option<Expression&> { return {}; });
+      [](const Expression::Error&)
+          -> Option<Tetrodotoxin::Library::Language::Constant&> { return {}; });
 }
 
 static auto selected_pack(
@@ -186,19 +197,19 @@ static auto selected_pack(
 static auto reports(
     const Result<Option<Model::Pack&>, Expression::Error>& result,
     Expression::Error::Type expected,
-    const Expression& origin) -> Bool {
+    const Abstract& origin) -> Bool {
   return result.visit(
       [](const Option<Model::Pack&>&) { return False; },
       [&](const Expression::Error& error) {
-        return error.get_type() == expected &&
-                       &error.get_expression() == &origin
+        return error.get_type() == expected && &error.get_subject() == &origin
                    ? True
                    : False;
       });
 }
 
-static auto get_unsigned(const Expression& expression) -> Option<U64> {
-  return expression.visit<Constants::Unsigned>(
+static auto get_unsigned(
+    const Tetrodotoxin::Library::Language::Constant& constant) -> Option<U64> {
+  return constant.visit<Constants::Unsigned>(
       [](const Constants::Unsigned& selected) -> Option<U64> {
         return selected.get_value();
       },
@@ -212,16 +223,18 @@ static auto get_unsigned(const Model::Pack& pack, Count index) -> Option<U64> {
   return constant ? Option<U64>(constant->get_value()) : Option<U64>();
 }
 
-static auto get_signed(const Expression& expression) -> Option<S64> {
-  return expression.visit<Constants::Signed>(
+static auto get_signed(
+    const Tetrodotoxin::Library::Language::Constant& constant) -> Option<S64> {
+  return constant.visit<Constants::Signed>(
       [](const Constants::Signed& selected) -> Option<S64> {
         return selected.get_value();
       },
       [](const Abstract&) -> Option<S64> { return {}; });
 }
 
-static auto get_real(const Expression& expression) -> Option<R64> {
-  return expression.visit<Constants::Real>(
+static auto get_real(const Tetrodotoxin::Library::Language::Constant& constant)
+    -> Option<R64> {
+  return constant.visit<Constants::Real>(
       [](const Constants::Real& selected) -> Option<R64> {
         return selected.get_value();
       },
@@ -238,7 +251,7 @@ static auto supplies_self(const Slice& value, Count size) -> Bool {
   return True;
 }
 
-PERIMORTEM_UNIT_TEST(LibrarySlice, receiver_type_selection) {
+PERIMORTEM_UNIT_TEST(LibrarySlice, receiver_type) {
   Allocator::Arena domain;
   Tetrodotoxin::Library::Dialect producer;
   auto& source = create_library_monograph(domain, producer);
@@ -255,7 +268,7 @@ PERIMORTEM_UNIT_TEST(LibrarySlice, receiver_type_selection) {
   auto& view_index = create_slice(domain, view_receiver, index);
   auto& access_index = create_slice(domain, access_receiver, index);
 
-  EXPECT(fixed_index.get_type().resolve().is<Invalid>());
+  EXPECT(fixed_index.get_type().resolve().is<Unknown>());
   EXPECT(fixed_index.is<Expression>());
   EXPECT_NOT(fixed_index.is<Operation>());
   EXPECT(fixed_index.get_anchor());
@@ -307,7 +320,7 @@ PERIMORTEM_UNIT_TEST(LibrarySlice, range_pack_shape) {
   auto& single_size = create_slice(domain, fixed_receiver, start, fold_input);
   auto& empty = create_slice(domain, fixed_receiver, start, empty_size);
 
-  EXPECT(fixed_dynamic.get_type().resolve().is<Invalid>());
+  EXPECT(fixed_dynamic.get_type().resolve().is<Unknown>());
   EXPECT(!link_expression(domain, fixed_dynamic, source));
   EXPECT(!link_expression(domain, view_dynamic, source));
   EXPECT(!link_expression(domain, access_dynamic, source));
@@ -320,12 +333,12 @@ PERIMORTEM_UNIT_TEST(LibrarySlice, range_pack_shape) {
 
   auto folded_result = folded_size.fold();
 
-  EXPECT(constant_size.get_type().is<Invalid>());
-  EXPECT(folded_size.get_type().is<Invalid>());
-  EXPECT(view_size.get_type().is<Invalid>());
-  EXPECT(access_size.get_type().is<Invalid>());
+  EXPECT(constant_size.get_type().is<Unknown>());
+  EXPECT(folded_size.get_type().is<Unknown>());
+  EXPECT(view_size.get_type().is<Unknown>());
+  EXPECT(access_size.get_type().is<Unknown>());
   EXPECT(&single_size.get_type() == &element);
-  EXPECT(empty.get_type().is<Invalid>());
+  EXPECT(empty.get_type().is<Unknown>());
   EXPECT(is_dynamic(folded_result));
   EXPECT(supplies_self(constant_size, 4));
   EXPECT(supplies_self(folded_size, 4));
@@ -338,7 +351,7 @@ PERIMORTEM_UNIT_TEST(LibrarySlice, range_pack_shape) {
   EXPECT(empty.get_layout().is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(LibrarySlice, scalar_fold_and_range_provenance) {
+PERIMORTEM_UNIT_TEST(LibrarySlice, folded_selection) {
   Allocator::Arena domain;
   Tetrodotoxin::Library::Dialect producer;
   auto& source = create_library_monograph(domain, producer);
@@ -358,7 +371,7 @@ PERIMORTEM_UNIT_TEST(LibrarySlice, scalar_fold_and_range_provenance) {
   auto& empty = create_slice(domain, bytes, two, zero);
   auto& terminal_empty = create_slice(domain, bytes, six, zero);
 
-  EXPECT(index.get_type().resolve().is<Invalid>());
+  EXPECT(index.get_type().resolve().is<Unknown>());
   EXPECT(link_expression(domain, index, source));
   EXPECT(link_expression(domain, full, source));
   EXPECT(link_expression(domain, interior, source));
@@ -373,7 +386,7 @@ PERIMORTEM_UNIT_TEST(LibrarySlice, scalar_fold_and_range_provenance) {
   auto indexed_byte = indexed ? get_unsigned(*indexed) : Option<U64>();
 
   ASSERT(indexed);
-  EXPECT(indexed->is<Constants::Unsigned>());
+  EXPECT(indexed->is_identity<Constants::Unsigned>());
   EXPECT(indexed_byte && *indexed_byte == U64('b'));
   EXPECT(&indexed->get_type() == &element);
   ASSERT(full_value);
@@ -418,7 +431,7 @@ PERIMORTEM_UNIT_TEST(LibrarySlice, partial_folding) {
   auto& start_partial = create_slice(domain, bytes, dynamic_start, two);
   auto& size_partial = create_slice(domain, bytes, zero, dynamic_size);
 
-  EXPECT(receiver_partial.get_type().resolve().is<Invalid>());
+  EXPECT(receiver_partial.get_type().resolve().is<Unknown>());
   EXPECT(link_expression(domain, receiver_partial, source));
   EXPECT(link_expression(domain, index_partial, source));
   EXPECT(link_expression(domain, start_partial, source));
@@ -429,12 +442,12 @@ PERIMORTEM_UNIT_TEST(LibrarySlice, partial_folding) {
   EXPECT(is_dynamic(start_partial.fold()));
   EXPECT(&receiver_partial.get_type() == &element);
   EXPECT(&index_partial.get_type() == &element);
-  EXPECT(start_partial.get_type().is<Invalid>());
+  EXPECT(start_partial.get_type().is<Unknown>());
   EXPECT(supplies_self(start_partial, 2));
-  EXPECT(size_partial.get_type().is<Invalid>());
+  EXPECT(size_partial.get_type().is<Unknown>());
 }
 
-PERIMORTEM_UNIT_TEST(LibrarySlice, operand_rejection_and_safe_bounds) {
+PERIMORTEM_UNIT_TEST(LibrarySlice, safe_bounds) {
   Allocator::Arena domain;
   Tetrodotoxin::Library::Dialect producer;
   auto& source = create_library_monograph(domain, producer);
@@ -467,7 +480,7 @@ PERIMORTEM_UNIT_TEST(LibrarySlice, operand_rejection_and_safe_bounds) {
   auto& start_bounds = create_slice(domain, bytes, four, zero);
   auto& size_bounds = create_slice(domain, bytes, two, two);
 
-  EXPECT(invalid_receiver.get_type().resolve().is<Invalid>());
+  EXPECT(invalid_receiver.get_type().resolve().is<Unknown>());
   EXPECT(!link_expression(domain, invalid_receiver, source));
   EXPECT(!link_expression(domain, invalid_operand, source));
   EXPECT(!link_expression(domain, invalid_count, source));
@@ -524,9 +537,9 @@ PERIMORTEM_UNIT_TEST(LibrarySlice, operand_rejection_and_safe_bounds) {
   EXPECT_EQ(maximum_range.get_layout().get_size(), Count(-1));
   EXPECT(supplies_self(start_bounds, 0));
   EXPECT(supplies_self(size_bounds, 2));
-  EXPECT(&invalid_receiver.get_type() == &Invalid::get_invalid());
-  EXPECT(&invalid_operand.get_type() == &Invalid::get_invalid());
-  EXPECT(&invalid_count.get_type() == &Invalid::get_invalid());
+  EXPECT(&invalid_receiver.get_type() == &Unknown::get_unknown());
+  EXPECT(&invalid_operand.get_type() == &Unknown::get_unknown());
+  EXPECT(&invalid_count.get_type() == &Unknown::get_unknown());
 }
 
 PERIMORTEM_UNIT_TEST(LibrarySlice, scalar_defaults) {
@@ -565,7 +578,7 @@ PERIMORTEM_UNIT_TEST(LibrarySlice, scalar_defaults) {
   ASSERT(boolean_value);
   ASSERT(signed_payload);
   ASSERT(real_payload);
-  EXPECT(boolean_value->is<Constants::False>());
+  EXPECT(boolean_value->is_identity<Constants::False>());
   EXPECT(*signed_payload == 0);
   EXPECT(*real_payload == 0.0);
   EXPECT(&boolean_value->get_type() == &boolean);
@@ -573,7 +586,7 @@ PERIMORTEM_UNIT_TEST(LibrarySlice, scalar_defaults) {
   EXPECT(&real_value->get_type() == &real);
 }
 
-PERIMORTEM_UNIT_TEST(LibrarySlice, unsupported_default_and_payload) {
+PERIMORTEM_UNIT_TEST(LibrarySlice, unsupported_defaults) {
   Allocator::Arena domain;
   Tetrodotoxin::Library::Dialect producer;
   auto& source = create_library_monograph(domain, producer);
@@ -597,7 +610,7 @@ PERIMORTEM_UNIT_TEST(LibrarySlice, unsupported_default_and_payload) {
 
   auto missing_value = selected(missing.fold());
   ASSERT(missing_value);
-  EXPECT(missing_value->is<Constants::Unsigned>());
+  EXPECT(missing_value->is_identity<Constants::Unsigned>());
   EXPECT(get_unsigned(*missing_value) == Option<U64>(0));
   EXPECT(&missing_value->get_type() == &unsupported_element);
   EXPECT(is_dynamic(unsupported.fold()));
@@ -608,7 +621,7 @@ PERIMORTEM_UNIT_TEST(LibrarySlice, unsupported_default_and_payload) {
   EXPECT(&unsupported.get_type() == &unsupported_element);
 }
 
-PERIMORTEM_UNIT_TEST(LibrarySlice, child_failure_propagates) {
+PERIMORTEM_UNIT_TEST(LibrarySlice, child_failure) {
   Allocator::Arena domain;
   Tetrodotoxin::Library::Dialect producer;
   auto& source = create_library_monograph(domain, producer);

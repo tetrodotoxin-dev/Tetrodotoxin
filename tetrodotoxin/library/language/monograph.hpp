@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -7,7 +7,6 @@
 
 #include "tetrodotoxin/language/monograph.hpp"
 #include "tetrodotoxin/library/language/types/source.hpp"
-#include "tetrodotoxin/library/llvm/builder.hpp"
 
 namespace Tetrodotoxin::Library::Language {
 
@@ -18,48 +17,54 @@ class Monograph : public Tetrodotoxin::Language::Monograph {
   TTX_CONTRACT(Monograph, Tetrodotoxin::Language::Monograph);
 
   static auto create_authored(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Documentation& documentation,
-      const Ttx::Lexical::Anchor& source_anchor,
-      const Ttx::Concept::Abstract& language,
-      Ttx::Concept::Abstract& context) -> Monograph&;
-
-  static auto restore(
-      Archive::Reader& reader,
       Perimortem::Memory::Allocator::Arena& arena,
-      Tetrodotoxin::Language::Persistence::Profile profile,
-      const Ttx::Concept::Abstract& language,
-      Ttx::Concept::Abstract& context) -> Perimortem::Core::Option<Monograph&>;
+      const Tetrodotoxin::Source::Documentation& documentation,
+      const Tetrodotoxin::Source::Lexical::Anchor& source_anchor,
+      const Tetrodotoxin::Source::Abstract& language,
+      Tetrodotoxin::Source::Abstract& context) -> Monograph&;
 
-  auto parse(Ttx::Lexical::Cursor& cursor) -> Bool;
+  static auto create(
+      Perimortem::Memory::Allocator::Arena& arena,
+      const Tetrodotoxin::Source::Documentation& documentation,
+      const Tetrodotoxin::Source::Lexical::Anchor& source_anchor,
+      const Tetrodotoxin::Source::Abstract& language,
+      Tetrodotoxin::Source::Abstract& context) -> Monograph&;
 
-  auto link(Ttx::Lexical::Cursor& cursor) -> Bool override;
+  auto link(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
 
-  auto finalize(Ttx::Lexical::Cursor& cursor) -> Bool override;
+  auto finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
 
   auto link_restored() -> Bool override;
 
   auto finalize_restored() -> Bool override;
 
-  auto lower(Llvm::Program& program) const
-      -> Perimortem::Core::Option<Llvm::Program&>;
-
-  auto persist(Archive::Writer& writer) const -> Bool;
-
   auto get_name() const -> Perimortem::Core::View::Bytes override;
 
-  auto resolve_context(Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract& override;
+  constexpr auto get_root() const -> const Tetrodotoxin::Source::Abstract& override {
+    return source;
+  }
 
-  auto resolve_access(
-      const Ttx::Concept::Abstract& host,
-      Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract& override;
+  auto resolve_concept(Perimortem::Core::View::Bytes route) const
+      -> const Tetrodotoxin::Source::Abstract& override;
 
-  auto resolve_call(
-      const Ttx::Concept::Abstract& host,
-      Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract& override;
+  auto visit_concepts(Tetrodotoxin::Source::Abstract::Visitor visitor) const
+      -> void override;
+
+  // Resolves only this source's authored, intrinsic, using, and common Import
+  // surface. An outer Dialect can expose that surface without re-entering its
+  // own context fallback.
+  auto resolve_local_context(Perimortem::Core::View::Bytes route) const
+      -> const Tetrodotoxin::Source::Abstract&;
+
+  auto resolve_lexical_context(Perimortem::Core::View::Bytes route) const
+      -> const Tetrodotoxin::Source::Abstract& override;
+
+  auto can_bind_source_type(Perimortem::Core::View::Bytes name) const -> Bool;
+
+  auto retain_import(
+      const Tetrodotoxin::Language::Import::Description& description,
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Associations&> associations = {})
+      -> Bool override;
 
   constexpr auto get_source() -> Types::Source& { return source; }
 
@@ -68,16 +73,16 @@ class Monograph : public Tetrodotoxin::Language::Monograph {
  private:
   Monograph(
       Perimortem::Memory::Allocator::Arena& arena,
-      const Ttx::Concept::Documentation& documentation,
-      const Ttx::Lexical::Anchor& source_anchor,
-      const Ttx::Concept::Abstract& language,
-      Ttx::Concept::Abstract& context);
+      const Tetrodotoxin::Source::Documentation& documentation,
+      const Tetrodotoxin::Source::Lexical::Anchor& source_anchor,
+      const Tetrodotoxin::Source::Abstract& language,
+      Tetrodotoxin::Source::Abstract& context);
 
   auto resolve_root_context(Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract&;
+      -> const Tetrodotoxin::Source::Abstract&;
 
   Perimortem::Memory::Managed::
-      Map<Perimortem::Core::View::Bytes, Ttx::Concept::Abstract&>
+      Map<Perimortem::Core::View::Bytes, Tetrodotoxin::Source::Abstract&>
           vocabulary;
   Types::Source& source;
 };

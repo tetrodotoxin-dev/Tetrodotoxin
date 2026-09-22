@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/flow/loop_control.hpp"
@@ -16,14 +16,14 @@
 #include "tetrodotoxin/library/language/function.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
 #include "tetrodotoxin/library/language/types/composite.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Tetrodotoxin::Library;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using Tetrodotoxin::Environment::Workspace;
 using namespace Validation;
 
@@ -56,23 +56,26 @@ static auto find_function(
 }
 
 static auto rejects_interpretation(View::Bytes source) -> Bool {
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   return !interpret(workspace, errors, source) && !errors.is_empty() &&
-         &workspace.resolve_context("LoopControlTest"_view) ==
-             &Invalid::get_invalid();
+         retains_library_source(workspace, "LoopControlTest"_view);
 }
 
 static auto rejects_link(View::Bytes source) -> Bool {
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
   return !monograph && !errors.is_empty();
 }
 
-PERIMORTEM_UNIT_TEST(LoopControlTests, nearest_loop_identity) {
+PERIMORTEM_UNIT_TEST(LoopControlTests, nearest_loop) {
   static constexpr View::Bytes source =
       "// Loop control graph.\n"
       "dialect : Library;\n"
@@ -88,7 +91,9 @@ PERIMORTEM_UNIT_TEST(LoopControlTests, nearest_loop_identity) {
       "  }\n"
       "  return;\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
@@ -141,7 +146,7 @@ PERIMORTEM_UNIT_TEST(LoopControlTests, nearest_loop_identity) {
   const Abstract& retained = range_body.get_data()[2].get_root();
   Perimortem::Memory::Allocator::Arena transaction;
   Tokenizer tokenizer(transaction, source, "loop_control.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   ASSERT(monograph->link(cursor));
   ASSERT(monograph->finalize(cursor));
@@ -151,7 +156,7 @@ PERIMORTEM_UNIT_TEST(LoopControlTests, nearest_loop_identity) {
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(LoopControlTests, outside_loop_is_rejected) {
+PERIMORTEM_UNIT_TEST(LoopControlTests, outside_loop) {
   static constexpr Static::Vector<View::Bytes, 3> sources = {{
     "// Bare break.\ndialect : Library; private invalid : func = [] -> [] { break; }"_view,
     "// Bare continue.\ndialect : Library; private invalid : func = [] -> [] { continue; }"_view,
@@ -174,7 +179,7 @@ PERIMORTEM_UNIT_TEST(LoopControlTests, must_end_its_block) {
   }
 }
 
-PERIMORTEM_UNIT_TEST(LoopControlTests, loop_does_not_cover_result) {
+PERIMORTEM_UNIT_TEST(LoopControlTests, uncovered_result) {
   static constexpr Static::Vector<View::Bytes, 2> sources = {{
     "// While may break.\ndialect : Library; private invalid : func = [] -> U64 { while true { break; } }"_view,
     "// Range may continue zero times.\ndialect : Library; private invalid : func = [] -> U64 { for [.entry : U64] in 0...0 { continue; } }"_view,

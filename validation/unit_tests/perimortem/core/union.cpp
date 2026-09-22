@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/core/static/union.hpp"
@@ -87,7 +87,7 @@ class ReferencedValue {
   U64 values[8];
 };
 
-PERIMORTEM_UNIT_TEST(CoreUnion, reference_alternative) {
+PERIMORTEM_UNIT_TEST(CoreUnion, reference_case) {
   ReferencedValue first(42);
   ReferencedValue equal_value(42);
   Static::Union<ReferencedValue&, U64, Bool> original(first);

@@ -5,11 +5,11 @@
     "Programming Languages"
   ],
   "displayName": "Tetrodotoxin",
-  "publisher": "Perimortem",
+  "publisher": "Tetrodotoxin-Dev",
   "author": "Matt Kaes",
   "license": "MIT",
   "icon": "media/icon.png",
-  "version": "0.1.29",
+  "version": "0.1.33",
   "keywords": [
     "TTX",
     "Tetrodotoxin",
@@ -26,9 +26,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/MatthewKaes/Tetrodotoxin"
+    "url": "https://github.com/tetrodotoxin-dev/Tetrodotoxin"
   },
-  "homepage": "https://github.com/MatthewKaes/Tetrodotoxin/blob/main/README.md",
+  "homepage": "https://github.com/tetrodotoxin-dev/Tetrodotoxin#readme",
+  "bugs": {
+    "url": "https://github.com/tetrodotoxin-dev/Tetrodotoxin/issues"
+  },
   "activationEvents": [
     "onLanguage:tetrodotoxin",
     "onDebugResolve:lldb",
@@ -85,6 +88,21 @@
           "scope": "resource",
           "default": false,
           "description": "Enable Tetrodotoxin LSP semantic tokens. Leave disabled to use the bundled TextMate color rules."
+        },
+        "tetrodotoxin.packagesRoot": {
+          "type": "string",
+          "scope": "resource",
+          "default": "",
+          "description": "Use an absolute or workspace-relative versioned Package installation root instead of the standard Packages bundled with the extension. Reload the window after changing this setting."
+        },
+        "tetrodotoxin.packageSources": {
+          "type": "object",
+          "scope": "resource",
+          "default": {},
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Map exact Package coordinates such as `Example.Math@1.0` to absolute or workspace-relative local source roots. Reload the window after changing this setting."
         }
       }
     },
@@ -102,6 +120,10 @@
           "generic:tetrodotoxin": {
             "foreground": "#ed868a",
             "fontStyle": ""
+          },
+          "rawComment:tetrodotoxin": {
+            "foreground": "#5c5850",
+            "fontStyle": "italic"
           }
         }
       },
@@ -121,7 +143,7 @@
             }
           },
           {
-            "scope": "comment.line.disabled.tetrodotoxin",
+            "scope": "comment.line.raw.tetrodotoxin",
             "settings": {
               "foreground": "#5c5850",
               "fontStyle": "italic"

@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/system/file.hpp"
@@ -41,8 +41,6 @@ static constexpr View::Bytes file_read_operation = "System::File read"_view;
 static constexpr View::Bytes file_write_operation = "System::File write"_view;
 static constexpr View::Bytes file_replace_operation =
     "System::File replace"_view;
-static constexpr View::Bytes root_read_operation =
-    "System::File::Root read"_view;
 static constexpr View::Bytes root_write_operation =
     "System::File::Root write"_view;
 static constexpr View::Bytes root_remove_operation =
@@ -51,6 +49,11 @@ static constexpr View::Bytes root_exists_operation =
     "System::File::Root exists"_view;
 static constexpr View::Bytes root_close_operation =
     "System::File::Root close"_view;
+
+enum class FailureReporting {
+  Silent,
+  Warning,
+};
 
 // File operations prepare one bounded native path, open the selected object
 // once, perform all metadata and content work against that opened object, then
@@ -81,38 +84,54 @@ static auto log_file_warning(
           << stage << ' ' << detail_name << '=' << detail;
 }
 
+static auto report_file_warning(
+    FailureReporting reporting,
+    View::Bytes operation,
+    View::Bytes path,
+    View::Bytes stage,
+    View::Bytes detail_name,
+    S64 detail) -> void {
+  if (reporting == FailureReporting::Warning) {
+    log_file_warning(operation, path, stage, detail_name, detail);
+  }
+}
+
 // Classifies and sizes the same opened object that will provide the content.
 // Reading metadata through its descriptor prevents a pathname replacement from
 // changing which object the transaction observes.
 static auto get_file_fingerprint(
     S32 descriptor,
     View::Bytes operation,
-    View::Bytes path) -> Option<File::Fingerprint> {
+    View::Bytes path,
+    FailureReporting reporting) -> Option<File::Fingerprint> {
   struct stat64 status;
   S32 status_read = fstat64(descriptor, &status);
   if (status_read != 0) {
     S32 status_error = errno;
-    log_file_warning(
-        operation, path, "metadata"_view, "errno"_view, status_error);
+    report_file_warning(
+        reporting, operation, path, "metadata"_view, "errno"_view,
+        status_error);
     return {};
   }
 
   if (!S_ISREG(status.st_mode)) {
-    log_file_warning(
-        operation, path, "classification"_view, "mode"_view,
+    report_file_warning(
+        reporting, operation, path, "classification"_view, "mode"_view,
         S64(status.st_mode));
     return {};
   }
 
   if (status.st_size < 0) {
-    log_file_warning(
-        operation, path, "size"_view, "value"_view, S64(status.st_size));
+    report_file_warning(
+        reporting, operation, path, "size"_view, "value"_view,
+        S64(status.st_size));
     return {};
   }
 
   U64 size = U64(status.st_size);
   if (size > max_read_size) {
-    log_file_warning(operation, path, "size"_view, "value"_view, S64(size));
+    report_file_warning(
+        reporting, operation, path, "size"_view, "value"_view, S64(size));
     return {};
   }
 
@@ -131,8 +150,10 @@ static auto read_file(
     bytes_type& data,
     File::Fingerprint& fingerprint,
     View::Bytes operation,
-    View::Bytes path) -> Bool {
-  auto selected = get_file_fingerprint(fileno(file), operation, path);
+    View::Bytes path,
+    FailureReporting reporting) -> Bool {
+  auto selected =
+      get_file_fingerprint(fileno(file), operation, path, reporting);
   if (!selected) {
     return False;
   }
@@ -148,7 +169,9 @@ static auto read_file(
       fread(data.get_access().get_data(), 1, CppSize(size), file);
   if (items_read != CppSize(size) || ferror(file) != 0) {
     S32 read_error = errno;
-    log_file_warning(operation, path, "content"_view, "errno"_view, read_error);
+    report_file_warning(
+        reporting, operation, path, "content"_view, "errno"_view,
+        read_error);
     return False;
   }
 
@@ -179,15 +202,19 @@ static auto write_file(
 
 // Closure is part of a file transaction because buffered input or output can
 // still report a failure while the stream is being released.
-static auto close_stream(FILE* file, View::Bytes operation, View::Bytes path)
-    -> Bool {
+static auto close_stream(
+    FILE* file,
+    View::Bytes operation,
+    View::Bytes path,
+    FailureReporting reporting) -> Bool {
   S32 closed = fclose(file);
   if (closed == 0) {
     return True;
   }
 
   S32 close_error = errno;
-  log_file_warning(operation, path, "close"_view, "errno"_view, close_error);
+  report_file_warning(
+      reporting, operation, path, "close"_view, "errno"_view, close_error);
   return False;
 }
 
@@ -196,14 +223,16 @@ static auto close_stream(FILE* file, View::Bytes operation, View::Bytes path)
 static auto close_descriptor(
     S32 descriptor,
     View::Bytes operation,
-    View::Bytes path) -> Bool {
+    View::Bytes path,
+    FailureReporting reporting) -> Bool {
   S32 closed = close(descriptor);
   if (closed == 0) {
     return True;
   }
 
   S32 close_error = errno;
-  log_file_warning(operation, path, "close"_view, "errno"_view, close_error);
+  report_file_warning(
+      reporting, operation, path, "close"_view, "errno"_view, close_error);
   return False;
 }
 
@@ -292,14 +321,12 @@ static auto read_root_member(
     View::Bytes relative_path,
     bytes_type& data,
     File::Fingerprint& fingerprint) -> Bool {
-  // Stage 1: Produce the bounded relative spelling shared by diagnostics and
-  // kernel resolution. Empty, rooted, and malformed routes never reach open.
+  // Stage 1: Produce the bounded relative spelling used by kernel resolution.
+  // Empty, rooted, and malformed routes never reach open; the requesting owner
+  // retains the authored path needed to diagnose that failed probe.
   Static::Bytes<max_path_size> path_buffer;
   auto path = create_relative_path(path_buffer, relative_path);
   if (!path) {
-    log_file_warning(
-        root_read_operation, relative_path, "path"_view, "size"_view,
-        S64(relative_path.get_size()));
     return False;
   }
 
@@ -311,28 +338,23 @@ static auto read_root_member(
   S32 member =
       open_root_member(descriptor, native_path, U64(O_RDONLY | O_CLOEXEC));
   if (member < 0) {
-    S32 open_error = errno;
-    log_file_warning(
-        root_read_operation, relative_path, "open"_view, "errno"_view,
-        open_error);
     return False;
   }
 
   FILE* file = fdopen(member, "rb");
   if (!file) {
-    S32 stream_error = errno;
-    log_file_warning(
-        root_read_operation, relative_path, "stream"_view, "errno"_view,
-        stream_error);
-    close_descriptor(member, root_read_operation, relative_path);
+    close_descriptor(
+        member, {}, relative_path, FailureReporting::Silent);
     return False;
   }
 
   // Stage 3: Classify and fill the selected byte owner from the same stream.
   // Checked closure completes the transaction even when content already read.
-  Bool read =
-      read_file(file, data, fingerprint, root_read_operation, relative_path);
-  Bool closed = close_stream(file, root_read_operation, relative_path);
+  Bool read = read_file(
+      file, data, fingerprint, {}, relative_path, FailureReporting::Silent);
+  Bool closed = close_stream(
+      file, {}, relative_path, FailureReporting::Silent);
+
   return read && closed;
 #else
 #error Perimortem does not have a file implementation for this platform.
@@ -366,8 +388,12 @@ static auto read_file(View::Bytes location, bytes_type& data) -> Bool {
   // Stage 3: Fill the storage selected by the public overload and include
   // stream closure in the reported result.
   File::Fingerprint fingerprint;
-  Bool read = read_file(file, data, fingerprint, file_read_operation, location);
-  Bool closed = close_stream(file, file_read_operation, location);
+  Bool read = read_file(
+      file, data, fingerprint, file_read_operation, location,
+      FailureReporting::Warning);
+  Bool closed = close_stream(
+      file, file_read_operation, location, FailureReporting::Warning);
+
   return read && closed;
 }
 
@@ -480,9 +506,11 @@ auto File::Root::fingerprint(View::Bytes relative_path) const
     return {};
   }
 
-  auto selected =
-      get_file_fingerprint(member, root_read_operation, relative_path);
-  Bool closed = close_descriptor(member, root_read_operation, relative_path);
+  auto selected = get_file_fingerprint(
+      member, {}, relative_path, FailureReporting::Silent);
+  Bool closed = close_descriptor(
+      member, {}, relative_path, FailureReporting::Silent);
+
   return closed ? selected : Option<File::Fingerprint>();
 #else
 #error Perimortem does not have a file implementation for this platform.
@@ -540,14 +568,18 @@ auto File::Root::write(View::Bytes data, View::Bytes relative_path) const
     log_file_warning(
         root_write_operation, relative_path, "stream"_view, "errno"_view,
         stream_error);
-    close_descriptor(member, root_write_operation, relative_path);
+    close_descriptor(
+        member, root_write_operation, relative_path,
+        FailureReporting::Warning);
     return False;
   }
 
   // Stage 3: Write the complete caller view and include stream closure in the
   // transaction result.
   Bool written = write_file(file, data, root_write_operation, relative_path);
-  Bool closed = close_stream(file, root_write_operation, relative_path);
+  Bool closed = close_stream(
+      file, root_write_operation, relative_path, FailureReporting::Warning);
+
   return written && closed;
 #else
 #error Perimortem does not have a file implementation for this platform.
@@ -595,7 +627,9 @@ auto File::Root::remove(View::Bytes relative_path) const -> Bool {
   Bool parent_closed = True;
   if (close_parent) {
     parent_closed =
-        close_descriptor(parent, root_remove_operation, relative_path);
+        close_descriptor(
+            parent, root_remove_operation, relative_path,
+            FailureReporting::Warning);
   }
 
   return removed == 0 && parent_closed;
@@ -627,7 +661,10 @@ auto File::Root::exists(View::Bytes relative_path) const -> Bool {
   S32 status_read = fstat64(member, &status);
   Bool regular = status_read == 0 && S_ISREG(status.st_mode);
 
-  Bool closed = close_descriptor(member, root_exists_operation, relative_path);
+  Bool closed = close_descriptor(
+      member, root_exists_operation, relative_path,
+      FailureReporting::Warning);
+
   return regular && closed;
 #else
 #error Perimortem does not have a file implementation for this platform.
@@ -681,7 +718,9 @@ auto File::write(View::Bytes data, View::Bytes location) -> Bool {
   }
 
   Bool written = write_file(file, data, file_write_operation, location);
-  Bool closed = close_stream(file, file_write_operation, location);
+  Bool closed = close_stream(
+      file, file_write_operation, location, FailureReporting::Warning);
+
   return written && closed;
 }
 

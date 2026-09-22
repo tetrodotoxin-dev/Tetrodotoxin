@@ -1,11 +1,14 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
 // Dynamic values backed by the Perimortem Memory ABI.
 dialect : Library;
 
-// Bytes is a worker-local, copy-on-write container of U8 values.
+// Bytes is a copy on write container of U8 values local to one worker.
 //
 // It retains one Object buffer and a separate logical size. Self operations
 // mutate the receiver by reference and return that same reference for chaining.
-// Read-only Views do not extend the Object lifetime and must not be retained
+// Read only Views do not extend the Object lifetime and cannot be retained
 // across an operation that can replace the backing Object.
 public Bytes : struct {
   // Owns the initialized byte capacity shared by copied Bytes values.
@@ -33,6 +36,14 @@ public Bytes : struct {
   public copy : func = [.view : View[U8]] -> Bytes : return Bytes -> concat(new[View[U8]],
     view);
 
+  // Creates an empty Bytes whose backing Object can hold at least the requested
+  // number of elements without another allocation.
+  public with_capacity : func = [.reserved_capacity : U64] -> Bytes {
+    state result : Bytes;
+    result.data -> reserve(reserved_capacity);
+    return result;
+  }
+
   // Appends count copies of byte and returns this receiver for chaining.
   // A zero count leaves both the logical size and backing Object unchanged.
   public append : func = [self, .byte : U8, .count : U64] -> self {
@@ -51,6 +62,13 @@ public Bytes : struct {
   // Sets the logical size to zero without overwriting or releasing capacity.
   public clear : func = [self] -> self : self.size = 0;
 
+  // Replaces this value with an independent copy of view.
+  public proxy : func = [self, .view : View[U8]] -> self {
+    state replacement := Bytes -> copy(view);
+    self.data = replacement.data;
+    self.size = replacement.size;
+  }
+
   // Appends every element of view and returns this receiver for chaining.
   // An empty View leaves both the logical size and backing Object unchanged.
   public concat : func = [self, .view : View[U8]] -> self {
@@ -67,6 +85,10 @@ public Bytes : struct {
     self.size = required;
   }
 
+  // Gives this value a private backing Object while preserving every logical
+  // byte. Native writable views use this operation before exposing an address.
+  public detach : func = [self] -> self : self -> prepare_write(self.size);
+
   // Returns the number of byte elements available in the backing Object.
   // Capacity may be greater than the logical size.
   public get_capacity : func = [self] -> U64 : return self.data -> get_capacity();
@@ -74,27 +96,46 @@ public Bytes : struct {
   // Returns the number of bytes in the logical value.
   public get_size : func = [self] -> U64 : return self.size;
 
-  // Borrows a read-only View over exactly the logical bytes.
+  // Borrows a read only View over exactly the logical bytes.
   public get_view : func = [self] -> View[U8] : return self.data -> get_view() ->
       slice(0, self.size);
+
+  // Returns one element when it is available and the U8 default otherwise.
+  public at : func = [self, .index : U64] -> U8 : return self -> get_view():[index];
 
   // Returns whether the logical size is zero.
   public is_empty : func = [self] -> Bool : return self.size == 0;
 
   // Ensures capacity is at least required_size without changing logical size.
-  // The operation is a no-op when the current Object already has enough room.
+  // Existing capacity is left alone when the Object already has enough room.
   public reserve : func = [
     self,
     .required_size : U64,
   ] -> self : if required_size > self.data -> get_capacity() : self.data -> reserve(required_size);
 
   // Changes the logical size and grows capacity when required.
-  // Existing initialized capacity is preserved; newly allocated elements use
+  // Existing initialized capacity is preserved. Newly allocated elements use
   // the U8 default.
   public resize : func = [self, .new_size : U64] -> self {
     if new_size > self.data -> get_capacity() : self.data -> reserve(new_size);
 
     self.size = new_size;
+  }
+
+  // Changes the logical size without preserving a backing Object that is shared
+  // or far larger than the requested value.
+  public forgetful_resize : func = [self, .required_size : U64] -> self {
+    state capacity := self.data -> get_capacity();
+    state reusable := required_size <= capacity and required_size > capacity / 2;
+    if reusable and !self.data -> is_shared() {
+      self.size = required_size;
+      return self;
+    }
+
+    state replacement : Object[U8];
+    replacement -> reserve(required_size);
+    self.data = replacement;
+    self.size = required_size;
   }
 
   // Removes count bytes from the front and shifts the remaining bytes to zero.
@@ -118,8 +159,30 @@ public Bytes : struct {
   public slice : func = [self, .start : U64, .count : U64] -> View[U8] : return self ->
       get_view() -> slice(start, count);
 
+  // Fills every logical element with one byte value.
+  public set : func = [self, .target : U8] -> self {
+    self -> prepare_write(self.size);
+    state access := self.data -> get_access();
+    for [.index : U64] in 0...self.size : access[index] = target;
+  }
+
+  // Replaces each matching logical element without changing the size.
+  public convert : func = [self, .selected : U8, .target : U8] -> self {
+    self -> prepare_write(self.size);
+    state access := self.data -> get_access();
+    for [.index : U64] in 0...self.size {
+      if access:[index] == selected : access[index] = target;
+    }
+  }
+
+  // Releases the backing Object and restores the empty default value.
+  public reset : func = [self] -> self {
+    self.data = new[Object[U8]];
+    self.size = 0;
+  }
+
   // Ensures the next write has required capacity and private storage.
-  // Growth already replaces the receiver with an unshared Object; otherwise a
+  // Growth already replaces the receiver with an unshared Object. Otherwise a
   // shared buffer is cloned before writable Access is requested.
   private prepare_write : func = [self, .required : U64] -> [] {
     self.data -> reserve(required);

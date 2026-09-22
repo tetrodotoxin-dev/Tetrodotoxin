@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/vulkan/shader_program.hpp"
@@ -12,7 +12,7 @@
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem;
-using namespace Perimortem::Graphics;
+using namespace Perimortem::Vulkan;
 
 static constexpr Count max_shader_modules = 8;
 
@@ -22,11 +22,11 @@ static auto require_success(VkResult result, View::Bytes message) -> void {
   }
 }
 
-static auto to_vk_stage(Render::Stage stage) -> VkShaderStageFlagBits {
+static auto to_vk_stage(Description::Stage stage) -> VkShaderStageFlagBits {
   switch (stage) {
-  case Render::Stage::Vertex:
+  case Description::Stage::Vertex:
     return VK_SHADER_STAGE_VERTEX_BIT;
-  case Render::Stage::Pixel:
+  case Description::Stage::Pixel:
     return VK_SHADER_STAGE_FRAGMENT_BIT;
   }
 
@@ -34,7 +34,7 @@ static auto to_vk_stage(Render::Stage stage) -> VkShaderStageFlagBits {
   return VK_SHADER_STAGE_VERTEX_BIT;
 }
 
-static auto to_vk_stage_flags(View::Vector<Render::Stage> stages)
+static auto to_vk_stage_flags(View::Vector<Description::Stage> stages)
     -> VkShaderStageFlags {
   VkShaderStageFlags flags = 0;
   const auto* stage_data = stages.get_data();
@@ -49,8 +49,9 @@ static auto to_vk_stage_flags(View::Vector<Render::Stage> stages)
   return flags;
 }
 
-static auto make_shader_module(VkDevice device, const Render::Module& source)
-    -> VkShaderModule {
+static auto make_shader_module(
+    VkDevice device,
+    const Description::Module& source) -> VkShaderModule {
   if (source.words.is_empty()) {
     Diagnostics::Log::fatal("Vulkan: Invalid render module."_view);
   }
@@ -66,10 +67,37 @@ static auto make_shader_module(VkDevice device, const Render::Module& source)
   return module;
 }
 
+static auto vertex_format(Count components) -> VkFormat {
+  switch (components) {
+  case 1:
+    return VK_FORMAT_R32_SFLOAT;
+  case 2:
+    return VK_FORMAT_R32G32_SFLOAT;
+  case 3:
+    return VK_FORMAT_R32G32B32_SFLOAT;
+  case 4:
+    return VK_FORMAT_R32G32B32A32_SFLOAT;
+  }
+  Diagnostics::Log::fatal("Vulkan: Invalid vertex input width."_view);
+  return VK_FORMAT_UNDEFINED;
+}
+
+static auto to_vk_topology(
+    Perimortem::Graphics::Frame::Pipeline::Topology topology)
+    -> VkPrimitiveTopology {
+  switch (topology) {
+  case Perimortem::Graphics::Frame::Pipeline::Topology::TriangleList:
+    return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+  }
+  Diagnostics::Log::fatal("Vulkan: Invalid primitive topology."_view);
+  return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+}
+
 auto Vulkan::ShaderProgram::create(
     VkDevice device,
     VkFormat color_format,
-    const Render::Program& render,
+    const Description::Program& render,
+    Perimortem::Graphics::Frame::Pipeline pipeline,
     View::Vector<VkDescriptorSetLayout> descriptor_set_layouts)
     -> Vulkan::ShaderProgram {
   const auto source_modules = render.modules;
@@ -123,12 +151,48 @@ auto Vulkan::ShaderProgram::create(
     }
   }
 
+  Static::Vector<VkVertexInputBindingDescription, 1> vertex_bindings;
+  Static::Vector<VkVertexInputAttributeDescription, 8> vertex_attributes;
+  auto reflected_vertex_inputs = render.vertex_inputs;
+  if (!reflected_vertex_inputs.is_empty()) {
+    BAIL_IF(reflected_vertex_inputs.get_size() > vertex_attributes.get_size());
+    Count stride = reflected_vertex_inputs.get_data()[0].stride;
+    BAIL_IF(stride == 0 || stride > U32(-1));
+    vertex_bindings[0] = {
+      .binding = 0,
+      .stride = U32(stride),
+      .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+    };
+    for (Count index = 0; index < reflected_vertex_inputs.get_size(); index++) {
+      const Description::VertexInput& input =
+          reflected_vertex_inputs.get_data()[index];
+      BAIL_IF(
+          input.location > U32(-1) || input.offset > U32(-1) ||
+          input.stride != stride);
+      vertex_attributes[index] = {
+        .location = U32(input.location),
+        .binding = 0,
+        .format = vertex_format(input.components),
+        .offset = U32(input.offset),
+      };
+    }
+  }
+
   VkPipelineVertexInputStateCreateInfo vertex_input = {
     VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
+  vertex_input.vertexBindingDescriptionCount =
+      reflected_vertex_inputs.is_empty() ? 0 : 1;
+  vertex_input.pVertexBindingDescriptions =
+      reflected_vertex_inputs.is_empty() ? nullptr : vertex_bindings.get_data();
+  vertex_input.vertexAttributeDescriptionCount =
+      U32(reflected_vertex_inputs.get_size());
+  vertex_input.pVertexAttributeDescriptions =
+      reflected_vertex_inputs.is_empty() ? nullptr
+                                         : vertex_attributes.get_data();
 
   VkPipelineInputAssemblyStateCreateInfo input_assembly = {
     VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
-  input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+  input_assembly.topology = to_vk_topology(pipeline.get_topology());
 
   VkPipelineViewportStateCreateInfo viewport_state = {
     VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
@@ -147,13 +211,17 @@ auto Vulkan::ShaderProgram::create(
   multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
   VkPipelineColorBlendAttachmentState blend_attachment = {};
-  blend_attachment.blendEnable = VK_TRUE;
-  blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-  blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-  blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
-  blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-  blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-  blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
+  switch (pipeline.get_blend()) {
+  case Perimortem::Graphics::Frame::Pipeline::Blend::Alpha:
+    blend_attachment.blendEnable = VK_TRUE;
+    blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
+    blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
+    break;
+  }
   blend_attachment.colorWriteMask =
       VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
       VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;

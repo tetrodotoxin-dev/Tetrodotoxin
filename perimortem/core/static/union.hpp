@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -9,7 +9,7 @@ namespace Perimortem::Core::Static {
 
 // A tagged union type that allows null tagging to represent no value.
 // Each possible type must be unique. Value alternatives are managed using byte
-// laundering, while reference alternatives store one non-owning pointer and
+// laundering, while reference alternatives store one non owning pointer and
 // preserve the referred object's identity. A reference can only be constructed
 // from an lvalue, so the Union cannot retain a temporary through const binding.
 // Destructable alternatives aren't supported.
@@ -91,8 +91,8 @@ class Union {
   static consteval auto selects() -> bool {
     // An exact alternative always wins. Otherwise the source must construct
     // exactly one alternative, allowing `Union<U64>` to accept an
-    // integer literal without making a multi-numeric Union guess its intended
-    // type.
+    // integer literal without making a multiple numeric Union guess its
+    // intended type.
     constexpr Count exact_reference = type_count<Candidate>();
     if constexpr (exact_reference != 0) {
       return __is_same(Candidate, value_type) &&
@@ -118,12 +118,12 @@ class Union {
   constexpr auto construct(Candidate&& candidate) -> decltype(auto) {
     if constexpr (__is_lvalue_reference(value_type)) {
       auto& reference = static_cast<value_type>(candidate);
-      new (storage) Storage<value_type>(&reference);
+      new (storage, Placement::Construct) Storage<value_type>(&reference);
       tag = type_tag<value_type>();
       return reference;
     } else {
-      value_type& value =
-          *new (storage) value_type(static_cast<Candidate&&>(candidate));
+      value_type& value = *new (storage, Placement::Construct)
+                              value_type(static_cast<Candidate&&>(candidate));
       tag = type_tag<value_type>();
       return value;
     }

@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -9,14 +9,15 @@
 namespace Perimortem::Memory::Dynamic {
 
 // Record adapts the Core Object carrier to C++ object lifetime rules. It is a
-// worker-local convenience owner for compiler and tooling state, not a language
+// worker local convenience owner for compiler and tooling state, not a language
 // Type or another ABI representation.
 template <typename value_type>
 class Record {
  public:
   template <typename... arg_types>
   Record(arg_types&&... args) : object(Core::Object<>::create(descriptor)) {
-    new (object.get_payload()) value_type(static_cast<arg_types&&>(args)...);
+    new (object.get_payload(), Core::Placement::Construct)
+        value_type(static_cast<arg_types&&>(args)...);
   }
 
   Record(Record& rhs) : object(rhs.object) { object.retain(); }

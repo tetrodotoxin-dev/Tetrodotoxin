@@ -1,0 +1,43 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+// A decoded color sample shared by Images and native codecs.
+//
+dialect : Library;
+
+// Pixel stores one eight bit red, green, blue, and alpha sample. Fully
+// transparent black is its ordinary default.
+public Pixel : struct {
+  public state red   : U8;
+  public state green : U8;
+  public state blue  : U8;
+  public state alpha : U8;
+
+  // Replicates grey to every color channel and uses full opacity.
+  public from_grey : func = [.grey : U8] -> Pixel : return (
+    .red = grey,
+    .green = grey,
+    .blue = grey,
+    .alpha = 255,
+  );
+
+  // Replicates grey to every color channel with an explicit alpha value.
+  public from_grey_alpha : func = [.grey : U8, .alpha : U8] -> Pixel : return (
+    .red = grey,
+    .green = grey,
+    .blue = grey,
+    .alpha = alpha,
+  );
+
+  // Stores independent color channels and uses full opacity.
+  public from_rgb : func = [.red : U8, .green : U8, .blue : U8] -> Pixel : return (
+    .red = red,
+    .green = green,
+    .blue = blue,
+    .alpha = 255,
+  );
+
+  // Stores all four channels directly.
+  public from_rgba : func = [.red : U8, .green : U8, .blue : U8, .alpha : U8] ->
+      Pixel : return (.red = red, .green = green, .blue = blue, .alpha = alpha);
+}

@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -22,7 +22,7 @@ auto create(
     BenchmarkFunc func) -> void;
 
 // Prevents the optimizer from removing test loads using a read/write
-// register-or-memory constraint.
+// register or memory constraint.
 template <typename value_type>
 auto prevent_optimization(value_type& value) -> void {
   asm volatile("" : "+r,m"(value) : : "memory");

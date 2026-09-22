@@ -1,35 +1,59 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/constants/option.hpp"
 
-#include "tetrodotoxin/library/llvm/builder.hpp"
+#include "tetrodotoxin/library/language/expression.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library::Language;
 
-auto Constants::Option::persist(Archive::Writer& writer) const -> Bool {
-  auto record = writer.begin(Archive::Tag::ConstantOption);
-  BAIL_IF(
-      !writer.write(get_type().get_name()) ||
-      !writer.write(get_type().get_element_type().get_name()));
+static auto append_pack(Memory::Managed::Bytes& output, const Model::Pack& pack)
+    -> void {
+  output.append('[');
+  const Layout& layout = pack.get_layout();
+  for (Count index = 0; index < layout.get_size(); index++) {
+    if (index != 0) {
+      output.concat(", "_view);
+    }
+    auto name = layout.get_name(index);
+    if (name) {
+      output.append('.');
+      output.concat(*name);
+      output.concat(" = "_view);
+    }
+    layout.get_abstract(index).visit(
+        [&]() { output.concat("Unknown"_view); },
+        [&](const Abstract& value) { output.concat(value.get_name()); });
+  }
+  output.append(']');
+}
 
-  auto selected = get_payload();
-  writer.write(U8(selected ? 1 : 0));
-  BAIL_IF(
-      (selected && !Model::Pack::persist_folded(writer, *selected)) ||
-      !writer.finish(record));
-  return True;
+Constants::Option::Option(
+    Memory::Allocator::Arena& domain,
+    const Types::Option& type,
+    Types::Option::Kind kind,
+    Core::Option<Tetrodotoxin::Source::PackReference<Model::Pack>> payload,
+    Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor)
+    : Constant(anchor),
+      type(type),
+      kind(kind),
+      payload(payload),
+      name(
+          domain,
+          kind == Types::Option::Kind::Absent ? "none"_view : "some"_view) {
+  if (kind == Types::Option::Kind::Present) {
+    append_pack(name, payload->get());
+  }
 }
 
 auto Constants::Option::create_absent(
     Memory::Allocator::Arena& domain,
     const Types::Option& type) -> Option& {
-  return Expression::create_synthetic<Option>(
-      domain, [&](auto source) -> Option {
-        return Option(type, Types::Option::Kind::Absent, {}, source);
-      });
+  return Constant::create_synthetic<Option>(domain, [&](auto source) -> Option {
+    return Option(domain, type, Types::Option::Kind::Absent, {}, source);
+  });
 }
 
 auto Constants::Option::create_present(
@@ -43,19 +67,18 @@ auto Constants::Option::create_present(
     BAIL_IF(!entry || !entry->is<Constant>());
   }
 
-  return Expression::create_synthetic<Option>(
-      domain, [&](auto source) -> Option {
-        return Option(
-            type, Types::Option::Kind::Present,
-            Ttx::Concept::Reference<Model::Pack>(payload), source);
-      });
+  return Constant::create_synthetic<Option>(domain, [&](auto source) -> Option {
+    return Option(
+        domain, type, Types::Option::Kind::Present,
+        Tetrodotoxin::Source::PackReference<Model::Pack>(payload), source);
+  });
 }
 
 auto Constants::Option::create_fitted(
     Memory::Allocator::Arena& domain,
     const Types::Option& type,
     Model::Pack& source) -> Core::Option<Option&> {
-  auto retained = source.select<Constants::Option>();
+  auto retained = source.select_identity<Constants::Option>();
   if (retained && &retained->get_type() == &type) {
     return *retained;
   }
@@ -64,17 +87,16 @@ auto Constants::Option::create_fitted(
   }
 
   Model::Pack* payload = &source;
-  auto expression = source.select<Expression>();
-  if (expression) {
+  if (!source.select_identity<Constant>()) {
     Core::Option<Model::Pack&> folded;
-    expression->fold().visit(
+    Expression::fold(source).visit(
         [&](const Core::Option<Model::Pack&>& selected) { folded = selected; },
         [](const Expression::Error&) {});
     BAIL_IF(!folded);
     payload = &*folded;
   }
 
-  retained = payload->select<Constants::Option>();
+  retained = payload->select_identity<Constants::Option>();
   if (retained && &retained->get_type() == &type) {
     return *retained;
   }
@@ -86,7 +108,7 @@ auto Constants::Option::get_payload() const
     -> Core::Option<const Model::Pack&> {
   return payload.visit(
       []() -> Core::Option<const Model::Pack&> { return {}; },
-      [](const Reference<Model::Pack>& selected)
+      [](const Tetrodotoxin::Source::PackReference<Model::Pack>& selected)
           -> Core::Option<const Model::Pack&> { return selected.get(); });
 }
 
@@ -105,25 +127,4 @@ auto Constants::Option::equals(const Constant& rhs) const -> Bool {
                  have_equal_values(*left_payload, *right_payload)
              ? True
              : False;
-}
-
-auto Constants::Option::lower(Llvm::Builder& body) const -> Bool {
-  BAIL_IF(!prepare_carrier(body));
-
-  if (kind == Types::Option::Kind::Absent) {
-    return body.absent(get_type(), *this);
-  }
-
-  auto selected = get_payload();
-  if (!selected) {
-    return False;
-  }
-
-  Bool lowered = selected->lower(body);
-  if (!lowered) {
-    return False;
-  }
-
-  return body.present(
-      get_type(), get_type().get_element_type(), *this, *selected);
 }

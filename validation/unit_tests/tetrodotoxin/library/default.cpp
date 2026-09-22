@@ -1,7 +1,9 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "validation/unit_test.hpp"
+
+#include "tetrodotoxin/source/documentation.hpp"
 #include "validation/unit_tests/tetrodotoxin/library/workspace.hpp"
 
 #include "perimortem/core/static/vector.hpp"
@@ -33,14 +35,14 @@
 #include "tetrodotoxin/library/language/types/source.hpp"
 #include "tetrodotoxin/library/language/types/structure.hpp"
 #include "tetrodotoxin/library/language/types/view.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/lexical/errors.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Tetrodotoxin::Library;
 using namespace Tetrodotoxin::Library::Language;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Validation;
 
 static Harness LibraryDefaults = {
@@ -52,8 +54,8 @@ class ForeignUnsigned : public Model::Types::Unsigned {
   constexpr auto get_name() const -> View::Bytes override {
     return "ForeignUnsigned"_view;
   }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
   constexpr auto get_width() const -> Count override { return 8; }
   constexpr auto get_size() const -> Count override { return 1; }
@@ -66,7 +68,7 @@ class ForeignUnsigned : public Model::Types::Unsigned {
 
 static auto import_types(
     Tetrodotoxin::Environment::Workspace& workspace,
-    Ttx::Lexical::Errors& errors) -> Option<Monograph&> {
+    Tetrodotoxin::Source::Lexical::Errors& errors) -> Option<Monograph&> {
   static constexpr View::Bytes source =
       "// Default value types.\n"
       "dialect : Library;\n"
@@ -92,41 +94,43 @@ static auto import_types(
   return static_cast<Monograph&>(*imported);
 }
 
-PERIMORTEM_UNIT_TEST(LibraryDefaults, scalar_payloads_and_identity) {
+PERIMORTEM_UNIT_TEST(LibraryDefaults, scalar_defaults) {
   Allocator::Arena domain;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Tetrodotoxin::Environment::Workspace workspace(*workspace_toolchain);
-  Ttx::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Errors errors;
   auto monograph = import_types(workspace, errors);
   ASSERT(monograph);
   const Static::Vector<const Model::Type*, 4> unsigned_types = {{
-    &static_cast<const Model::Type&>(monograph->resolve_context("U8"_view)),
-    &static_cast<const Model::Type&>(monograph->resolve_context("U16"_view)),
-    &static_cast<const Model::Type&>(monograph->resolve_context("U32"_view)),
-    &static_cast<const Model::Type&>(monograph->resolve_context("U64"_view)),
+    &static_cast<const Model::Type&>(monograph->resolve_concept("U8"_view)),
+    &static_cast<const Model::Type&>(monograph->resolve_concept("U16"_view)),
+    &static_cast<const Model::Type&>(monograph->resolve_concept("U32"_view)),
+    &static_cast<const Model::Type&>(monograph->resolve_concept("U64"_view)),
   }};
   const Static::Vector<const Model::Type*, 4> signed_types = {{
-    &static_cast<const Model::Type&>(monograph->resolve_context("S8"_view)),
-    &static_cast<const Model::Type&>(monograph->resolve_context("S16"_view)),
-    &static_cast<const Model::Type&>(monograph->resolve_context("S32"_view)),
-    &static_cast<const Model::Type&>(monograph->resolve_context("S64"_view)),
+    &static_cast<const Model::Type&>(monograph->resolve_concept("S8"_view)),
+    &static_cast<const Model::Type&>(monograph->resolve_concept("S16"_view)),
+    &static_cast<const Model::Type&>(monograph->resolve_concept("S32"_view)),
+    &static_cast<const Model::Type&>(monograph->resolve_concept("S64"_view)),
   }};
   const Static::Vector<const Model::Type*, 2> real_types = {{
-    &static_cast<const Model::Type&>(monograph->resolve_context("R32"_view)),
-    &static_cast<const Model::Type&>(monograph->resolve_context("R64"_view)),
+    &static_cast<const Model::Type&>(monograph->resolve_concept("R32"_view)),
+    &static_cast<const Model::Type&>(monograph->resolve_concept("R64"_view)),
   }};
 
   const auto& boolean_type =
-      static_cast<const Model::Type&>(monograph->resolve_context("Bool"_view));
+      static_cast<const Model::Type&>(monograph->resolve_concept("Bool"_view));
   auto boolean = boolean_type.create_default(domain);
-  ASSERT(boolean && boolean->is<Constants::False>());
+  ASSERT(boolean && boolean->is_identity<Constants::False>());
   EXPECT(&boolean->get_type() == &boolean_type);
   EXPECT_NOT(static_cast<const Constants::False&>(*boolean).get_value());
 
   for (Count i = 0; i < unsigned_types.get_size(); i++) {
     const Model::Type* type = unsigned_types.get_data()[i];
     auto created = type->create_default(domain);
-    ASSERT(created && created->is<Constants::Unsigned>());
+    ASSERT(created && created->is_identity<Constants::Unsigned>());
     const auto& value = static_cast<const Constants::Unsigned&>(*created);
     EXPECT(&value.get_type() == type);
     EXPECT_EQ(value.get_value(), U64(0));
@@ -135,7 +139,7 @@ PERIMORTEM_UNIT_TEST(LibraryDefaults, scalar_payloads_and_identity) {
   for (Count i = 0; i < signed_types.get_size(); i++) {
     const Model::Type* type = signed_types.get_data()[i];
     auto created = type->create_default(domain);
-    ASSERT(created && created->is<Constants::Signed>());
+    ASSERT(created && created->is_identity<Constants::Signed>());
     const auto& value = static_cast<const Constants::Signed&>(*created);
     EXPECT(&value.get_type() == type);
     EXPECT_EQ(value.get_value(), S64(0));
@@ -144,27 +148,29 @@ PERIMORTEM_UNIT_TEST(LibraryDefaults, scalar_payloads_and_identity) {
   for (Count i = 0; i < real_types.get_size(); i++) {
     const Model::Type* type = real_types.get_data()[i];
     auto created = type->create_default(domain);
-    ASSERT(created && created->is<Constants::Real>());
+    ASSERT(created && created->is_identity<Constants::Real>());
     const auto& value = static_cast<const Constants::Real&>(*created);
     EXPECT(&value.get_type() == type);
     EXPECT_EQ(value.get_value(), R64(0));
   }
 }
 
-PERIMORTEM_UNIT_TEST(LibraryDefaults, contiguous_and_optional_values) {
+PERIMORTEM_UNIT_TEST(LibraryDefaults, carrier_defaults) {
   Allocator::Arena domain;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Tetrodotoxin::Environment::Workspace workspace(*workspace_toolchain);
-  Ttx::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Errors errors;
   auto monograph = import_types(workspace, errors);
   ASSERT(monograph);
   const auto& u8 =
-      static_cast<const Model::Type&>(monograph->resolve_context("U8"_view));
+      static_cast<const Model::Type&>(monograph->resolve_concept("U8"_view));
   Static::Vector<Generic::Argument, 1> arguments = {{
     Generic::Argument(u8),
   }};
   const auto& view =
-      static_cast<const Generic&>(monograph->resolve_context("View"_view));
+      static_cast<const Generic&>(monograph->resolve_concept("View"_view));
   const Model::Type* type = nullptr;
   view.materialize(arguments.get_view())
       .visit(
@@ -173,13 +179,13 @@ PERIMORTEM_UNIT_TEST(LibraryDefaults, contiguous_and_optional_values) {
   ASSERT(type && type->is<Types::View>());
 
   auto created = type->create_default(domain);
-  ASSERT(created && created->is<Constants::Bytes>());
+  ASSERT(created && created->is_identity<Constants::Bytes>());
   const auto& value = static_cast<const Constants::Bytes&>(*created);
   EXPECT(&value.get_type() == &*type);
   EXPECT(value.get_value().is_empty());
 
   const auto& access_formula =
-      static_cast<const Generic&>(monograph->resolve_context("Access"_view));
+      static_cast<const Generic&>(monograph->resolve_concept("Access"_view));
   const Model::Type* access = nullptr;
   access_formula.materialize(arguments.get_view())
       .visit(
@@ -187,14 +193,14 @@ PERIMORTEM_UNIT_TEST(LibraryDefaults, contiguous_and_optional_values) {
           [](const Generic::Failure&) {});
   ASSERT(access);
   auto access_default = access->create_default(domain);
-  ASSERT(access_default && access_default->is<Constants::Bytes>());
+  ASSERT(access_default && access_default->is_identity<Constants::Bytes>());
   const auto& access_value =
       static_cast<const Constants::Bytes&>(*access_default);
   EXPECT(&access_value.get_type() == &*access);
   EXPECT(access_value.get_value().is_empty());
 
   const auto& option_formula =
-      static_cast<const Generic&>(monograph->resolve_context("Option"_view));
+      static_cast<const Generic&>(monograph->resolve_concept("Option"_view));
   const Model::Type* option = nullptr;
   option_formula.materialize(arguments.get_view())
       .visit(
@@ -202,27 +208,29 @@ PERIMORTEM_UNIT_TEST(LibraryDefaults, contiguous_and_optional_values) {
           [](const Generic::Failure&) {});
   ASSERT(option && option->is<Types::Option>());
   auto option_default = option->create_default(domain);
-  ASSERT(option_default && option_default->is<Constants::Option>());
+  ASSERT(option_default && option_default->is_identity<Constants::Option>());
   const auto& option_value =
       static_cast<const Constants::Option&>(*option_default);
   EXPECT(option_value.get_kind() == Types::Option::Kind::Absent);
   EXPECT_NOT(option_value.get_payload());
 }
 
-PERIMORTEM_UNIT_TEST(LibraryDefaults, aggregate_order_and_fresh_identity) {
+PERIMORTEM_UNIT_TEST(LibraryDefaults, aggregate_defaults) {
   Allocator::Arena domain;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Tetrodotoxin::Environment::Workspace workspace(*workspace_toolchain);
-  Ttx::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Errors errors;
   auto monograph = import_types(workspace, errors);
   ASSERT(monograph);
   const auto& source_type = monograph->get_source();
-  const Abstract& inner = source_type.resolve_context("Inner"_view);
-  const Abstract& empty = source_type.resolve_context("Empty"_view);
+  const Abstract& inner = source_type.resolve_concept("Inner"_view);
+  const Abstract& empty = source_type.resolve_concept("Empty"_view);
   const Abstract& empty_object =
-      source_type.resolve_context("EmptyObject"_view);
-  const Abstract& structure = source_type.resolve_context("Packet"_view);
-  const Abstract& object = source_type.resolve_context("Session"_view);
+      source_type.resolve_concept("EmptyObject"_view);
+  const Abstract& structure = source_type.resolve_concept("Packet"_view);
+  const Abstract& object = source_type.resolve_concept("Session"_view);
   ASSERT(inner.is<Types::Structure>());
   ASSERT(empty.is<Types::Structure>());
   ASSERT(empty_object.is<Types::Object>());
@@ -232,7 +240,8 @@ PERIMORTEM_UNIT_TEST(LibraryDefaults, aggregate_order_and_fresh_identity) {
   auto structure_default =
       static_cast<const Model::Type&>(structure).create_default(domain);
   ASSERT(
-      structure_default && structure_default->is<Expressions::Initializer>());
+      structure_default &&
+      structure_default->is_identity<Expressions::Initializer>());
   const auto& structure_value =
       static_cast<const Expressions::Initializer&>(*structure_default);
   ASSERT(structure_value.get_completed_values());
@@ -256,8 +265,9 @@ PERIMORTEM_UNIT_TEST(LibraryDefaults, aggregate_order_and_fresh_identity) {
       static_cast<const Model::Type&>(object).create_default(domain);
   auto second_object =
       static_cast<const Model::Type&>(object).create_default(domain);
-  ASSERT(first_object && first_object->is<Expressions::Initializer>());
-  ASSERT(second_object && second_object->is<Expressions::Initializer>());
+  ASSERT(first_object && first_object->is_identity<Expressions::Initializer>());
+  ASSERT(
+      second_object && second_object->is_identity<Expressions::Initializer>());
   EXPECT(&*first_object != &*second_object);
   EXPECT(&first_object->get_type() == &object);
   EXPECT(&second_object->get_type() == &object);
@@ -267,21 +277,24 @@ PERIMORTEM_UNIT_TEST(LibraryDefaults, aggregate_order_and_fresh_identity) {
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(LibraryDefaults, fixed_default_and_empty_rejection) {
+PERIMORTEM_UNIT_TEST(LibraryDefaults, fixed_defaults) {
   Allocator::Arena domain;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Tetrodotoxin::Environment::Workspace workspace(*workspace_toolchain);
-  Ttx::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Errors errors;
   auto monograph = import_types(workspace, errors);
   ASSERT(monograph);
   const auto& u8 =
-      static_cast<const Model::Type&>(monograph->resolve_context("U8"_view));
+      static_cast<const Model::Type&>(monograph->resolve_concept("U8"_view));
   Types::Fixed fixed("Fixed[U8,3]"_view, u8, 3);
   Types::Fixed empty("Fixed[U8,0]"_view, u8, 0);
 
   auto fixed_default =
       static_cast<const Model::Type&>(fixed).create_default(domain);
-  ASSERT(fixed_default && fixed_default->is<Expressions::Initializer>());
+  ASSERT(
+      fixed_default && fixed_default->is_identity<Expressions::Initializer>());
   const auto& fixed_value =
       static_cast<const Expressions::Initializer&>(*fixed_default);
   ASSERT(fixed_value.get_completed_values());
@@ -299,39 +312,42 @@ PERIMORTEM_UNIT_TEST(LibraryDefaults, fixed_default_and_empty_rejection) {
   EXPECT_NOT(empty_default);
 }
 
-PERIMORTEM_UNIT_TEST(LibraryDefaults, enumeration_range_and_optional_default) {
+PERIMORTEM_UNIT_TEST(LibraryDefaults, domain_defaults) {
   Allocator::Arena domain;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Tetrodotoxin::Environment::Workspace workspace(*workspace_toolchain);
-  Ttx::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Errors errors;
   auto monograph = import_types(workspace, errors);
   ASSERT(monograph);
   const auto& source_type = monograph->get_source();
-  const Abstract& enumeration = source_type.resolve_context("Mode"_view);
-  const Abstract& safe = source_type.resolve_context("Safe"_view);
+  const Abstract& enumeration = source_type.resolve_concept("Mode"_view);
+  const Abstract& safe = source_type.resolve_concept("Safe"_view);
   ASSERT(enumeration.is<Types::Enumeration>());
   ASSERT(safe.is<Types::Object>());
 
   auto enumeration_default =
       static_cast<const Model::Type&>(enumeration).create_default(domain);
   ASSERT(
-      enumeration_default && enumeration_default->is<Constants::Enumeration>());
+      enumeration_default &&
+      enumeration_default->is_identity<Constants::Enumeration>());
   EXPECT_EQ(
       static_cast<const Constants::Enumeration&>(*enumeration_default)
           .get_value(),
       U64(0));
 
   const auto& u8 =
-      static_cast<const Model::Type&>(monograph->resolve_context("U8"_view));
+      static_cast<const Model::Type&>(monograph->resolve_concept("U8"_view));
   Types::Range range("Range[U8]"_view, u8);
   auto range_default =
       static_cast<const Model::Type&>(range).create_default(domain);
-  ASSERT(range_default && range_default->is<Constants::Range>());
+  ASSERT(range_default && range_default->is_identity<Constants::Range>());
   EXPECT(static_cast<const Constants::Range&>(*range_default).is_empty());
 
   auto safe_default =
       static_cast<const Model::Type&>(safe).create_default(domain);
-  ASSERT(safe_default && safe_default->is<Expressions::Initializer>());
+  ASSERT(safe_default && safe_default->is_identity<Expressions::Initializer>());
   const auto& safe_value =
       static_cast<const Expressions::Initializer&>(*safe_default);
   ASSERT(safe_value.get_completed_values());
@@ -343,17 +359,19 @@ PERIMORTEM_UNIT_TEST(LibraryDefaults, enumeration_range_and_optional_default) {
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(LibraryDefaults, unsupported_domains_are_absent) {
+PERIMORTEM_UNIT_TEST(LibraryDefaults, absent_defaults) {
   Allocator::Arena domain;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Tetrodotoxin::Environment::Workspace workspace(*workspace_toolchain);
-  Ttx::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Errors errors;
   auto monograph = import_types(workspace, errors);
   ASSERT(monograph);
 
   ForeignUnsigned foreign_unsigned;
   EXPECT_NOT(foreign_unsigned.create_default(domain));
-  EXPECT(monograph->resolve_context("Descriptor"_view).is<Invalid>());
+  EXPECT(monograph->resolve_concept("Descriptor"_view).is<Unknown>());
   EXPECT_NOT(
       static_cast<const Model::Type&>(monograph->get_source())
           .create_default(domain));

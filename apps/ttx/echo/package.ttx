@@ -1,11 +1,8 @@
-// Tetrodotoxin
-// Copyright (c) 2023-present Matt Kaes and contributors
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
 //
-// Records exact external Package requests and member Source routes. The Package
-// transaction resolves those requests before publishing any member Source.
+// Gives the application graph one public Package name.
 dialect : Package;
 
-resolve Memory : Perimortem.Memory = "1.0";
-resolve System : Perimortem.System = "1.0";
-source Main from "main.ttx";
-source App from "app.ttx";
+package(.name = "Perimortem.Echo", .version = "1.0");
+public App : alias = source("app.ttx");

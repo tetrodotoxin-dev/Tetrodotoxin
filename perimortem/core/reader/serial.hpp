@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -7,7 +7,7 @@
 
 namespace Perimortem::Core::Reader {
 
-// Reads self-describing values from a serial bytes following the Perimortem
+// Reads self describing values from a serial bytes following the Perimortem
 // Serial format.
 //
 // Values are encoded as 1 type byte along with there minimum byte form and are
@@ -20,7 +20,7 @@ namespace Perimortem::Core::Reader {
 // with their type byte marked with the negate flag.
 //
 // On any error the reader enters an invalid state and all subsequent reads
-// return zero-initialized values without advancing the cursor.
+// return zero initialized values without advancing the cursor.
 class Serial {
  public:
   // Stores a single read from a Serial stream.
@@ -67,13 +67,14 @@ class Serial {
   };
 
   constexpr Serial(View::Bytes source) : source(source) {}
-  constexpr Serial(const Serial& rhs) : source(rhs.source) {}
+  constexpr Serial(const Serial& rhs)
+      : source(rhs.source), cursor(rhs.cursor) {}
 
   // Sets the location of the read cursor.
   //
-  // An out-of-range location invalidates the reader by setting the position to
-  // Count(-1), so using `set_location(Count(-1))` is a cheap way to manually
-  // invalidate a reader.
+  // An out of range location invalidates the reader by setting the position to
+  // the maximum Count value. Converting negative one to Count offers callers a
+  // convenient spelling for that invalid state.
   constexpr auto set_location(Count location) -> void { cursor = location; }
   constexpr auto get_location() const -> Count { return cursor; }
 

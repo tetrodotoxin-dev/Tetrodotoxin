@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -14,7 +14,7 @@ class Flag : public Value {
  public:
   TTX_CONTRACT(Flag, Value);
 
-  auto accepts_constant(const Ttx::Concept::Abstract&) const -> Bool override;
+  auto accepts_constant(const Tetrodotoxin::Source::Abstract&) const -> Bool override;
 
   // Logical consumers retain a Pack rather than a storage representation.
   // The exact Flag Type therefore owns interpretation of its first completed

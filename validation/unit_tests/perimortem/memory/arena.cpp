@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/memory/allocator/arena.hpp"
@@ -72,4 +72,15 @@ PERIMORTEM_UNIT_TEST(Arena, owner_factory) {
 
   EXPECT_EQ(value.get_value(), U32(42));
   EXPECT(value.is_selected());
+}
+
+PERIMORTEM_UNIT_TEST(Arena, move_cursor) {
+  Allocator::Arena source;
+  auto* first = source.allocate(sizeof(U64)).get_data();
+  *Data::cast<U64>(first) = 42;
+
+  Allocator::Arena moved(static_cast<Allocator::Arena&&>(source));
+  auto* next = moved.allocate(sizeof(U64)).get_data();
+  EXPECT(next == first + sizeof(U64));
+  EXPECT_EQ(*Data::cast<U64>(first), U64(42));
 }

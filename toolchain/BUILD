@@ -1,3 +1,6 @@
+# # Tetrodotoxin
+# Copyright (c) 2023-present Matt Kaes and contributors
+
 "Clang config for Perimortem"
 
 load("@rules_cc//cc/toolchains:cc_toolchain.bzl", "cc_toolchain")

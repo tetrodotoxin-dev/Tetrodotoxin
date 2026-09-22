@@ -1,7 +1,9 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/operations/negate.hpp"
+
+#include "tetrodotoxin/source/documentation.hpp"
 
 #include "validation/unit_test.hpp"
 #include "validation/unit_tests/tetrodotoxin/library/language/fixture.hpp"
@@ -20,15 +22,15 @@
 #include "tetrodotoxin/library/language/types/s64.hpp"
 #include "tetrodotoxin/library/language/types/s8.hpp"
 #include "tetrodotoxin/library/language/types/u8.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Utility;
 using namespace Tetrodotoxin::Library::Language;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Validation;
 
 static Harness LibraryNegate = {
@@ -38,10 +40,10 @@ static Harness LibraryNegate = {
 static auto link_operation(Operation& operation, const Abstract& context)
     -> Bool {
   Allocator::Arena transaction;
-  Ttx::Lexical::Errors errors;
-  Ttx::Lexical::Tokenizer tokenizer(transaction, {}, "<operation>"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
-  Ttx::Lexical::Cursor cursor(tokenizer, errors, associations);
+  Tetrodotoxin::Source::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Tokenizer tokenizer(transaction, {}, "<operation>"_view);
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Cursor cursor(tokenizer, errors, associations);
   return operation.link(cursor, context);
 }
 
@@ -51,8 +53,8 @@ class NegateExpression : public Expression {
       : Expression({}), name(name), type(type) {}
 
   auto get_name() const -> View::Bytes override { return name; }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
   auto get_type() const -> const Abstract& override { return type; }
 
@@ -63,33 +65,40 @@ class NegateExpression : public Expression {
 
 static auto selected(
     const Result<Option<Model::Pack&>, Expression::Error>& result)
-    -> Option<Expression&> {
+    -> Option<Tetrodotoxin::Library::Language::Constant&> {
   return result.visit(
-      [](const Option<Model::Pack&>& folded) -> Option<Expression&> {
+      [](const Option<Model::Pack&>& folded)
+          -> Option<Tetrodotoxin::Library::Language::Constant&> {
         return folded.visit(
-            []() -> Option<Expression&> { return {}; },
-            [](Model::Pack& selected) -> Option<Expression&> {
-              return selected.select<Expression>();
+            []() -> Option<Tetrodotoxin::Library::Language::Constant&> {
+              return {};
+            },
+            [](Model::Pack& selected)
+                -> Option<Tetrodotoxin::Library::Language::Constant&> {
+              return selected
+                  .select_identity<Tetrodotoxin::Library::Language::Constant>();
             });
       },
-      [](const Expression::Error&) -> Option<Expression&> { return {}; });
+      [](const Expression::Error&)
+          -> Option<Tetrodotoxin::Library::Language::Constant&> { return {}; });
 }
 
 static auto reports(
     const Result<Option<Model::Pack&>, Expression::Error>& result,
     Expression::Error::Type expected,
-    const Expression& origin) -> Bool {
+    const Abstract& origin) -> Bool {
   return result.visit(
       [](const Option<Model::Pack&>&) { return False; },
       [&](const Expression::Error& error) {
-        return error.get_type() == expected &&
-                       &error.get_expression() == &origin
+        return error.get_type() == expected && &error.get_subject() == &origin
                    ? True
                    : False;
       });
 }
 
-static auto get_signed(const Expression& expression) -> Option<S64> {
+static auto get_signed(
+    const Tetrodotoxin::Library::Language::Constant& expression)
+    -> Option<S64> {
   return expression.visit<Constants::Signed>(
       [](const Constants::Signed& value) -> Option<S64> {
         return value.get_value();
@@ -97,7 +106,9 @@ static auto get_signed(const Expression& expression) -> Option<S64> {
       [](const Abstract&) -> Option<S64> { return {}; });
 }
 
-static auto get_real(const Expression& expression) -> Option<R64> {
+static auto get_real(
+    const Tetrodotoxin::Library::Language::Constant& expression)
+    -> Option<R64> {
   return expression.visit<Constants::Real>(
       [](const Constants::Real& value) -> Option<R64> {
         return value.get_value();
@@ -105,7 +116,7 @@ static auto get_real(const Expression& expression) -> Option<R64> {
       [](const Abstract&) -> Option<R64> { return {}; });
 }
 
-PERIMORTEM_UNIT_TEST(LibraryNegate, type_selection_and_partial) {
+PERIMORTEM_UNIT_TEST(LibraryNegate, type_selection) {
   Allocator::Arena domain;
   Tetrodotoxin::Library::Dialect producer;
   auto& source = create_library_monograph(domain, producer);
@@ -118,7 +129,7 @@ PERIMORTEM_UNIT_TEST(LibraryNegate, type_selection_and_partial) {
   NegateExpression signed_value("signed"_view, s8);
   NegateExpression real_value("real"_view, r32);
   NegateExpression unsigned_value("unsigned"_view, u8);
-  NegateExpression unresolved("unresolved"_view, Invalid::get_invalid());
+  NegateExpression unresolved("unresolved"_view, Unknown::get_unknown());
   auto& truth = Constants::True::create_synthetic(domain, boolean);
   auto& bytes =
       Constants::Bytes::create_synthetic(domain, bytes_type, "x"_view);
@@ -132,7 +143,7 @@ PERIMORTEM_UNIT_TEST(LibraryNegate, type_selection_and_partial) {
   auto& invalid_negate =
       Operations::Negate::create_synthetic(domain, unresolved);
 
-  EXPECT(signed_negate.get_type().resolve().is<Invalid>());
+  EXPECT(signed_negate.get_type().resolve().is<Unknown>());
   EXPECT_NOT(signed_negate.get_anchor());
   EXPECT(link_operation(signed_negate, source));
   EXPECT(link_operation(real_negate, source));
@@ -148,13 +159,13 @@ PERIMORTEM_UNIT_TEST(LibraryNegate, type_selection_and_partial) {
   EXPECT_NOT(real_result);
   EXPECT(&signed_negate.get_type() == &s8);
   EXPECT(&real_negate.get_type() == &r32);
-  EXPECT(unsigned_negate.get_type().resolve().is<Invalid>());
-  EXPECT(flag_negate.get_type().resolve().is<Invalid>());
-  EXPECT(bytes_negate.get_type().resolve().is<Invalid>());
-  EXPECT(invalid_negate.get_type().resolve().is<Invalid>());
+  EXPECT(unsigned_negate.get_type().resolve().is<Unknown>());
+  EXPECT(flag_negate.get_type().resolve().is<Unknown>());
+  EXPECT(bytes_negate.get_type().resolve().is<Unknown>());
+  EXPECT(invalid_negate.get_type().resolve().is<Unknown>());
 }
 
-PERIMORTEM_UNIT_TEST(LibraryNegate, checked_signed_widths) {
+PERIMORTEM_UNIT_TEST(LibraryNegate, signed_widths) {
   Allocator::Arena domain;
   Tetrodotoxin::Library::Dialect producer;
   auto& source = create_library_monograph(domain, producer);
@@ -175,7 +186,7 @@ PERIMORTEM_UNIT_TEST(LibraryNegate, checked_signed_widths) {
   auto& wide_minimum_negate =
       Operations::Negate::create_synthetic(domain, wide_minimum);
 
-  EXPECT(positive_negate.get_type().resolve().is<Invalid>());
+  EXPECT(positive_negate.get_type().resolve().is<Unknown>());
   EXPECT(link_operation(positive_negate, source));
   EXPECT(link_operation(negative_negate, source));
   EXPECT(link_operation(zero_negate, source));
@@ -231,7 +242,7 @@ PERIMORTEM_UNIT_TEST(LibraryNegate, ieee_real_domains) {
   auto& negative_zero_negate =
       Operations::Negate::create_synthetic(domain, negative_zero);
 
-  EXPECT(finite_32_negate.get_type().resolve().is<Invalid>());
+  EXPECT(finite_32_negate.get_type().resolve().is<Unknown>());
   EXPECT(link_operation(finite_32_negate, source));
   EXPECT(link_operation(finite_64_negate, source));
   EXPECT(link_operation(infinity_negate, source));
@@ -272,7 +283,7 @@ PERIMORTEM_UNIT_TEST(LibraryNegate, ieee_real_domains) {
   EXPECT(&finite_64_result->get_type() == &r64);
 }
 
-PERIMORTEM_UNIT_TEST(LibraryNegate, recursive_fold_and_provenance) {
+PERIMORTEM_UNIT_TEST(LibraryNegate, recursive_folding) {
   Allocator::Arena domain;
   Tetrodotoxin::Library::Dialect producer;
   auto& source = create_library_monograph(domain, producer);
@@ -285,7 +296,7 @@ PERIMORTEM_UNIT_TEST(LibraryNegate, recursive_fold_and_provenance) {
   auto& failing_parent =
       Operations::Negate::create_synthetic(domain, failing_child);
 
-  EXPECT(parent.get_type().resolve().is<Invalid>());
+  EXPECT(parent.get_type().resolve().is<Unknown>());
   EXPECT(link_operation(parent, source));
   EXPECT(link_operation(failing_parent, source));
 

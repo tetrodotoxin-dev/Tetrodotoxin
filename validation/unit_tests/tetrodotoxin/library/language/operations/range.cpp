@@ -1,7 +1,9 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/operations/range.hpp"
+
+#include "tetrodotoxin/source/documentation.hpp"
 
 #include "validation/unit_test.hpp"
 #include "validation/unit_tests/tetrodotoxin/library/language/fixture.hpp"
@@ -13,15 +15,15 @@
 #include "tetrodotoxin/library/language/types/s8.hpp"
 #include "tetrodotoxin/library/language/types/u16.hpp"
 #include "tetrodotoxin/library/language/types/u8.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Utility;
 using namespace Tetrodotoxin::Library::Language;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Validation;
 
 static Harness LibraryRange = {
@@ -35,8 +37,8 @@ class RangeExpression : public Expression {
 
   auto get_name() const -> View::Bytes override { return name; }
 
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
 
   auto get_type() const -> const Abstract& override { return type; }
@@ -52,14 +54,14 @@ static auto fold_is_dynamic(Operations::Range& range) -> Bool {
       [](const Expression::Error&) { return False; });
 }
 
-PERIMORTEM_UNIT_TEST(LibraryRange, exact_materialization) {
+PERIMORTEM_UNIT_TEST(LibraryRange, materialization) {
   Allocator::Arena domain;
   Tetrodotoxin::Library::Dialect producer;
   auto& source = create_library_monograph(domain, producer);
-  Ttx::Lexical::Errors errors;
-  Ttx::Lexical::Tokenizer tokenizer(domain, {}, "range-link.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
-  Ttx::Lexical::Cursor cursor(tokenizer, errors, associations);
+  Tetrodotoxin::Source::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Tokenizer tokenizer(domain, {}, "range-link.ttx"_view);
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Cursor cursor(tokenizer, errors, associations);
   Types::U8 u8;
   Types::S8 s8;
   RangeExpression unsigned_start("unsigned start"_view, u8);
@@ -96,10 +98,10 @@ PERIMORTEM_UNIT_TEST(LibraryRange, integer_legality) {
   Allocator::Arena domain;
   Tetrodotoxin::Library::Dialect producer;
   auto& source = create_library_monograph(domain, producer);
-  Ttx::Lexical::Errors errors;
-  Ttx::Lexical::Tokenizer tokenizer(domain, {}, "range-link.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
-  Ttx::Lexical::Cursor cursor(tokenizer, errors, associations);
+  Tetrodotoxin::Source::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Tokenizer tokenizer(domain, {}, "range-link.ttx"_view);
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Cursor cursor(tokenizer, errors, associations);
   Types::U8 u8;
   Types::U16 u16;
   Types::R32 r32;
@@ -107,7 +109,7 @@ PERIMORTEM_UNIT_TEST(LibraryRange, integer_legality) {
   RangeExpression other_width("other width"_view, u16);
   RangeExpression flag("flag"_view, resolve_library_flag(source));
   RangeExpression real("real"_view, r32);
-  RangeExpression unresolved("unresolved"_view, Invalid::get_invalid());
+  RangeExpression unresolved("unresolved"_view, Unknown::get_unknown());
   auto& mismatch =
       Operations::Range::create_synthetic(domain, unsigned_value, other_width);
   auto& bool_range = Operations::Range::create_synthetic(domain, flag, flag);

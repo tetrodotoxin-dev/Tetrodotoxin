@@ -1,110 +1,44 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/function.hpp"
 
 #include "perimortem/core/diagnostics/log.hpp"
 
-#include "tetrodotoxin/library/archive/declaration.hpp"
-#include "tetrodotoxin/library/llvm/builder.hpp"
-#include "ttx/concept/invalid.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Utility;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
 using Tetrodotoxin::Language::Visibility;
 
-auto Language::Function::persist(Archive::Writer& writer) const -> Bool {
-  auto record = writer.begin(Archive::Tag::Function);
-  Archive::Declaration declaration(definition);
-  return declaration.write(writer) && signature.persist(writer) &&
-         writer.finish(record);
+auto Language::Function::create_authored(
+    Allocator::Arena& domain,
+    Tetrodotoxin::Language::Definition& definition,
+    Signature& signature) -> Function& {
+  return create(domain, definition, signature);
 }
 
-auto Language::Function::restore(
-    Archive::Reader& reader,
-    Allocator::Arena& arena,
-    Abstract& host) -> Option<Function&> {
-  auto record = reader.read_record();
-  BAIL_IF(
-      !record || record->get_tag() != U16(Archive::Tag::Function) ||
-      record->is_optional());
-
-  Archive::Reader contents(record->get_payload());
-  auto declaration = Archive::Declaration::read(contents, arena);
-  auto signature = Signature::restore(contents, arena, host);
-  BAIL_IF(!declaration || !signature || !contents.is_complete());
-
-  auto& definition = declaration->create_definition(arena, host);
-  return arena.construct_from<Function>(
-      [&]() -> Function { return Function(definition, *signature); });
+auto Language::Function::create(
+    Allocator::Arena& domain,
+    Tetrodotoxin::Language::Definition& definition,
+    Signature& signature) -> Function& {
+  return domain.construct_from<Function>(
+      [&]() -> Function { return Function(definition, signature); });
 }
 
-static auto validate_authored_function(
-    Cursor& cursor,
-    const Tetrodotoxin::Language::Definition& definition) -> Bool {
-  if (definition.get_name_token().get_code() != Code::Type::Addressable) {
-    cursor.create_token_error(
-        definition.get_name_token(),
-        "Library Functions require an authored addressable name."_view);
-    return False;
+auto Language::Function::complete_body(Flow::Block& selected) -> Bool {
+  if (body) {
+    return &*body == &selected;
   }
 
-  if (definition.get_visibility() == Visibility::Exposed) {
-    cursor.create_token_error(
-        definition.get_visibility_token(),
-        "Library Functions accept only `public` or `private` visibility."_view);
-    return False;
-  }
-
-  if (!definition.get_modifiers().is_empty()) {
-    cursor.create_token_error(
-        definition.get_modifiers().get_data()[0],
-        "Library Functions do not accept evaluation modifiers."_view);
-    return False;
-  }
-
-  // Attributes remain ordered source facts until an actual consumer asks for
-  // one of their keys. Function therefore validates only its own grammar and
-  // cannot constrain compiler, target, or embedding language extensions.
+  body = selected;
   return True;
-}
-
-auto Language::Function::interpret(
-    Cursor& cursor,
-    Tetrodotoxin::Language::Definition& definition) -> Option<Function&> {
-  Allocator::Arena& domain = cursor.get_arena();
-  BAIL_IF(!validate_authored_function(cursor, definition));
-  // Definition host is the Function's exact Type context and access authority.
-  // No concrete member inventory participates in Function semantics.
-  BAIL_IF(!definition.get_host().is<Language::Model::Type>());
-
-  BAIL_IF(!cursor.require(
-      Code::Type::Func,
-      "Library Function definitions require the `func` qualifier."_view));
-  BAIL_IF(!cursor.require(
-      Code::Type::Assign,
-      "Library Function qualifiers require `=` before their signature."_view));
-
-  auto parsed_signature = Signature::interpret(cursor, definition.get_host());
-  BAIL_IF(!parsed_signature);
-
-  Function& function = domain.construct_from<Function>(
-      [&]() -> Function { return Function(definition, *parsed_signature); });
-  auto parsed_body =
-      Flow::Block::interpret(cursor, function, function, function.get_host());
-  BAIL_IF(!parsed_body);
-  BAIL_IF(!function.definition.complete(
-      definition.get_qualifier(),
-      parsed_body->get_anchor().get_span().get_end()));
-
-  function.body = *parsed_body;
-  return function;
 }
 
 Language::Function::Function(
@@ -132,7 +66,7 @@ auto Language::Function::link_declaration_body(Cursor& cursor) -> Bool {
   BAIL_IF(!body);
 
   // Signature edges publish before Block linking so every Identifier can reach
-  // the exact Parameter object created for its authored declaration.
+  // the exact Layout-owned Addressable for its authored parameter slot.
   BAIL_IF(!body->link(cursor));
   if (!get_results().is_empty() && !get_self_result() &&
       body->reaches_next_statement()) {
@@ -165,16 +99,17 @@ auto Language::Function::finalize_declaration(Cursor& cursor) -> Bool {
 
 auto Language::Function::resolve() const -> const Abstract& {
   if (!is_signature_linked()) {
-    return Invalid::get_invalid();
+    return Unknown::get_unknown();
   }
 
   return *this;
 }
 
-auto Language::Function::resolve_context(View::Bytes route) const
+auto Language::Function::resolve_concept(View::Bytes route) const
     -> const Abstract& {
-  const Abstract& parameter = signature.get_parameters().resolve_named(route);
-  if (&parameter != &Invalid::get_invalid()) {
+  const Abstract& parameter =
+      signature.get_parameters().resolve_named(route, get_host());
+  if (&parameter != &Unknown::get_unknown()) {
     return parameter;
   }
 
@@ -206,86 +141,4 @@ auto Language::Function::get_body() const -> Option<const Flow::Block&> {
 
 auto Language::Function::is_signature_linked() const -> Bool {
   return signature.is_linked();
-}
-
-auto Language::Function::reserve_declaration(Llvm::Program& program) const
-    -> Bool {
-  const auto& functions = program.get_functions();
-  auto reserved = functions.reserve_function(program, *this, definition);
-  if (!reserved) {
-    return False;
-  }
-
-  return !*reserved || Model::Callable::reserve_declaration(program);
-}
-
-auto Language::Function::complete_declaration(Llvm::Program& program) const
-    -> Bool {
-  const auto& functions = program.get_functions();
-  Bool signature_completed = Model::Callable::complete_declaration(program);
-  if (!signature_completed) {
-    return False;
-  }
-
-  return functions.complete(program, *this);
-}
-
-auto Language::Function::lower_declaration(Llvm::Program& program) const
-    -> Bool {
-  const auto& functions = program.get_functions();
-  auto selected_body = get_body();
-  if (!selected_body) {
-    Perimortem::Core::Diagnostics::Log::error(
-        "Library LLVM lowering found a Function without its completed Body."_view);
-    return False;
-  }
-
-  auto lowering = functions.begin_body(program, *this);
-  if (!lowering) {
-    Perimortem::Core::Diagnostics::Log::error(
-        "Library LLVM lowering could not begin one Function Body."_view);
-    return False;
-  }
-
-  Llvm::Body native_body(
-      program, *this, lowering->get_function(), lowering->get_callable(),
-      lowering->get_sret(), lowering->get_sret_type());
-  if (!functions.bind_parameters(native_body, *this)) {
-    return False;
-  }
-
-  Llvm::Builder body(native_body);
-
-  if (!body.begin_function(*this, definition)) {
-    return False;
-  }
-
-  const Model::Layout& parameters = signature.get_parameters();
-  for (Count index = 0; index < parameters.get_size(); index++) {
-    auto entry = parameters.get_abstract(index);
-    auto parameter = entry ? entry->select<Ttx::Model::Addressable>()
-                           : Option<const Ttx::Model::Addressable&>();
-    auto anchor = parameters.get_slot_anchor(index);
-    if (!parameter ||
-        !body.parameter(
-            *parameter, anchor ? *anchor : definition.get_anchor(), index)) {
-      return False;
-    }
-  }
-
-  Bool lowered = selected_body->lower(body);
-  if (!lowered) {
-    Perimortem::Core::Diagnostics::Log::Message<256> message(
-        Perimortem::Core::Diagnostics::Log::Level::Error,
-        Perimortem::Core::Diagnostics::Source());
-    message << "Library LLVM lowering could not emit Function '"_view
-            << get_name() << "'."_view;
-    return False;
-  }
-
-  if (!body.end_function()) {
-    return False;
-  }
-
-  return functions.end_body(native_body, *this);
 }

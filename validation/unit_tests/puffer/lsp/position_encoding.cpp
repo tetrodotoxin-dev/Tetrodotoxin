@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "puffer/lsp/position_encoding.hpp"
@@ -32,33 +32,31 @@ static auto matches_position(
   return Bool(restored && *restored == offset);
 }
 
-PERIMORTEM_UNIT_TEST(PufferLspPositionEncoding, utf_8_uses_byte_coordinates) {
-  PositionEncoding encoding(PositionEncoding::Kind::Utf8);
-  EXPECT(encoding.get_name() == "utf-8"_view);
-  EXPECT(matches_position(encoding, 0, 0, 0));
-  EXPECT(matches_position(encoding, 1, 0, 1));
-  EXPECT(matches_position(encoding, 5, 0, 5));
-  EXPECT(matches_position(encoding, 6, 0, 6));
-  EXPECT(matches_position(encoding, 7, 1, 0));
-  EXPECT(matches_position(encoding, 9, 1, 2));
-  EXPECT(matches_position(encoding, 12, 1, 5));
-  EXPECT(matches_position(encoding, 13, 1, 6));
+PERIMORTEM_UNIT_TEST(PufferLspPositionEncoding, coordinates) {
+  PositionEncoding utf_8(PositionEncoding::Kind::Utf8);
+  EXPECT(utf_8.get_name() == "utf-8"_view);
+  EXPECT(matches_position(utf_8, 0, 0, 0));
+  EXPECT(matches_position(utf_8, 1, 0, 1));
+  EXPECT(matches_position(utf_8, 5, 0, 5));
+  EXPECT(matches_position(utf_8, 6, 0, 6));
+  EXPECT(matches_position(utf_8, 7, 1, 0));
+  EXPECT(matches_position(utf_8, 9, 1, 2));
+  EXPECT(matches_position(utf_8, 12, 1, 5));
+  EXPECT(matches_position(utf_8, 13, 1, 6));
+
+  PositionEncoding utf_16;
+  EXPECT(utf_16.get_name() == "utf-16"_view);
+  EXPECT(matches_position(utf_16, 0, 0, 0));
+  EXPECT(matches_position(utf_16, 1, 0, 1));
+  EXPECT(matches_position(utf_16, 5, 0, 3));
+  EXPECT(matches_position(utf_16, 6, 0, 4));
+  EXPECT(matches_position(utf_16, 7, 1, 0));
+  EXPECT(matches_position(utf_16, 9, 1, 1));
+  EXPECT(matches_position(utf_16, 12, 1, 2));
+  EXPECT(matches_position(utf_16, 13, 1, 3));
 }
 
-PERIMORTEM_UNIT_TEST(PufferLspPositionEncoding, utf_16_uses_code_units) {
-  PositionEncoding encoding;
-  EXPECT(encoding.get_name() == "utf-16"_view);
-  EXPECT(matches_position(encoding, 0, 0, 0));
-  EXPECT(matches_position(encoding, 1, 0, 1));
-  EXPECT(matches_position(encoding, 5, 0, 3));
-  EXPECT(matches_position(encoding, 6, 0, 4));
-  EXPECT(matches_position(encoding, 7, 1, 0));
-  EXPECT(matches_position(encoding, 9, 1, 1));
-  EXPECT(matches_position(encoding, 12, 1, 2));
-  EXPECT(matches_position(encoding, 13, 1, 3));
-}
-
-PERIMORTEM_UNIT_TEST(PufferLspPositionEncoding, rejects_partial_codepoints) {
+PERIMORTEM_UNIT_TEST(PufferLspPositionEncoding, partial_codepoints) {
   PositionEncoding utf_8(PositionEncoding::Kind::Utf8);
   PositionEncoding utf_16;
   EXPECT(!utf_8.locate(source, 2));

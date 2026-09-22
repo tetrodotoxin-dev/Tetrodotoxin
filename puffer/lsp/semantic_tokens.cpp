@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "puffer/lsp/semantic_tokens.hpp"
@@ -9,15 +9,20 @@
 
 #include "perimortem/serialization/json/blueprint.hpp"
 
+#include "tetrodotoxin/app/language/runtime.hpp"
+#include "tetrodotoxin/app/language/scene.hpp"
+#include "tetrodotoxin/app/language/transition.hpp"
 #include "tetrodotoxin/library/language/generic.hpp"
-#include "ttx/lexical/lexicon.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/scene/language/signal.hpp"
+#include "tetrodotoxin/source/lexical/lexicon.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/callable.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Serialization;
 using namespace Puffer;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 
 enum SemanticToken : S64 {
   SemanticNamespace,
@@ -34,25 +39,8 @@ enum SemanticToken : S64 {
   SemanticOperator,
   SemanticDecorator,
   SemanticGeneric,
+  SemanticRawComment,
 };
-
-static auto should_filter_shader_keyword(Code code) -> Bool {
-  switch (code.get_type()) {
-  case Code::Type::If:
-  case Code::Type::In:
-  case Code::Type::For:
-  case Code::Type::Break:
-  case Code::Type::Continue:
-  case Code::Type::Case:
-  case Code::Type::Else:
-  case Code::Type::Match:
-  case Code::Type::While:
-    return True;
-
-  default:
-    return False;
-  }
-}
 
 static auto has_newline(View::Bytes text) -> Bool {
   return Algorithm::search(text, "\n"_view) != Count(-1);
@@ -62,6 +50,8 @@ static auto classify_semantic_token(Code code) -> S64 {
   switch (code.get_type()) {
   case Code::Type::Comment:
     return SemanticComment;
+  case Code::Type::RawComment:
+    return SemanticRawComment;
 
   case Code::Type::String:
   case Code::Type::Embedded:
@@ -79,6 +69,7 @@ static auto classify_semantic_token(Code code) -> S64 {
 
   case Code::Type::Type:
   case Code::Type::Alias:
+  case Code::Type::Namespace:
     return SemanticType;
 
   case Code::Type::Addressable:
@@ -141,6 +132,7 @@ static auto source_dialect(View::Vector<Token> tokens, View::Bytes source)
       if (code == Code::Type::EndStatement) {
         break;
       }
+
       if (code == Code::Type::Define) {
         has_define = True;
       } else if (has_define && code == Code::Type::Type) {
@@ -152,6 +144,20 @@ static auto source_dialect(View::Vector<Token> tokens, View::Bytes source)
   return "Library"_view;
 }
 
+static auto associated_semantic(Token token, const Associations* associations)
+    -> Option<const Tetrodotoxin::Source::Abstract&> {
+  BAIL_IF(!associations);
+  for (const Associations::Entry& entry : associations->get_entries()) {
+    Token focus = entry.get_anchor().get_token();
+    if (focus.get_offset() == token.get_offset() &&
+        focus.get_size() == token.get_size()) {
+      return entry.get_semantic();
+    }
+  }
+
+  return {};
+}
+
 static auto contextual_semantic_token(
     View::Vector<Token> tokens,
     Count index,
@@ -159,17 +165,25 @@ static auto contextual_semantic_token(
     View::Bytes dialect,
     const Associations* associations) -> S64 {
   Code code = tokens[index].get_code();
-  if (code == Code::Type::Type && associations) {
-    Token token = tokens[index];
-    for (const Associations::Entry& entry : associations->get_entries()) {
-      Token focus = entry.get_anchor().get_token();
-      if (focus.get_offset() == token.get_offset() &&
-          focus.get_size() == token.get_size() &&
-          entry.get_semantic().is<Tetrodotoxin::Library::Language::Generic>()) {
-        return SemanticGeneric;
-      }
+  View::Bytes text = tokens[index].caculate_text(source);
+  auto semantic = associated_semantic(tokens[index], associations);
+  if (semantic) {
+    if (semantic->is<Tetrodotoxin::Library::Language::Generic>()) {
+      return SemanticGeneric;
+    } else if (semantic->is<Tetrodotoxin::Source::Callable>()) {
+      return SemanticFunction;
+    } else if (
+        semantic->is<Tetrodotoxin::App::Language::Runtime>() ||
+        semantic->is<Tetrodotoxin::App::Language::Scene>() ||
+        semantic->is<Tetrodotoxin::App::Language::Transition>()) {
+      return SemanticKeyword;
+    } else if (
+        auto signal =
+            semantic->select<Tetrodotoxin::Scene::Language::Signal>()) {
+      return text == signal->get_name() ? SemanticProperty : SemanticKeyword;
     }
   }
+
   if (code != Code::Type::Addressable) {
     return classify_semantic_token(code);
   }
@@ -177,20 +191,29 @@ static auto contextual_semantic_token(
   if (dialect == "Library"_view &&
       tokens[index].caculate_text(source) == "foreign"_view) {
     return SemanticKeyword;
+  } else if (
+      (dialect == "Pipeline"_view || dialect == "Shader"_view) &&
+      (text == "stage"_view || text == "resource"_view || text == "push"_view ||
+       text == "shader"_view || text == "bridge"_view)) {
+    return SemanticKeyword;
   }
 
   Code previous =
       index == 0 ? Code::Type::Unknown : tokens[index - 1].get_code();
   if (previous == Code::Type::CallOp || previous == Code::Type::Func) {
     return SemanticFunction;
-  }
-  if (previous == Code::Type::AddressOp) {
+  } else if (previous == Code::Type::AddressOp) {
     return SemanticProperty;
   }
+
   if (index + 2 < tokens.get_size() &&
-      tokens[index + 1].get_code() == Code::Type::Define &&
-      tokens[index + 2].get_code() == Code::Type::Func) {
-    return SemanticFunction;
+      tokens[index + 1].get_code() == Code::Type::Define) {
+    Token qualifier = tokens[index + 2];
+    if (qualifier.get_code() == Code::Type::Func ||
+        (dialect == "Pipeline"_view &&
+         qualifier.caculate_text(source) == "stage"_view)) {
+      return SemanticFunction;
+    }
   }
 
   return SemanticVariable;
@@ -215,6 +238,7 @@ auto Lsp::semantic_legend(Allocator::Arena& arena) -> Json::Node {
          "operator"_view,
          "decorator"_view,
          "generic"_view,
+         "rawComment"_view,
        }},
       Json::Blueprint::empty_array("tokenModifiers"_view),
     }}.construct(arena);
@@ -254,11 +278,6 @@ auto Lsp::semantic_tokens_for(
   Bool emitted = False;
   for (Count i = 0; i < tokens.get_size(); i++) {
     Token token = tokens[i];
-    if (dialect == "Shader"_view &&
-        should_filter_shader_keyword(token.get_code())) {
-      continue;
-    }
-
     View::Bytes text = token.caculate_text(source);
     if (text.is_empty() || has_newline(text)) {
       continue;
@@ -278,6 +297,7 @@ auto Lsp::semantic_tokens_for(
       start_offset -= prefix;
       byte_width += prefix;
     }
+
     auto start = encoding.locate(source, start_offset);
     auto end = encoding.locate(source, start_offset + byte_width);
     if (!start || !end || start->get_line() != end->get_line()) {

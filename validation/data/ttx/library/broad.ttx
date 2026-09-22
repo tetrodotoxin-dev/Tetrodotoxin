@@ -1,3 +1,5 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
 //
 dialect : Library;
 
@@ -25,11 +27,11 @@ public broad_entry : func = [.limit : U64, .ready : Bool] -> U64 {
   state negative   : S64 = -1;
   state accepted   : Bool = ready and limit > 0;
   state session    : Session = new[Session];
-  if (accepted) : local = Packet -> identity(limit);
+  if accepted : local = Packet -> identity(limit);
   while (local < limit) {
     local += 1;
-    if (local == 2) : continue;
-    if (!ready or local >= limit) : break;
+    if local == 2 : continue;
+    if !ready or local >= limit : break;
   }
 
   for [.index : U64] in 0...limit : local += index;

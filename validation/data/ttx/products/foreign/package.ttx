@@ -1,0 +1,8 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+
+dialect : Package;
+package(.name = "Validation.Foreign", .version = "1.0");
+
+public Foreign : alias = source("foreign.ttx");

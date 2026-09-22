@@ -1,0 +1,14 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+// Color modulation for one graphics draw.
+//
+dialect : Library;
+
+// Opaque white preserves the source color unchanged.
+public Tone : struct {
+  public state red   : R64 = 1.0;
+  public state green : R64 = 1.0;
+  public state blue  : R64 = 1.0;
+  public state alpha : R64 = 1.0;
+}

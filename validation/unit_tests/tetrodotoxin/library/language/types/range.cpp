@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/types/range.hpp"
@@ -13,13 +13,14 @@
 #include "tetrodotoxin/library/dialect.hpp"
 #include "tetrodotoxin/library/language/generics/range.hpp"
 #include "tetrodotoxin/library/language/types/s16.hpp"
-#include "ttx/concept/invalid.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Tetrodotoxin::Library;
 using namespace Tetrodotoxin::Library::Language;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Validation;
 
 static Harness LibraryRange = {
@@ -31,7 +32,7 @@ PERIMORTEM_UNIT_TEST(LibraryRange, direct_contract) {
   Types::Range range("Range[S16]"_view, element);
 
   EXPECT(range.is<Types::Range>());
-  EXPECT(range.is<Ttx::Model::Type>());
+  EXPECT(range.is<Tetrodotoxin::Source::Type>());
   EXPECT(range.is<Abstract>());
   EXPECT_NOT(range.is<Generic>());
   EXPECT_TEXT(range.get_name(), "Range[S16]"_view);
@@ -39,7 +40,7 @@ PERIMORTEM_UNIT_TEST(LibraryRange, direct_contract) {
   ASSERT_EQ(range.get_layout().get_size(), Count(1));
   EXPECT(&*range.get_layout().get_abstract(0) == &range);
   EXPECT_NOT(range.get_documentation().is_empty());
-  EXPECT(&range.resolve_context("member"_view) == &Invalid::get_invalid());
+  EXPECT(&range.resolve_concept("member"_view) == &None::get_none());
 }
 
 PERIMORTEM_UNIT_TEST(LibraryRange, formula_legality) {
@@ -47,7 +48,7 @@ PERIMORTEM_UNIT_TEST(LibraryRange, formula_legality) {
   Dialect dialect;
   auto& root = create_library_monograph(domain, dialect);
   const auto& formula =
-      static_cast<const Generic&>(root.resolve_context("Range"_view));
+      static_cast<const Generic&>(root.resolve_concept("Range"_view));
   const Static::Vector<Generic::Argument, 1> signed_argument = {{
     Generic::Argument(resolve_library_signed(root, "S8"_view)),
   }};
@@ -128,12 +129,12 @@ PERIMORTEM_UNIT_TEST(LibraryRange, formula_legality) {
                  }));
 }
 
-PERIMORTEM_UNIT_TEST(LibraryRange, materialization_identity) {
+PERIMORTEM_UNIT_TEST(LibraryRange, stable_identity) {
   Allocator::Arena domain;
   Dialect dialect;
   auto& root = create_library_monograph(domain, dialect);
   const auto& formula =
-      static_cast<const Generic&>(root.resolve_context("Range"_view));
+      static_cast<const Generic&>(root.resolve_concept("Range"_view));
   const Static::Vector<Generic::Argument, 1> first_argument = {{
     Generic::Argument(resolve_library_unsigned(root, "U8"_view)),
   }};

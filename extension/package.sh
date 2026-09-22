@@ -1,5 +1,5 @@
 #!/bin/bash
-# Tetrodotoxin
+# # Tetrodotoxin
 # Copyright (c) 2023-present Matt Kaes and contributors
 #
 # Builds Puffer and synchronizes the VSCode extension LSP server. The default
@@ -16,8 +16,14 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 VSIX_DIR="$REPO_ROOT/.vscode"
 SERVER_BIN="$REPO_ROOT/.bin/bin/puffer/puffer"
 PACKAGE_SERVER="$SCRIPT_DIR/puffer"
-PACKAGE_MEMORY="$SCRIPT_DIR/packages/Perimortem.Memory"
-PACKAGE_SYSTEM="$SCRIPT_DIR/packages/Perimortem.System"
+PACKAGE_GRAPHICS_ROOT="$SCRIPT_DIR/packages/Perimortem.Graphics"
+PACKAGE_MATH_ROOT="$SCRIPT_DIR/packages/Perimortem.Math"
+PACKAGE_MEMORY_ROOT="$SCRIPT_DIR/packages/Perimortem.Memory"
+PACKAGE_SYSTEM_ROOT="$SCRIPT_DIR/packages/Perimortem.System"
+PACKAGE_GRAPHICS="$PACKAGE_GRAPHICS_ROOT/1.0"
+PACKAGE_MATH="$PACKAGE_MATH_ROOT/1.0"
+PACKAGE_MEMORY="$PACKAGE_MEMORY_ROOT/1.0"
+PACKAGE_SYSTEM="$PACKAGE_SYSTEM_ROOT/1.0"
 
 INSTALL=0
 SYNC=0
@@ -34,9 +40,14 @@ if [ "$INSTALL" -eq 1 ] && [ "$SYNC" -eq 1 ]; then
   exit 1
 fi
 
-echo "==> Building Puffer LSP server (release)..."
+echo "==> Building the Puffer SDK and standard Packages (release)..."
 cd "$REPO_ROOT"
-bazel build --config=release //puffer:puffer
+bazel build --config=release \
+  //puffer:puffer \
+  //packages/ttx:perimortem_graphics \
+  //packages/ttx:perimortem_math \
+  //packages/ttx:perimortem_memory \
+  //packages/ttx:perimortem_system
 
 if [ ! -x "$SERVER_BIN" ]; then
   echo "Expected server binary was not created: $SERVER_BIN" >&2
@@ -48,11 +59,38 @@ rm -f "$PACKAGE_SERVER" "$SCRIPT_DIR/ttx-lang-server"
 cp -L "$SERVER_BIN" "$PACKAGE_SERVER"
 chmod 755 "$PACKAGE_SERVER"
 
-echo "==> Copying standard Packages into extension package..."
-rm -rf "$PACKAGE_MEMORY" "$PACKAGE_SYSTEM"
-mkdir -p "$PACKAGE_MEMORY" "$PACKAGE_SYSTEM"
-cp "$REPO_ROOT/packages/ttx/Perimortem.Memory/"*.ttx "$PACKAGE_MEMORY/"
-cp "$REPO_ROOT/packages/ttx/Perimortem.System/"*.ttx "$PACKAGE_SYSTEM/"
+echo "==> Copying versioned standard Package sources, resources, and products..."
+rm -rf \
+  "$PACKAGE_GRAPHICS_ROOT" \
+  "$PACKAGE_MATH_ROOT" \
+  "$PACKAGE_MEMORY_ROOT" \
+  "$PACKAGE_SYSTEM_ROOT"
+mkdir -p \
+  "$PACKAGE_GRAPHICS" \
+  "$PACKAGE_MATH" \
+  "$PACKAGE_MEMORY" \
+  "$PACKAGE_SYSTEM"
+cp -RL "$REPO_ROOT/packages/ttx/Perimortem.Graphics/." "$PACKAGE_GRAPHICS/"
+cp -RL "$REPO_ROOT/packages/ttx/Perimortem.Math/." "$PACKAGE_MATH/"
+cp -RL "$REPO_ROOT/packages/ttx/Perimortem.Memory/." "$PACKAGE_MEMORY/"
+cp -RL "$REPO_ROOT/packages/ttx/Perimortem.System/." "$PACKAGE_SYSTEM/"
+cp -RL "$REPO_ROOT/.bin/bin/packages/ttx/Perimortem.Graphics/1.0/." "$PACKAGE_GRAPHICS/"
+cp -RL "$REPO_ROOT/.bin/bin/packages/ttx/Perimortem.Math/1.0/." "$PACKAGE_MATH/"
+cp -RL "$REPO_ROOT/.bin/bin/packages/ttx/Perimortem.Memory/1.0/." "$PACKAGE_MEMORY/"
+cp -RL "$REPO_ROOT/.bin/bin/packages/ttx/Perimortem.System/1.0/." "$PACKAGE_SYSTEM/"
+mkdir -p \
+  "$PACKAGE_GRAPHICS/native/x86_64-sysv-linux" \
+  "$PACKAGE_MATH/native/x86_64-sysv-linux" \
+  "$PACKAGE_MEMORY/native/x86_64-sysv-linux" \
+  "$PACKAGE_SYSTEM/native/x86_64-sysv-linux"
+cp -L "$REPO_ROOT/.bin/bin/packages/ttx/libperimortem_graphics.a" \
+  "$PACKAGE_GRAPHICS/native/x86_64-sysv-linux/package.a"
+cp -L "$REPO_ROOT/.bin/bin/packages/ttx/libperimortem_math.a" \
+  "$PACKAGE_MATH/native/x86_64-sysv-linux/package.a"
+cp -L "$REPO_ROOT/.bin/bin/packages/ttx/libperimortem_memory.a" \
+  "$PACKAGE_MEMORY/native/x86_64-sysv-linux/package.a"
+cp -L "$REPO_ROOT/.bin/bin/packages/ttx/libperimortem_system.a" \
+  "$PACKAGE_SYSTEM/native/x86_64-sysv-linux/package.a"
 
 if [ -L "$PACKAGE_SERVER" ]; then
   echo "Packaged server must be a real file, not a symlink: $PACKAGE_SERVER" >&2

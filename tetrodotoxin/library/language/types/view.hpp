@@ -1,11 +1,11 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
 
 #include "tetrodotoxin/library/language/types/contiguous.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/model/documentations/comment.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/documentations/comment.hpp"
 
 namespace Tetrodotoxin::Library::Language::Types {
 
@@ -34,12 +34,6 @@ class View : public Contiguous {
 
   auto accepts(const Model::Pack& source) const -> Bool override;
 
-  auto reserve(Llvm::Program& program) const -> Bool override;
-
-  auto complete(Llvm::Program& program) const -> Bool override;
-
-  TTX_CONSTEXPR_INVALID_CONTEXT;
-
   constexpr auto get_element_type() const -> const Model::Type& override {
     return element;
   }
@@ -47,7 +41,7 @@ class View : public Contiguous {
  private:
   Perimortem::Core::View::Bytes name;
   const Model::Type& element;
-  static constexpr Ttx::Model::Documentations::Comment documentation{
+  static constexpr Tetrodotoxin::Source::Documentations::Comment documentation{
     "Provides read-only access to contiguous values."_view,
   };
 };

@@ -1,12 +1,16 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/graphics/image.hpp"
+#include "perimortem/graphics/sampler_2d.hpp"
+#include "perimortem/graphics/texture_2d.hpp"
 
 #include "validation/unit_test.hpp"
 
 #include "perimortem/core/data.hpp"
 #include "perimortem/core/null_terminated.hpp"
+
+#include "perimortem/graphics/frame/resource.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Graphics;
@@ -17,9 +21,9 @@ static Harness GraphicsImage = {
   .name = "Graphics::Image"_view,
 };
 
-PERIMORTEM_UNIT_TEST(GraphicsImage, zero_addressing_edge) {
+PERIMORTEM_UNIT_TEST(GraphicsImage, reads_content_without_sampling_policy) {
   Dynamic::Vector<Pixel> pixels;
-  pixels.emplace(Pixel(0x11, 0x22, 0x33, 0x44));
+  pixels.emplace(Pixel::from_rgba(0x11, 0x22, 0x33, 0x44));
   Image image(Data::take(pixels), 1, 1);
 
   const Pixel horizontal_edge = image.get_pixel(1, 0);
@@ -30,42 +34,41 @@ PERIMORTEM_UNIT_TEST(GraphicsImage, zero_addressing_edge) {
   EXPECT_EQ(vertical_edge.alpha, U8(0));
 }
 
-PERIMORTEM_UNIT_TEST(GraphicsImage, clamp_addressing_edge) {
+PERIMORTEM_UNIT_TEST(GraphicsImage, texture_values_share_one_image) {
   Dynamic::Vector<Pixel> pixels;
-  pixels.emplace(Pixel(0x11, 0x22, 0x33, 0x44));
-  pixels.emplace(Pixel(0x55, 0x66, 0x77, 0x88));
-  Image image(Data::take(pixels), 2, 1, Image::Addressing::Clamp);
+  pixels.emplace(Pixel::from_rgba(0x11, 0x22, 0x33, 0x44));
+  pixels.emplace(Pixel::from_rgba(0x55, 0x66, 0x77, 0x88));
+  Image image(Data::take(pixels), 2, 1);
+  Texture2D wrapped(
+      image,
+      Sampler2D(
+          Sampler2D::Addressing::Wrap, Sampler2D::Filtering::Linear));
+  Texture2D clamped(
+      image,
+      Sampler2D(
+          Sampler2D::Addressing::Clamp, Sampler2D::Filtering::Nearest));
 
-  const Pixel left = image.get_pixel(-1, 0);
-  const Pixel right = image.get_pixel(2, 0);
-  EXPECT_EQ(left.red, U8(0x11));
-  EXPECT_EQ(left.alpha, U8(0x44));
-  EXPECT_EQ(right.red, U8(0x55));
-  EXPECT_EQ(right.alpha, U8(0x88));
-}
+  EXPECT_EQ(
+      wrapped.get_image().get_object().get_payload(),
+      clamped.get_image().get_object().get_payload());
+  EXPECT(
+      wrapped.get_sampler().get_addressing() ==
+      Sampler2D::Addressing::Wrap);
+  EXPECT(
+      clamped.get_sampler().get_addressing() ==
+      Sampler2D::Addressing::Clamp);
+  EXPECT(
+      wrapped.get_sampler().get_filtering() ==
+      Sampler2D::Filtering::Linear);
+  EXPECT(
+      clamped.get_sampler().get_filtering() ==
+      Sampler2D::Filtering::Nearest);
 
-PERIMORTEM_UNIT_TEST(GraphicsImage, wrap_addressing_domain) {
-  Dynamic::Vector<Pixel> pixels;
-  pixels.emplace(Pixel(0x11, 0x22, 0x33, 0x44));
-  pixels.emplace(Pixel(0x55, 0x66, 0x77, 0x88));
-  Image image(Data::take(pixels), 2, 1, Image::Addressing::Wrap);
-
-  const Pixel from_left = image.get_pixel(-1, 0);
-  const Pixel from_right = image.get_pixel(2, 0);
-  EXPECT_EQ(from_left.red, U8(0x55));
-  EXPECT_EQ(from_left.alpha, U8(0x88));
-  EXPECT_EQ(from_right.red, U8(0x11));
-  EXPECT_EQ(from_right.alpha, U8(0x44));
-}
-
-PERIMORTEM_UNIT_TEST(GraphicsImage, empty_returns_zero) {
-  Image clamp(0, 0, Image::Addressing::Clamp);
-  Image wrap(0, 0, Image::Addressing::Wrap);
-
-  const Pixel clamped = clamp.get_pixel(4, -2);
-  const Pixel wrapped = wrap.get_pixel(-4, 2);
-  EXPECT_EQ(clamped.red, U8(0));
-  EXPECT_EQ(clamped.alpha, U8(0));
-  EXPECT_EQ(wrapped.red, U8(0));
-  EXPECT_EQ(wrapped.alpha, U8(0));
+  auto wrapped_resource = Frame::Resource::retain_texture(wrapped);
+  auto clamped_resource = Frame::Resource::retain_texture(clamped);
+  EXPECT_EQ(
+      wrapped_resource.get_object().get_payload(),
+      clamped_resource.get_object().get_payload());
+  EXPECT_NOT(wrapped_resource.matches(clamped_resource));
+  EXPECT_EQ(wrapped_resource.get_reservations(), Count(5));
 }

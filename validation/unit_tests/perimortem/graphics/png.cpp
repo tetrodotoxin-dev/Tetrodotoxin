@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/graphics/formats/png.hpp"
@@ -65,6 +65,29 @@ PERIMORTEM_UNIT_TEST(GraphicsPng, checkerboard_2x2) {
   EXPECT_EQ(pixels.get_data()[3].green, U8(0xFF));
   EXPECT_EQ(pixels.get_data()[3].blue, U8(0xFF));
   EXPECT_EQ(pixels.get_data()[3].alpha, U8(0xFF));
+}
+
+PERIMORTEM_UNIT_TEST(GraphicsPng, unaligned_input) {
+  auto source = File::read("validation/data/pngs/red_1x1.png"_view);
+  ASSERT(source);
+
+  // A PNG can arrive as a slice of another byte buffer. Move this fixture by
+  // one byte so its header and chunk integers cannot rely on native alignment.
+  // Sanitized builds must accept that input and still decode the same pixel.
+  Dynamic::Vector<U8> storage;
+  storage.resize(source->get_size() + 1);
+  Data::copy(
+      storage.get_data() + 1, source->get_view().get_data(), source->get_size());
+
+  const View::Bytes shifted(storage.get_data() + 1, source->get_size());
+  auto image = Formats::Png::decode(shifted);
+  const auto pixels = image.get_pixels();
+
+  ASSERT_EQ(pixels.get_size(), Count(1));
+  EXPECT_EQ(pixels[0].red, U8(0xFF));
+  EXPECT_EQ(pixels[0].green, U8(0));
+  EXPECT_EQ(pixels[0].blue, U8(0));
+  EXPECT_EQ(pixels[0].alpha, U8(0xFF));
 }
 
 PERIMORTEM_UNIT_TEST(GraphicsPng, decode_rgb_to_rgba) {
@@ -160,7 +183,7 @@ PERIMORTEM_UNIT_TEST(GraphicsPng, decode_invalid) {
 
 PERIMORTEM_UNIT_TEST(GraphicsPng, roundtrip_1x1) {
   Dynamic::Vector<Pixel> source_pixels;
-  source_pixels.insert({0x12, 0x34, 0x56, 0x78});
+  source_pixels.insert(Pixel::from_rgba(0x12, 0x34, 0x56, 0x78));
   Image source_image(Data::take(source_pixels), 1, 1);
 
   auto encoded = Formats::Png::encode(source_image);
@@ -180,10 +203,10 @@ PERIMORTEM_UNIT_TEST(GraphicsPng, roundtrip_1x1) {
 
 PERIMORTEM_UNIT_TEST(GraphicsPng, roundtrip_checker) {
   Dynamic::Vector<Pixel> source_pixels;
-  source_pixels.insert({0xFF, 0x00, 0x00, 0xFF});
-  source_pixels.insert({0x00, 0xFF, 0x00, 0xFF});
-  source_pixels.insert({0x00, 0x00, 0xFF, 0xFF});
-  source_pixels.insert({0xFF, 0xFF, 0xFF, 0xFF});
+  source_pixels.insert(Pixel::from_rgba(0xFF, 0x00, 0x00, 0xFF));
+  source_pixels.insert(Pixel::from_rgba(0x00, 0xFF, 0x00, 0xFF));
+  source_pixels.insert(Pixel::from_rgba(0x00, 0x00, 0xFF, 0xFF));
+  source_pixels.insert(Pixel::from_rgba(0xFF, 0xFF, 0xFF, 0xFF));
   Image source_image(Data::take(source_pixels), 2, 2);
 
   auto encoded = Formats::Png::encode(source_image);
@@ -208,8 +231,8 @@ PERIMORTEM_UNIT_TEST(GraphicsPng, roundtrip_64x64) {
   source_pixels.resize(width * height);
   for (Count row = 0; row < height; row++) {
     for (Count col = 0; col < width; col++) {
-      source_pixels[row * width + col] = {
-        U8(col * 8), U8(row * 8), U8(128), U8(255)};
+      source_pixels[row * width + col] =
+          Pixel::from_rgba(U8(col * 8), U8(row * 8), U8(128), U8(255));
     }
   }
 

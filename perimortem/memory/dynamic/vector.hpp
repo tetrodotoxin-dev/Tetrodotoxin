@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -20,22 +20,19 @@ class Vector {
   static constexpr Count growth_factor = 2;
 
   Vector() {};
-  Vector(const Vector& source_vector) {
-    ensure_capacity(source_vector.get_size());
-    size = source_vector.get_size();
+  Vector(const Vector& rhs) {
+    ensure_capacity(rhs.get_size());
+    size = rhs.get_size();
     for (Count i = 0; i < size; i++) {
-      new (source_block + i) type(source_vector.source_block[i]);
+      new (source_block + i, Core::Placement::Construct)
+          type(rhs.source_block[i]);
     }
   }
 
-  Vector(Vector&& source_vector) {
-    size = source_vector.size;
-    capacity = source_vector.capacity;
-    source_block = source_vector.source_block;
-
-    source_vector.size = 0;
-    source_vector.capacity = 0;
-    source_vector.source_block = nullptr;
+  Vector(Vector&& rhs) {
+    Core::Data::swap(size, rhs.size);
+    Core::Data::swap(capacity, rhs.capacity);
+    Core::Data::swap(source_block, rhs.source_block);
   }
 
   Vector(Count capacity) {
@@ -43,29 +40,26 @@ class Vector {
     size = 0;
   }
 
-  auto operator=(Vector&& source_vector) -> Vector& {
-    size = source_vector.size;
-    capacity = source_vector.capacity;
-
-    source_vector.size = 0;
-    source_vector.capacity = 0;
-
+  auto operator=(Vector&& rhs) -> Vector& {
     // Swap source blocks. Since move is not destructive, the donor destructor
     // releases the old block this vector used to own.
-    Core::Data::swap(source_block, source_vector.source_block);
+    Core::Data::swap(size, rhs.size);
+    Core::Data::swap(capacity, rhs.capacity);
+    Core::Data::swap(source_block, rhs.source_block);
     return *this;
   }
 
-  auto operator=(const Vector& source_vector) -> Vector& {
-    if (this == &source_vector) {
+  auto operator=(const Vector& rhs) -> Vector& {
+    if (this == &rhs) {
       return *this;
     }
 
     clear();
-    ensure_capacity(source_vector.get_size());
-    size = source_vector.get_size();
+    ensure_capacity(rhs.get_size());
+    size = rhs.get_size();
     for (Count i = 0; i < size; i++) {
-      new (source_block + i) type(source_vector.source_block[i]);
+      new (source_block + i, Core::Placement::Construct)
+          type(rhs.source_block[i]);
     }
 
     return *this;
@@ -101,14 +95,16 @@ class Vector {
     ensure_capacity(size + 1);
 
     // Construct using the copy constructor.
-    return *new (source_block + (size++)) type(data);
+    return *new (source_block + (size++), Core::Placement::Construct)
+        type(data);
   }
 
   constexpr auto emplace(type&& data) -> type& {
     ensure_capacity(size + 1);
 
     // Construct using the move constructor.
-    return *new (source_block + (size++)) type(Core::Data::take(data));
+    return *new (source_block + (size++), Core::Placement::Construct)
+        type(Core::Data::take(data));
   }
 
   auto remove(Count index) -> Bool {
@@ -117,11 +113,26 @@ class Vector {
     }
 
     Count last_index = size - 1;
-    if (index != last_index) {
-      Core::Data::swap(source_block[index], source_block[last_index]);
+    if constexpr (__is_trivially_copyable(type)) {
+      if (index != last_index) {
+        memcpy(source_block + index, source_block + last_index, sizeof(type));
+      }
+    } else {
+      // End the removed lifetime before filling its slot. Construction lets
+      // the surviving value repair any state tied to its address.
+      source_block[index].~type();
+      if (index != last_index) {
+        if constexpr (__is_constructible(type, type&)) {
+          new (source_block + index, Core::Placement::Construct)
+              type(source_block[last_index]);
+        } else {
+          new (source_block + index, Core::Placement::Construct)
+              type(Core::Data::take(source_block[last_index]));
+        }
+        source_block[last_index].~type();
+      }
     }
 
-    source_block[last_index].~type();
     size--;
     return True;
   }
@@ -132,12 +143,30 @@ class Vector {
     }
 
     Count last_index = size - 1;
-    for (Count shift_index = index; shift_index < last_index; shift_index++) {
-      Core::Data::swap(
-          source_block[shift_index], source_block[shift_index + 1]);
+    if constexpr (__is_trivially_copyable(type)) {
+      // The tail overlaps its destination, so move the complete byte range
+      // together instead of swapping each adjacent pair.
+      if (index != last_index) {
+        memmove(
+            source_block + index, source_block + index + 1,
+            sizeof(type) * (last_index - index));
+      }
+    } else {
+      // Each constructils the empty slot before ending the source
+      // lifetime. The empty slot advances through the tail in source order.
+      source_block[index].~type();
+      for (Count shift_index = index; shift_index < last_index; shift_index++) {
+        if constexpr (__is_constructible(type, type&)) {
+          new (source_block + shift_index, Core::Placement::Construct)
+              type(source_block[shift_index + 1]);
+        } else {
+          new (source_block + shift_index, Core::Placement::Construct)
+              type(Core::Data::take(source_block[shift_index + 1]));
+        }
+        source_block[shift_index + 1].~type();
+      }
     }
 
-    source_block[last_index].~type();
     size--;
     return True;
   }
@@ -145,10 +174,35 @@ class Vector {
   // Resizes the container but attempts to preserve as much of the original
   // buffer as will fit in the new size.
   //
-  // Shrinking the size of the buffer is non-destructive and can be recovered by
-  // resetting the size back to it's old value.
+  // Trivial values can be recovered by restoring the old size. Owning values
+  // are destroyed when removed and constructed again when the range grows.
   auto resize(Count new_size) -> void {
+    // Noop
+    if (new_size == size) {
+      return;
+    }
+
+    if (new_size < size) {
+      // If not trivially destructable then we need to destruct the values that
+      // are now outside of the range.
+      if constexpr (!__is_trivially_destructible(type)) {
+        for (Count i = new_size; i < size; i++) {
+          source_block[i].~type();
+        }
+      }
+
+      size = new_size;
+      return;
+    }
+
+    // If the size is larger check if we need to perform a growth opreation.
     ensure_capacity(new_size);
+    if constexpr (!__is_trivially_constructible(type)) {
+      for (Count i = size; i < new_size; i++) {
+        new (source_block + i, Core::Placement::Construct) type();
+      }
+    }
+
     size = new_size;
   }
 
@@ -158,7 +212,13 @@ class Vector {
   // Both growing and shrinking the buffer can be destructive operations so the
   // contents after a forgetful operation should always be assumed to be in an
   // invalid state.
-  auto forgetful_resize(Count required_size) -> void {
+  // Skipping element construction and destruction is only available when
+  // neither operation has work to perform. Compiler intrinsics establish
+  // that restriction without a runtime branch or additional headers.
+  auto forgetful_resize(Count required_size) -> void
+    requires(
+        __is_trivially_constructible(type) && __is_trivially_destructible(type))
+  {
     // Always set the size.
     size = required_size;
 
@@ -209,8 +269,8 @@ class Vector {
  private:
   auto destruct() -> void {
     // Look over all entries and destruct the keys and values.
-    for (Count bucket_index = 0; bucket_index < size; bucket_index++) {
-      source_block[bucket_index].~type();
+    for (Count i = 0; i < size; i++) {
+      source_block[i].~type();
     }
   }
 
@@ -222,8 +282,8 @@ class Vector {
       return;
     }
 
-    // Attempt to grow by a factor of 2.
-    // If that doesn't work than grow to exact size.
+    // Attempt to grow by a factor of 2 but if that doesn't work than grow to
+    // exact size.
     const auto new_capacity =
         Core::Math::max(get_capacity() * 2, required_size);
 
@@ -235,7 +295,15 @@ class Vector {
         memcpy(new_block, source_block, sizeof(type) * size);
       } else {
         for (Count i = 0; i < size; i++) {
-          new (new_block + i) type(source_block[i]);
+          // Copyable values retain their existing relocation behavior but an
+          // exclusive owner cannot be copied so we need to use move semantics.
+          if constexpr (__is_constructible(type, type&)) {
+            new (new_block + i, Core::Placement::Construct)
+                type(source_block[i]);
+          } else {
+            new (new_block + i, Core::Placement::Construct)
+                type(Core::Data::take(source_block[i]));
+          }
         }
 
         destruct();

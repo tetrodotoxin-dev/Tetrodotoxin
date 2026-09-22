@@ -1,13 +1,13 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
 
 #include "tetrodotoxin/library/language/model/callable.hpp"
-#include "tetrodotoxin/library/language/parameter.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/model/documentations/comment.hpp"
-#include "ttx/model/layouts/ranged.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/documentations/comment.hpp"
+#include "tetrodotoxin/source/layouts/addressable.hpp"
+#include "tetrodotoxin/source/layouts/ranged.hpp"
 
 namespace Tetrodotoxin::Library::Builtin::Fixed {
 
@@ -25,23 +25,15 @@ class View : public Language::Model::Callable {
 
   TTX_NAME(name);
   TTX_DOCUMENTATION(documentation);
-  TTX_CONSTEXPR_INVALID_CONTEXT;
 
   constexpr auto get_parameters() const
-      -> const Ttx::Concept::Layout& override {
+      -> const Tetrodotoxin::Source::Layout& override {
     return parameters;
   }
 
-  constexpr auto get_results() const -> const Ttx::Concept::Layout& override {
+  constexpr auto get_results() const -> const Tetrodotoxin::Source::Layout& override {
     return results;
   }
-
-  auto lower_call(
-      Llvm::Builder& body,
-      const Ttx::Model::Pack& result,
-      Perimortem::Core::View::Vector<LLVMValueRef> inputs,
-      Perimortem::Core::Option<const Ttx::Model::Pack&> receiver_source) const
-      -> Bool override;
 
   auto fold_call(
       Perimortem::Memory::Allocator::Arena& domain,
@@ -50,14 +42,16 @@ class View : public Language::Model::Callable {
       -> Perimortem::Core::Option<Language::Model::Pack&> override;
 
  private:
-  constexpr View(Language::Parameter& self, const Language::Model::Type& result)
+  constexpr View(
+      Tetrodotoxin::Source::Layouts::Addressable& self,
+      const Language::Model::Type& result)
       : parameters(self, 1), results(result, 1), result_type(result) {}
 
-  Ttx::Model::Layouts::Ranged parameters;
-  Ttx::Model::Layouts::Ranged results;
+  Tetrodotoxin::Source::Layouts::Ranged parameters;
+  Tetrodotoxin::Source::Layouts::Ranged results;
   const Language::Model::Type& result_type;
 
-  static constexpr Ttx::Model::Documentations::Comment documentation{
+  static constexpr Tetrodotoxin::Source::Documentations::Comment documentation{
     "Borrows a read only View over every element of this Fixed value."_view,
   };
 };

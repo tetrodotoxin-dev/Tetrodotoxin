@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/linker/manifest.hpp"
@@ -108,7 +108,7 @@ PERIMORTEM_UNIT_TEST(LinkerManifest, readable_fingerprint) {
   EXPECT_NOT(Linker::Fingerprint::parse("0123456789abcdeg"_view));
 }
 
-PERIMORTEM_UNIT_TEST(LinkerManifest, exact_provider_selection) {
+PERIMORTEM_UNIT_TEST(LinkerManifest, provider_selection) {
   Linker::Provider providers[] = {
     Linker::Provider(
         "Host.Linux"_view, "x86_64-sysv-linux"_view,

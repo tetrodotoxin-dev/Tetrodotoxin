@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/flow/range_loop.hpp"
@@ -19,15 +19,15 @@
 #include "tetrodotoxin/library/language/types/composite.hpp"
 #include "tetrodotoxin/library/language/types/contiguous.hpp"
 #include "tetrodotoxin/library/language/types/range.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
-#include "ttx/model/addressable.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/addressable.hpp"
 
 using namespace Perimortem::Core;
 using namespace Tetrodotoxin::Library;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using Tetrodotoxin::Environment::Workspace;
 using namespace Validation;
 
@@ -60,7 +60,9 @@ static auto find_function(
 }
 
 static auto rejects_link(View::Bytes source) -> Bool {
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
@@ -68,22 +70,23 @@ static auto rejects_link(View::Bytes source) -> Bool {
 }
 
 static auto rejects_interpretation(View::Bytes source) -> Bool {
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   return !interpret(workspace, errors, source) && !errors.is_empty() &&
-         &workspace.resolve_context("RangeLoopTest"_view) ==
-             &Invalid::get_invalid();
+         retains_library_source(workspace, "RangeLoopTest"_view);
 }
 
 static auto get_binding(const Language::Flow::RangeLoop& loop, Count index)
-    -> Option<const Ttx::Model::Addressable&> {
+    -> Option<const Tetrodotoxin::Source::Addressable&> {
   auto entry = loop.get_bindings().get_abstract(index);
-  return entry ? entry->select<Ttx::Model::Addressable>()
-               : Option<const Ttx::Model::Addressable&>();
+  return entry ? entry->select<Tetrodotoxin::Source::Addressable>()
+               : Option<const Tetrodotoxin::Source::Addressable&>();
 }
 
-PERIMORTEM_UNIT_TEST(RangeLoopTests, binding_is_the_lexical_addressable) {
+PERIMORTEM_UNIT_TEST(RangeLoopTests, binding_identity) {
   static constexpr View::Bytes source =
       "// Range loop graph.\n"
       "dialect : Library;\n"
@@ -96,7 +99,9 @@ PERIMORTEM_UNIT_TEST(RangeLoopTests, binding_is_the_lexical_addressable) {
       "  }\n"
       "  return total;\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
@@ -122,13 +127,13 @@ PERIMORTEM_UNIT_TEST(RangeLoopTests, binding_is_the_lexical_addressable) {
   EXPECT(
       &static_cast<const Language::Types::Range&>(range_type)
            .get_element_type() == &binding->get_type());
-  EXPECT(&loop.resolve_context("entry"_view) == &*binding);
-  EXPECT(&loop.get_body().resolve_context("entry"_view) == &*binding);
+  EXPECT(&loop.resolve_concept("entry"_view) == &*binding);
+  EXPECT(&loop.get_body().resolve_concept("entry"_view) == &*binding);
   EXPECT(
-      &function->get_body()->resolve_context("entry"_view) ==
-      &Invalid::get_invalid());
+      &function->get_body()->resolve_concept("entry"_view) ==
+      &Unknown::get_unknown());
   EXPECT(
-      &loop.get_body().resolve_context("total"_view) ==
+      &loop.get_body().resolve_concept("total"_view) ==
       &statements.get_data()[1].get_root());
   EXPECT_TEXT(
       loop.get_anchor().get_span().caculate_text(source),
@@ -140,7 +145,7 @@ PERIMORTEM_UNIT_TEST(RangeLoopTests, binding_is_the_lexical_addressable) {
   const Abstract& retained = statements.get_data()[2].get_root();
   Perimortem::Memory::Allocator::Arena transaction;
   Tokenizer tokenizer(transaction, source, "range_loop.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   ASSERT(monograph->link(cursor));
   ASSERT(monograph->finalize(cursor));
@@ -150,7 +155,7 @@ PERIMORTEM_UNIT_TEST(RangeLoopTests, binding_is_the_lexical_addressable) {
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(RangeLoopTests, binding_and_range_must_match) {
+PERIMORTEM_UNIT_TEST(RangeLoopTests, matching_range) {
   static constexpr Static::Vector<View::Bytes, 5> sources = {{
     "// Different integer Type.\ndialect : Library; private invalid : func = [] -> [] { for [.entry : S64] in 0...3 {} return; }"_view,
     "// Not a Range.\ndialect : Library; private invalid : func = [] -> [] { for [.entry : U64] in 3 {} return; }"_view,
@@ -164,7 +169,7 @@ PERIMORTEM_UNIT_TEST(RangeLoopTests, binding_and_range_must_match) {
   }
 }
 
-PERIMORTEM_UNIT_TEST(RangeLoopTests, view_and_access_are_iterable) {
+PERIMORTEM_UNIT_TEST(RangeLoopTests, iterable_ranges) {
   static constexpr View::Bytes source =
       "// Contiguous loop inputs.\n"
       "dialect : Library;\n"
@@ -175,7 +180,9 @@ PERIMORTEM_UNIT_TEST(RangeLoopTests, view_and_access_are_iterable) {
       "  for [.entry : U64] in readonly {}\n"
       "  return;\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
@@ -202,7 +209,7 @@ PERIMORTEM_UNIT_TEST(RangeLoopTests, view_and_access_are_iterable) {
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(RangeLoopTests, binding_is_read_only_and_does_not_leak) {
+PERIMORTEM_UNIT_TEST(RangeLoopTests, scoped_read_only) {
   static constexpr Static::Vector<View::Bytes, 2> sources = {{
     "// Immutable binding.\ndialect : Library; private invalid : func = [] -> [] { for [.entry : U64] in 0...3 { entry = 1; } return; }"_view,
     "// Leaked binding.\ndialect : Library; private invalid : func = [] -> [] { for [.entry : U64] in 0...3 {} state copy : U64 = entry; return; }"_view,
@@ -213,7 +220,7 @@ PERIMORTEM_UNIT_TEST(RangeLoopTests, binding_is_read_only_and_does_not_leak) {
   }
 }
 
-PERIMORTEM_UNIT_TEST(RangeLoopTests, loop_does_not_cover_function_result) {
+PERIMORTEM_UNIT_TEST(RangeLoopTests, uncovered_result) {
   static constexpr View::Bytes source =
       "// Range may be empty.\n"
       "dialect : Library;\n"
@@ -223,7 +230,7 @@ PERIMORTEM_UNIT_TEST(RangeLoopTests, loop_does_not_cover_function_result) {
   EXPECT(rejects_link(source));
 }
 
-PERIMORTEM_UNIT_TEST(RangeLoopTests, body_control_targets_exact_loop) {
+PERIMORTEM_UNIT_TEST(RangeLoopTests, loop_control) {
   static constexpr View::Bytes source =
       "// Range control.\n"
       "dialect : Library;\n"
@@ -231,7 +238,9 @@ PERIMORTEM_UNIT_TEST(RangeLoopTests, body_control_targets_exact_loop) {
       "  for [.entry : U64] in 0...2 : break;\n"
       "  return;\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
@@ -248,7 +257,7 @@ PERIMORTEM_UNIT_TEST(RangeLoopTests, body_control_targets_exact_loop) {
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(RangeLoopTests, malformed_binding_is_rejected) {
+PERIMORTEM_UNIT_TEST(RangeLoopTests, malformed_binding) {
   static constexpr Static::Vector<View::Bytes, 4> sources = {{
     "// Bare binding.\ndialect : Library; private invalid : func = [] -> [] { for .entry : U64 in 0...3 {} return; }"_view,
     "// Empty binding.\ndialect : Library; private invalid : func = [] -> [] { for [] in 0...3 {} return; }"_view,

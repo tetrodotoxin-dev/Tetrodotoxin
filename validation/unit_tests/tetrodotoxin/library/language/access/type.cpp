@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/access/type.hpp"
@@ -8,11 +8,11 @@
 
 #include "tetrodotoxin/environment/workspace.hpp"
 #include "tetrodotoxin/library/dialect.hpp"
-#include "ttx/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
 
 using namespace Perimortem::Core;
 using namespace Tetrodotoxin;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Validation;
 
 static Harness TypeAccessTests = {
@@ -20,7 +20,9 @@ static Harness TypeAccessTests = {
 };
 
 static auto links_library_source(View::Bytes source) -> Bool {
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Environment::Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto interpreted = workspace.interpret_source(
@@ -29,7 +31,9 @@ static auto links_library_source(View::Bytes source) -> Bool {
 }
 
 static auto rejects_library_link(View::Bytes source) -> Bool {
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Environment::Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto interpreted = workspace.interpret_source(
@@ -37,7 +41,7 @@ static auto rejects_library_link(View::Bytes source) -> Bool {
   return !interpreted && !errors.is_empty();
 }
 
-PERIMORTEM_UNIT_TEST(TypeAccessTests, qualified_routes_keep_context_authority) {
+PERIMORTEM_UNIT_TEST(TypeAccessTests, qualified_authority) {
   static constexpr View::Bytes accepted =
       "// Qualified private Type access.\n"
       "dialect : Library;\n"
@@ -67,7 +71,7 @@ PERIMORTEM_UNIT_TEST(TypeAccessTests, qualified_routes_keep_context_authority) {
   }
 }
 
-PERIMORTEM_UNIT_TEST(TypeAccessTests, local_root_shadows_intrinsic) {
+PERIMORTEM_UNIT_TEST(TypeAccessTests, local_shadowing) {
   static constexpr View::Bytes source =
       "// Local Type root shadowing.\n"
       "dialect : Library;\n"
@@ -81,7 +85,7 @@ PERIMORTEM_UNIT_TEST(TypeAccessTests, local_root_shadows_intrinsic) {
   EXPECT(links_library_source(source));
 }
 
-PERIMORTEM_UNIT_TEST(TypeAccessTests, descriptor_is_an_authored_name) {
+PERIMORTEM_UNIT_TEST(TypeAccessTests, authored_descriptor) {
   static constexpr View::Bytes source =
       "// Descriptor is an ordinary authored Type name.\n"
       "dialect : Library;\n"
@@ -93,7 +97,7 @@ PERIMORTEM_UNIT_TEST(TypeAccessTests, descriptor_is_an_authored_name) {
   EXPECT(links_library_source(source));
 }
 
-PERIMORTEM_UNIT_TEST(TypeAccessTests, type_result_is_not_pack_flow) {
+PERIMORTEM_UNIT_TEST(TypeAccessTests, no_pack_flow) {
   static constexpr View::Bytes sources[] = {
     "// Type result as a Field value.\ndialect : Library; public Packet : struct { private state value : Bool; } private invalid := Packet;"_view,
     "// Type result as a Local value.\ndialect : Library; public Packet : struct {} private invalid : func = [] -> [] { state value := Packet; return; }"_view,
@@ -101,7 +105,7 @@ PERIMORTEM_UNIT_TEST(TypeAccessTests, type_result_is_not_pack_flow) {
     "// Type result as an initializer argument.\ndialect : Library; public Packet : struct {} public Target : object { public state value : Bool; } private invalid := new[Target](.value = Packet);"_view,
     "// Type result as a Call argument.\ndialect : Library; public Packet : struct {} public Calls : struct { public use : func = [.value : Bool] -> Bool { return value; } } private invalid := Calls -> use(Packet);"_view,
     "// Type result as a return value.\ndialect : Library; public Packet : struct {} private invalid : func = [] -> Bool { return Packet; }"_view,
-    "// Type result as a branch condition.\ndialect : Library; public Packet : struct {} private invalid : func = [] -> [] { if (Packet) { return; } return; }"_view,
+    "// Type result as a branch condition.\ndialect : Library; public Packet : struct {} private invalid : func = [] -> [] { if Packet { return; } return; }"_view,
     "// Type result as an assignment source.\ndialect : Library; public Packet : struct {} private invalid : func = [] -> [] { state value : Bool = false; value = Packet; return; }"_view,
     "// Type result as a swizzle receiver.\ndialect : Library; public Packet : struct { public state value : Bool; } private invalid := Packet.[value];"_view,
     "// Type result as a match input.\ndialect : Library; public Packet : struct {} private invalid : func = [] -> [] { match Packet { case Packet {} } return; }"_view,
@@ -112,7 +116,7 @@ PERIMORTEM_UNIT_TEST(TypeAccessTests, type_result_is_not_pack_flow) {
   }
 }
 
-PERIMORTEM_UNIT_TEST(TypeAccessTests, expression_result_drives_access) {
+PERIMORTEM_UNIT_TEST(TypeAccessTests, expression_access) {
   static constexpr View::Bytes accepted =
       "// Type-valued expression access.\n"
       "dialect : Library;\n"

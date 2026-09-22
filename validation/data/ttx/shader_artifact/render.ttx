@@ -1,7 +1,12 @@
-// Tetrodotoxin
-// Copyright (c) 2023-present Matt Kaes and contributors
-dialect : Render;
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+dialect : Pipeline;
 
-public Simple : struct {
-  public stage Fragment[@location(0).color : Math::Vec4D] -> [@location(0).color : Math::Vec4D];
-}
+public Math : alias =
+    package(.name = "Perimortem.Math", .version = "1.0");
+
+public fragment : stage [.color : Math::Vec4D] -> [.color : Math::Vec4D];
+
+public Visible : struct {}
+private Hidden : struct {}

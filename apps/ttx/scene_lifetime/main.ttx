@@ -1,45 +1,26 @@
-// Tetrodotoxin
-// Copyright (c) 2023-present Matt Kaes and contributors
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+// Window and Scene stack policy for the Scene Lifetime application.
 dialect : App;
 
-// Selects the App owned startup profile used to produce the final process.
-// The profile chooses linked support libraries, generated platform entry code,
-// and package configuration. It is not a resolved Runtime Package.
-//
-// Profiles:
-//   1. `Windowed`: Native window startup with System::Window and Vulkan
-//      support.
-//   2. `Terminal`: Native terminal startup with standard input and output.
-//   3. `Headless`: Background startup without a presentation surface.
-runtime = Windowed(
+private Splash : alias = source("scenes/splash.ttx");
+private Title : alias = source("scenes/title.ttx");
+
+// Opens the native presentation used by the Scene stack.
+runtime = Windowed {
   .title = "Scene Lifetime",
   .icon = $[resources/icon.png],
   .width = 800,
   .height = 600,
   .resizable = true,
-) // Scene lifecycle hooks together a set of Scene objects with managed startup
-// and transition logic. `update` receives only scalar delta time and input is
-// queried from retained `Perimortem.System` state.
-//
-// The flow graph links Scenes and manages transitions based on signals.
-// `initial` is the Scene prepared after startup finishes. `on` indicates signal
-// mappings. Each signal can be mapped once and can either `replace`, `push`,
-// `pop`, or `exit`. Duplicate mappings are errors.
-//
-// `replace`: Calls `release` on the active Scene at the synchronization
-//   boundary after `update`, then prepares a fresh replacement.
-//
-// `push`: Calls optional `pause` on the active Scene, retains its complete
-//   instance, then prepares a fresh Scene on top of it.
-//
-// `pop`: Calls `release` on the active Scene, then calls optional `resume` on
-//   the retained Scene below it. An empty stack terminates the process.
-//
-// `exit`: Calls `release` from the top of the Scene stack to the bottom
-//   without resuming retained Scenes, then terminates the process.
+}
+
+// The first matching Signal mapping chooses the one transition applied after
+// the frame has been presented.
 lifecycle = Scene {
-  initial Scenes::Splash;
-  on Scenes::Splash.finished replace Scenes::Title;
-  on Scenes::Title.shift_pressed replace Scenes::Splash;
-  on Scenes::Title.space_pressed exit;
+  initial Splash;
+  on Splash.finished replace Title;
+  on Title.shift_pressed replace Splash;
+  on Title.space_pressed exit;
 }

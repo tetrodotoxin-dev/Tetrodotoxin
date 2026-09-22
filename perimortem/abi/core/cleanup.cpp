@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/abi/core/cleanup.hpp"
@@ -27,7 +27,8 @@ auto Abi::Core::Cleanup::insert(Destructor destructor) -> void {
   Perimortem::Core::Bibliotheca::Allocation allocation =
       Perimortem::Core::Bibliotheca::check_out(sizeof(Entry));
   Entry* entry = Perimortem::Core::Data::cast<Entry>(allocation.ptr);
-  new (entry) Entry(destructor, latest);
+  new (entry, Perimortem::Core::Placement::Construct)
+      Entry(destructor, latest);
   latest = *entry;
 }
 

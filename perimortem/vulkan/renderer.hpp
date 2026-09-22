@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -26,9 +26,7 @@ class Renderer {
     U32 image_index = 0;
   };
 
-#ifdef PERI_LINUX
-  Renderer(wl_display* display, wl_surface* surface, U32 width, U32 height);
-#endif
+  Renderer(System::Presentation presentation, U32 width, U32 height);
   ~Renderer();
   Renderer(const Renderer&) = delete;
   auto operator=(const Renderer&) -> Renderer& = delete;

@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -6,8 +6,8 @@
 #include "tetrodotoxin/library/language/model/pack.hpp"
 #include "tetrodotoxin/library/language/model/type.hpp"
 #include "tetrodotoxin/library/language/model/types/flag.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/model/documentations/comment.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/documentations/comment.hpp"
 
 namespace Tetrodotoxin::Library::Language::Types {
 
@@ -50,12 +50,6 @@ class Option : public Model::Type {
   auto fold_propagation(Model::Pack& source) const -> Perimortem::Utility::
       Result<Perimortem::Core::Option<Model::Pack&>, Bool> override;
 
-  auto lower_propagation(
-      Llvm::Builder& body,
-      const Model::Pack& result,
-      const Model::Pack& source,
-      const Model::Pack& escape) const -> Bool override;
-
   auto accepts(const Model::Pack& source) const -> Bool override;
 
   auto create_fitted(
@@ -63,20 +57,14 @@ class Option : public Model::Type {
       Model::Pack& source) const
       -> Perimortem::Core::Option<Model::Pack&> override;
 
-  auto reserve(Llvm::Program& program) const -> Bool override;
-
-  auto complete(Llvm::Program& program) const -> Bool override;
-
-  auto validate_layout(Ttx::Lexical::Cursor& cursor) const -> Bool override;
-
-  TTX_CONSTEXPR_INVALID_CONTEXT;
+  auto validate_layout(Tetrodotoxin::Source::Lexical::Cursor& cursor) const -> Bool override;
 
   constexpr auto get_element_type() const -> const Model::Type& {
     return element;
   }
 
   constexpr auto get_declaration_anchor() const
-      -> Perimortem::Core::Option<Ttx::Lexical::Anchor> override {
+      -> Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> override {
     return element.get_declaration_anchor();
   }
 
@@ -88,7 +76,7 @@ class Option : public Model::Type {
   Perimortem::Core::View::Bytes name;
   const Model::Type& element;
   const Model::Types::Flag& flag;
-  static constexpr Ttx::Model::Documentations::Comment documentation{
+  static constexpr Tetrodotoxin::Source::Documentations::Comment documentation{
     "Carries either no value or one exact payload value."_view,
   };
 };

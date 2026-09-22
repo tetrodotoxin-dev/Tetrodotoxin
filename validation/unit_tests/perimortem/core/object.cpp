@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/core/object.hpp"
@@ -45,7 +45,7 @@ static auto finalize_native_object(U8*) -> void {
 static constexpr Perimortem::Core::Object<>::Descriptor
     native_descriptor(sizeof(U64), alignof(U64), finalize_native_object);
 
-PERIMORTEM_UNIT_TEST(CoreObject, native_runtime_surface) {
+PERIMORTEM_UNIT_TEST(CoreObject, native_surface) {
   native_finalizations = 0;
   U8* object = perimortem_core_object_allocate(&native_descriptor);
   const Perimortem::Core::Object<>::Descriptor& descriptor =
@@ -60,13 +60,13 @@ PERIMORTEM_UNIT_TEST(CoreObject, native_runtime_surface) {
   EXPECT_EQ(native_finalizations, Count(1));
 }
 
-PERIMORTEM_UNIT_TEST(CoreObject, empty_runtime_surface) {
+PERIMORTEM_UNIT_TEST(CoreObject, empty_surface) {
   perimortem_core_object_retain({});
   perimortem_core_object_release({});
   EXPECT_EQ(perimortem_core_object_capacity({}), Count(0));
 }
 
-PERIMORTEM_UNIT_TEST(CoreObject, typed_buffer_aliases_share_access) {
+PERIMORTEM_UNIT_TEST(CoreObject, shared_buffer_access) {
   Perimortem::Core::Object<U64> first(3);
   auto initialized = first.get_access();
   ASSERT(initialized.get_size() >= 3);
@@ -97,7 +97,7 @@ PERIMORTEM_UNIT_TEST(CoreObject, typed_buffer_aliases_share_access) {
   EXPECT_EQ(second.get_view()[0], U64(9));
 }
 
-PERIMORTEM_UNIT_TEST(CoreObject, empty_buffer_remains_option_payload) {
+PERIMORTEM_UNIT_TEST(CoreObject, empty_option_payload) {
   Perimortem::Core::Object<U8> empty;
   Perimortem::Core::Option<Perimortem::Core::Object<U8>> selected(
       static_cast<Perimortem::Core::Object<U8>&&>(empty));
@@ -141,7 +141,7 @@ PERIMORTEM_UNIT_TEST(CoreObject, assignment) {
   EXPECT_EQ(destructor_count, Count(2));
 }
 
-PERIMORTEM_UNIT_TEST(CoreObject, shared_assignment_preserves_reservations) {
+PERIMORTEM_UNIT_TEST(CoreObject, assignment_reserves) {
   Count destructor_count = 0;
 
   {

@@ -1,37 +1,39 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/diagnostics.hpp"
 
-#include "tetrodotoxin/library/language/model/addressable.hpp"
+#include "tetrodotoxin/library/language/model/memory.hpp"
 #include "tetrodotoxin/library/language/model/type.hpp"
-#include "ttx/concept/invalid.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
 auto Language::Diagnostics::write_type(
-    Ttx::Lexical::Errors::Report& report,
+    Tetrodotoxin::Source::Lexical::Errors::Report& report,
     const Abstract& abstract) -> void {
   const Abstract& resolved = abstract.is<Language::Model::Type>() ||
-                                     abstract.is<Language::Model::Addressable>()
+                                     abstract.is<Tetrodotoxin::Source::Addressable>()
                                  ? abstract
                                  : abstract.resolve();
-  auto type = resolved.select<Language::Model::Type>();
-  if (!type) {
-    type = resolved.visit<Language::Model::Addressable>(
-        [](const Language::Model::Addressable& addressable)
-            -> Option<const Language::Model::Type&> {
-          return addressable.get_type();
-        },
-        [](const Abstract&) -> Option<const Language::Model::Type&> {
-          return {};
-        });
+  const Language::Model::Type* type = nullptr;
+  auto direct = resolved.select<Language::Model::Type>();
+  if (direct) {
+    type = &*direct;
+  } else {
+    auto addressable = resolved.select<Tetrodotoxin::Source::Addressable>();
+    if (addressable && !addressable->resolve().is<Unknown>()) {
+      auto selected = addressable->get_type().select<Language::Model::Type>();
+      if (selected) {
+        type = &*selected;
+      }
+    }
   }
 
   if (!type) {
-    auto pack = resolved.select<Language::Model::Pack>();
+    auto pack = Language::Model::Pack::from(resolved);
     if (pack && pack->get_layout().get_size() == 1) {
       const Abstract& value_type = pack->get_value_type(0);
       if (&value_type != &resolved) {
@@ -41,7 +43,7 @@ auto Language::Diagnostics::write_type(
     }
   }
 
-  if (!type || type->is<Invalid>()) {
+  if (type == nullptr || type->is<Unknown>()) {
     report << "<invalid>"_view;
     return;
   }
@@ -50,7 +52,7 @@ auto Language::Diagnostics::write_type(
 }
 
 auto Language::Diagnostics::write_layout(
-    Ttx::Lexical::Errors::Report& report,
+    Tetrodotoxin::Source::Lexical::Errors::Report& report,
     const Layout& layout) -> void {
   report << "["_view;
   for (Count index = 0; index < layout.get_size(); index++) {
@@ -71,7 +73,7 @@ auto Language::Diagnostics::write_layout(
 }
 
 auto Language::Diagnostics::write_pack(
-    Ttx::Lexical::Errors::Report& report,
+    Tetrodotoxin::Source::Lexical::Errors::Report& report,
     const Model::Pack& pack) -> void {
   const Layout& layout = pack.get_layout();
   report << "["_view;
@@ -84,7 +86,9 @@ auto Language::Diagnostics::write_pack(
     if (name) {
       report << "."_view << *name << " = "_view;
     }
-    write_type(report, pack.get_value_type(index));
+    layout.get_abstract(index).visit(
+        [&]() { report << "<invalid>"_view; },
+        [&](const Abstract& selected) { write_type(report, selected); });
   }
   report << "]"_view;
 }

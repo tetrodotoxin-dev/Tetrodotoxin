@@ -1,7 +1,8 @@
-// Tetrodotoxin
-// Copyright (c) 2023-present Matt Kaes and contributors
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
 dialect : Package;
+package(.name = "Validation.Shader", .version = "1.0");
 
-resolve Math : Perimortem.Math = "1.0";
-source Formats from "render.ttx";
-source Shader from "shader.ttx";
+public TestShader : alias = source("shader.ttx")::Material;
+public Float64Shader : alias = source("float64_shader.ttx")::Material;

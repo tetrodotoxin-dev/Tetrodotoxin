@@ -1,0 +1,60 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+// The standard textured quad material.
+//
+dialect : Shader;
+
+public Math : alias = package(.name = "Perimortem.Math", .version = "1.0");
+implements source("../pipelines/textured_2d.ttx");
+
+public tone : uniform Math::Vec4D = (
+  .x = new[R32](1.0),
+  .y = new[R32](1.0),
+  .z = new[R32](1.0),
+  .w = new[R32](1.0),
+);
+
+Shader vertex[
+  .position : Math::Vec2D,
+  .texture_uv : Math::Vec2D,
+] -> [
+  .position : Math::Vec4D,
+  .texture_uv : Math::Vec2D,
+] {
+  state one := inputs.transform_x.w / inputs.transform_x.w;
+  state two := one + one;
+  state zero := one - one;
+  state pixel : Math::Vec2D = (
+    .x = inputs.transform_x.x * position.x + inputs.transform_x.y * position.y +
+        inputs.transform_x.z,
+    .y = inputs.transform_y.x * position.x + inputs.transform_y.y * position.y +
+        inputs.transform_y.z,
+  );
+  state clip : Math::Vec2D = (
+    .x = pixel.x / inputs.transform_x.w * two - one,
+    .y = pixel.y / inputs.transform_y.w * two - one,
+  );
+  state clip_position : Math::Vec4D = (
+    .x = clip.x,
+    .y = clip.y,
+    .z = zero,
+    .w = one,
+  );
+  state sampled_uv : Math::Vec2D = (
+    .x = texture_uv.x,
+    .y = texture_uv.y,
+  );
+  return (.position = clip_position, .texture_uv = sampled_uv);
+}
+
+Shader fragment[.texture_uv : Math::Vec2D] -> [.color : Math::Vec4D] {
+  state sampled := image -> sample(.uv = texture_uv);
+  state color   : Math::Vec4D = (
+    .x = sampled.x * parameters.tone.x,
+    .y = sampled.y * parameters.tone.y,
+    .z = sampled.z * parameters.tone.z,
+    .w = sampled.w * parameters.tone.w,
+  );
+  return (.color = color);
+}

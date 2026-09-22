@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -7,24 +7,25 @@
 
 namespace Perimortem::Core::Reader {
 
-// Reads human-readable values from a text byte buffer. Reads are greedy so
+// Reads human readable values from a text byte buffer. Reads are greedy so
 // numeric values must be whitespace separated to be read appropriately.
 //
 // Real, Flag, Unsigned, and Signed reads automatically skip leading whitespace.
 //
 // An overflow or parse failure sets the reader to an invalid state and
-// subsequent reads return zero-initialized values without advancing the
+// subsequent reads return zero initialized values without advancing the
 // cursor.
 class Textual {
  public:
   constexpr Textual(View::Bytes source) : source(source) {}
-  constexpr Textual(const Textual& rhs) : source(rhs.source) {}
+  constexpr Textual(const Textual& rhs)
+      : source(rhs.source), cursor(rhs.cursor) {}
 
   // Sets the location of the read cursor.
   //
-  // An out-of-range location invalidates the reader by setting the position to
-  // Count(-1), so using `set_location(Count(-1))` is a cheap way to manually
-  // invalidate a reader.
+  // An out of range location invalidates the reader by setting the position to
+  // the maximum Count value. Converting negative one to Count offers callers a
+  // convenient spelling for that invalid state.
   constexpr auto set_location(Count location) -> void {
     cursor = location <= source.get_size() ? location : Count(-1);
   }

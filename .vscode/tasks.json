@@ -4,6 +4,44 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "TTX Flow Tests Build (Linux) [Debug]",
+      "type": "process",
+      "command": "bazel",
+      "args": [
+        "build",
+        "//validation/unit_tests/ttx/semantic:flow_tests",
+        "--config=debug"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "group": "build",
+      "detail": "Builds the focused TTX Flow tests and both C providers for debugging.",
+      "presentation": {
+        "clear": true
+      }
+    },
+    {
+      "label": "Puffer SDK Build (Linux) [Debug]",
+      "type": "shell",
+      "command": "${workspaceFolder}/puffer/package.sh",
+      "args": [
+        "--debug"
+      ],
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "presentation": {
+        "clear": true
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
       "label": "Validation Unit Tests Build (Linux) [Debug]",
       "type": "shell",
       "command": "bazel",
@@ -71,8 +109,6 @@
         "build",
         "//validation:unit_tests",
         "--config=debug",
-        "--jobs=2",
-        "--experimental_total_worker_memory_limit_mb=4096"
       ],
       "group": "build",
       "detail": "Builds the validation binary with full DWARF for its TTX runtime integration.",
@@ -82,20 +118,44 @@
     },
     {
       "label": "TTX Echo Build (Linux) [Debug]",
-      "type": "shell",
-      "command": "bazel",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "type": "process",
+      "command": "${workspaceFolder}/.bin/puffer-sdk/bin/puffer",
+      "dependsOn": [
+        "Puffer SDK Build (Linux) [Debug]"
+      ],
       "problemMatcher": [
         "$gcc"
       ],
       "args": [
-        "build",
-        "//apps/ttx/echo:echo",
-        "--config=debug",
-        "--jobs=2",
-        "--experimental_total_worker_memory_limit_mb=4096"
+        "${workspaceFolder}/apps/ttx/echo/build.ttx"
       ],
       "group": "build",
       "detail": "Builds the pure TTX Echo application with full source debug information.",
+      "presentation": {
+        "clear": true
+      }
+    },
+    {
+      "label": "TTX Scene Lifetime Build (Linux) [Debug]",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "type": "process",
+      "command": "${workspaceFolder}/.bin/puffer-sdk/bin/puffer",
+      "dependsOn": [
+        "Puffer SDK Build (Linux) [Debug]"
+      ],
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "args": [
+        "${workspaceFolder}/apps/ttx/scene_lifetime/build.ttx"
+      ],
+      "group": "build",
+      "detail": "Builds the TTX Scene Lifetime application with full source debug information.",
       "presentation": {
         "clear": true
       }

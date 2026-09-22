@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "validation/unit_test.hpp"
@@ -24,7 +24,7 @@ PERIMORTEM_UNIT_TEST(DynamicBytes, value_bounds) {
   EXPECT_EQ(Dynamic::Bytes()[0], U8(0));
 }
 
-PERIMORTEM_UNIT_TEST(DynamicBytes, copies_share_until_written) {
+PERIMORTEM_UNIT_TEST(DynamicBytes, copy_on_write) {
   Dynamic::Bytes original("shared"_view);
   Dynamic::Bytes copied(original);
 
@@ -38,7 +38,7 @@ PERIMORTEM_UNIT_TEST(DynamicBytes, copies_share_until_written) {
   EXPECT(copied.get_view().get_data() != shared);
 }
 
-PERIMORTEM_UNIT_TEST(DynamicBytes, writable_access_detaches) {
+PERIMORTEM_UNIT_TEST(DynamicBytes, access_detaches) {
   Dynamic::Bytes original("shared"_view);
   Dynamic::Bytes copied(original);
 
@@ -52,7 +52,7 @@ PERIMORTEM_UNIT_TEST(DynamicBytes, writable_access_detaches) {
   EXPECT(copied.get_view().get_data() != original.get_view().get_data());
 }
 
-PERIMORTEM_UNIT_TEST(DynamicBytes, slices_remain_borrowed) {
+PERIMORTEM_UNIT_TEST(DynamicBytes, borrowed_slices) {
   Dynamic::Bytes bytes("borrowed"_view);
   const U8* allocation = bytes.get_view().get_data();
 
@@ -73,7 +73,7 @@ PERIMORTEM_UNIT_TEST(DynamicBytes, reset_releases_once) {
   EXPECT(!bytes.get_view().get_data());
 }
 
-PERIMORTEM_UNIT_TEST(DynamicBytes, abi_carrier_is_two_words) {
+PERIMORTEM_UNIT_TEST(DynamicBytes, two_word_carrier) {
   static_assert(__is_trivial(Perimortem::Abi::Memory::Dynamic::Bytes));
   static_assert(__is_standard_layout(Perimortem::Abi::Memory::Dynamic::Bytes));
 

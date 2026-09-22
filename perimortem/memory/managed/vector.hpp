@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -48,14 +48,24 @@ class Vector {
     ensure_capacity(size + 1);
 
     // Construct using the copy constructor.
-    new (rented_block + (size++)) value_type(data);
+    new (rented_block + (size++), Core::Placement::Construct) value_type(data);
+  }
+
+  constexpr auto prepend(const value_type& data) -> void {
+    ensure_capacity(size + 1);
+    if (size != 0) {
+      memmove(rented_block + 1, rented_block, sizeof(value_type) * size);
+    }
+    new (rented_block, Core::Placement::Construct) value_type(data);
+    size++;
   }
 
   constexpr auto emplace(const value_type&& data) -> value_type& {
     ensure_capacity(size + 1);
 
     // Construct using the move constructor.
-    return *new (rented_block + (size++)) value_type(data);
+    return *new (rented_block + (size++), Core::Placement::Construct)
+        value_type(data);
   }
 
   constexpr auto contains(const value_type& data) const -> Bool {

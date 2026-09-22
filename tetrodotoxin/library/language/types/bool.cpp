@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/types/bool.hpp"
@@ -32,12 +32,4 @@ auto Types::Boolean::fold_propagation(Model::Pack& source) const
   }
 
   return *validity ? Option<Model::Pack&>(source) : Option<Model::Pack&>();
-}
-
-auto Types::Boolean::lower_propagation(
-    Llvm::Builder& body,
-    const Model::Pack& result,
-    const Model::Pack& source,
-    const Model::Pack& escape) const -> Bool {
-  return body.propagate_flag(*this, result, source, escape);
 }

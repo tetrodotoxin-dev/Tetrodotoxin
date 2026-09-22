@@ -1,11 +1,11 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
 
 #include "tetrodotoxin/library/language/model/type.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/model/documentations/comment.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/documentations/comment.hpp"
 
 namespace Tetrodotoxin::Library::Language::Types {
 
@@ -27,34 +27,22 @@ class Range : public Model::Type {
   auto create_default(Perimortem::Memory::Allocator::Arena& arena) const
       -> Perimortem::Core::Option<Model::Pack&> override;
 
-  auto reserve(Llvm::Program& program) const -> Bool override;
-
-  auto complete(Llvm::Program& program) const -> Bool override;
-
-  auto accepts_iteration(const Ttx::Concept::Layout& bindings) const
+  auto accepts_iteration(const Tetrodotoxin::Source::Layout& bindings) const
       -> Bool override;
-
-  auto begin_iteration(
-      Llvm::Builder& body,
-      const Ttx::Concept::Abstract& owner,
-      const Ttx::Concept::Layout& bindings,
-      const Ttx::Model::Pack& input) const -> Bool override;
-
-  TTX_CONSTEXPR_INVALID_CONTEXT;
 
   constexpr auto get_element_type() const -> const Model::Type& {
     return element;
   }
 
   constexpr auto get_declaration_anchor() const
-      -> Perimortem::Core::Option<Ttx::Lexical::Anchor> override {
+      -> Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> override {
     return element.get_declaration_anchor();
   }
 
  private:
   Perimortem::Core::View::Bytes name;
   const Model::Type& element;
-  static constexpr Ttx::Model::Documentations::Comment documentation{
+  static constexpr Tetrodotoxin::Source::Documentations::Comment documentation{
     "Provides a lazy ascending integer sequence."_view,
   };
 };

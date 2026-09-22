@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -10,8 +10,8 @@
 #include "tetrodotoxin/library/language/expression.hpp"
 #include "tetrodotoxin/library/language/model/type.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Language::Access {
 
@@ -24,78 +24,84 @@ class Index : public Expression {
  public:
   TTX_CONTRACT(Index, Expression);
 
-  static auto parse(
-      const Ttx::Concept::Abstract& context,
-      Ttx::Lexical::Cursor& cursor,
-      Expression& receiver) -> Perimortem::Core::Option<Expression&>;
+  static auto create_authored(
+      Perimortem::Memory::Allocator::Arena& domain,
+      Model::Pack& receiver,
+      Model::Pack& index,
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> Index&;
+
+  static auto create_authored(
+      Perimortem::Memory::Allocator::Arena& domain,
+      Model::Pack& receiver,
+      Model::Pack& start,
+      Model::Pack& count,
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> Index&;
 
   auto link(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& lexical_context,
-      Perimortem::Core::Option<const Ttx::Concept::Abstract&> access_scope = {})
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& lexical_context,
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&> access_scope = {})
       -> Bool override;
 
   TTX_NAME("Index"_view);
   TTX_EMPTY_DOCUMENTATION();
 
-  auto get_type() const -> const Ttx::Concept::Abstract& override;
+  auto get_type() const -> const Tetrodotoxin::Source::Abstract& override;
   auto get_write_type(const Model::Type& access_scope) const
       -> Perimortem::Core::Option<const Model::Type&> override;
-  auto resolve() const -> const Ttx::Concept::Abstract& override;
-  auto finalize(Ttx::Lexical::Cursor& cursor) -> void override;
+  auto resolve() const -> const Tetrodotoxin::Source::Abstract& override;
+  auto finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> void override;
 
-  auto lower_write_target(Llvm::Builder& body) const -> Bool override;
-
-  constexpr auto get_receiver() const -> const Expression& { return receiver; }
-  constexpr auto get_index() const -> const Expression& { return first; }
+  constexpr auto get_receiver() const -> const Model::Pack& { return receiver; }
+  constexpr auto get_index() const -> const Model::Pack& { return first; }
   constexpr auto get_count() const
-      -> Perimortem::Core::Option<const Expression&> {
+      -> Perimortem::Core::Option<const Model::Pack&> {
     return count.visit(
-        []() -> Perimortem::Core::Option<const Expression&> { return {}; },
-        [](const Ttx::Concept::Reference<Expression>& selected)
-            -> Perimortem::Core::Option<const Expression&> {
+        []() -> Perimortem::Core::Option<const Model::Pack&> { return {}; },
+        [](const Tetrodotoxin::Source::PackReference<Model::Pack>& selected)
+            -> Perimortem::Core::Option<const Model::Pack&> {
           return selected.get();
         });
   }
   constexpr auto get_range_count() const -> Perimortem::Core::Option<Count> {
     return range_count;
   }
-  auto get_element_type() const -> const Ttx::Concept::Abstract&;
+  auto get_element_type() const -> const Tetrodotoxin::Source::Abstract&;
 
  protected:
   auto link_write_target(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& lexical_context,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& lexical_context,
       const Model::Type& access_scope) -> Bool override;
   auto accepts_write(const Model::Pack& source, const Model::Type& access_scope)
       const -> Bool override;
 
  private:
   constexpr Index(
-      Expression& receiver,
-      Expression& index,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor)
+      Model::Pack& receiver,
+      Model::Pack& index,
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor)
       : Expression(anchor), receiver(receiver), first(index) {}
   constexpr Index(
-      Expression& receiver,
-      Expression& start,
-      Expression& count,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor)
+      Model::Pack& receiver,
+      Model::Pack& start,
+      Model::Pack& count,
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor)
       : Expression(anchor),
         receiver(receiver),
         first(start),
-        count(Ttx::Concept::Reference<Expression>(count)) {}
+        count(Tetrodotoxin::Source::PackReference<Model::Pack>(count)) {}
 
   auto link_target(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& lexical_context,
-      Perimortem::Core::Option<const Ttx::Concept::Abstract&> access_scope)
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& lexical_context,
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&> access_scope)
       -> Bool;
 
-  Expression& receiver;
-  Expression& first;
-  Perimortem::Core::Option<Ttx::Concept::Reference<Expression>> count;
-  Perimortem::Core::Option<Ttx::Concept::Reference<const Model::Type>>
+  Model::Pack& receiver;
+  Model::Pack& first;
+  Perimortem::Core::Option<Tetrodotoxin::Source::PackReference<Model::Pack>> count;
+  Perimortem::Core::Option<Tetrodotoxin::Source::Reference<const Model::Type>>
       element_type;
   Perimortem::Core::Option<Count> range_count;
 };

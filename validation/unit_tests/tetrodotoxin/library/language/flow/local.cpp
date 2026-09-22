@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/flow/local.hpp"
@@ -18,14 +18,14 @@
 #include "tetrodotoxin/library/language/types/composite.hpp"
 #include "tetrodotoxin/library/language/types/object.hpp"
 #include "tetrodotoxin/library/language/types/structure.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Tetrodotoxin::Library;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using Tetrodotoxin::Environment::Workspace;
 using namespace Validation;
 
@@ -59,14 +59,18 @@ static auto find_function(
 }
 
 static auto rejects_interpretation(View::Bytes source) -> Bool {
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   return !interpret(workspace, errors, source) && !errors.is_empty();
 }
 
 static auto rejects_link_without_publication(View::Bytes source) -> Bool {
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
@@ -74,11 +78,10 @@ static auto rejects_link_without_publication(View::Bytes source) -> Bool {
     return False;
   }
 
-  return &workspace.resolve_context("LocalTest"_view) ==
-         &Invalid::get_invalid();
+  return retains_library_source(workspace, "LocalTest"_view);
 }
 
-PERIMORTEM_UNIT_TEST(LocalTests, source_order_and_type_completion) {
+PERIMORTEM_UNIT_TEST(LocalTests, local_completion) {
   static constexpr View::Bytes source =
       "// Local outcomes.\n"
       "dialect : Library;\n"
@@ -95,15 +98,17 @@ PERIMORTEM_UNIT_TEST(LocalTests, source_order_and_type_completion) {
       "  state named : Pair = (.right = false, .left = true);\n"
       "  return inferred;\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
   ASSERT(monograph);
 
   const auto& source_type = monograph->get_source();
-  const Abstract& packet_identity = source_type.resolve_context("Packet"_view);
-  const Abstract& pair_identity = source_type.resolve_context("Pair"_view);
+  const Abstract& packet_identity = source_type.resolve_concept("Packet"_view);
+  const Abstract& pair_identity = source_type.resolve_concept("Pair"_view);
   ASSERT(packet_identity.is<Language::Types::Object>());
   ASSERT(pair_identity.is<Language::Types::Structure>());
   auto body = find_function(source_type, "body"_view);
@@ -133,7 +138,7 @@ PERIMORTEM_UNIT_TEST(LocalTests, source_order_and_type_completion) {
       statements.get_data()[5].get_root());
   const auto& named_local = static_cast<const Language::Flow::Local&>(
       statements.get_data()[6].get_root());
-  const Abstract& boolean = monograph->resolve_context("Bool"_view);
+  const Abstract& boolean = monograph->resolve_concept("Bool"_view);
 
   EXPECT(&explicit_local.get_type() == &boolean);
   EXPECT(&fixed_local.get_type() == &boolean);
@@ -156,17 +161,17 @@ PERIMORTEM_UNIT_TEST(LocalTests, source_order_and_type_completion) {
   EXPECT(
       explicit_local.get_anchor().get_span().caculate_text(source) ==
       "state explicit : Bool = true;"_view);
-  EXPECT(&block.resolve_context("explicit"_view) == &explicit_local);
-  EXPECT(&block.resolve_context("fixed"_view) == &fixed_local);
-  EXPECT(&block.resolve_context("inferred"_view) == &inferred_local);
-  EXPECT(&block.resolve_context("copied"_view) == &copied_local);
-  EXPECT(&block.resolve_context("created"_view) == &created_local);
-  EXPECT(&block.resolve_context("positional"_view) == &positional_local);
-  EXPECT(&block.resolve_context("named"_view) == &named_local);
+  EXPECT(&block.resolve_concept("explicit"_view) == &explicit_local);
+  EXPECT(&block.resolve_concept("fixed"_view) == &fixed_local);
+  EXPECT(&block.resolve_concept("inferred"_view) == &inferred_local);
+  EXPECT(&block.resolve_concept("copied"_view) == &copied_local);
+  EXPECT(&block.resolve_concept("created"_view) == &created_local);
+  EXPECT(&block.resolve_concept("positional"_view) == &positional_local);
+  EXPECT(&block.resolve_concept("named"_view) == &named_local);
 
   Perimortem::Memory::Allocator::Arena transaction;
   Tokenizer tokenizer(transaction, source, "local.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   ASSERT(monograph->link(cursor));
   auto repeated = block.get_statements();
@@ -179,7 +184,7 @@ PERIMORTEM_UNIT_TEST(LocalTests, source_order_and_type_completion) {
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(LocalTests, const_fixed_retains_folded_values) {
+PERIMORTEM_UNIT_TEST(LocalTests, folded_const) {
   static constexpr View::Bytes source =
       "// Const Fixed Local.\n"
       "dialect : Library;\n"
@@ -188,7 +193,9 @@ PERIMORTEM_UNIT_TEST(LocalTests, const_fixed_retains_folded_values) {
       "  const extracted := dense:[1];\n"
       "  return extracted;\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
@@ -211,21 +218,22 @@ PERIMORTEM_UNIT_TEST(LocalTests, const_fixed_retains_folded_values) {
   ASSERT(folded);
   ASSERT_EQ(folded->get_layout().get_size(), Count(4));
   for (Count index = 0; index < Count(4); index++) {
-    auto produced = folded->get_produced(index);
-    ASSERT(produced);
-    auto value = produced->producer.select<Language::Constants::Unsigned>();
+    auto producer = folded->get_layout().get_abstract(index);
+    ASSERT(producer);
+    auto value = producer->select<Language::Constants::Unsigned>();
     ASSERT(value);
     EXPECT_EQ(value->get_value(), U64(index + 5));
   }
   auto extracted_value = extracted.get_constant();
   ASSERT(extracted_value);
-  auto value = extracted_value->select<Language::Constants::Unsigned>();
+  auto value =
+      extracted_value->select_identity<Language::Constants::Unsigned>();
   ASSERT(value);
   EXPECT_EQ(value->get_value(), U64(6));
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(LocalTests, inference_requires_one_scalar_value) {
+PERIMORTEM_UNIT_TEST(LocalTests, scalar_inference) {
   static constexpr Static::Vector<View::Bytes, 2> sources = {{
     "// Empty inferred Pack.\ndialect : Library; private invalid : func = [] -> [] { const value := (); }"_view,
     "// Multi-value inferred Pack.\ndialect : Library; private invalid : func = [] -> [] { const value := (true, false); }"_view,
@@ -236,7 +244,7 @@ PERIMORTEM_UNIT_TEST(LocalTests, inference_requires_one_scalar_value) {
   }
 }
 
-PERIMORTEM_UNIT_TEST(LocalTests, malformed_declarations_are_atomic) {
+PERIMORTEM_UNIT_TEST(LocalTests, malformed_locals) {
   static constexpr Static::Vector<View::Bytes, 3> sources = {{
     "// Duplicate Local.\ndialect : Library; private invalid : func = [] -> [] { state value : Bool; const value := true; }"_view,
     "// Inferred construction.\ndialect : Library; private invalid : func = [] -> [] { state value := new; }"_view,
@@ -248,7 +256,7 @@ PERIMORTEM_UNIT_TEST(LocalTests, malformed_declarations_are_atomic) {
   }
 }
 
-PERIMORTEM_UNIT_TEST(LocalTests, reachable_names_cannot_be_shadowed) {
+PERIMORTEM_UNIT_TEST(LocalTests, shadow_rejection) {
   static constexpr Static::Vector<View::Bytes, 2> sources = {{
     "// Function parameter.\ndialect : Library; private invalid : func = [.value : Bool] -> [] { state value : Bool; return; }"_view,
     "// Enclosing Block.\ndialect : Library; private invalid : func = [] -> [] { state value : Bool; while false { state value : Bool; } return; }"_view,
@@ -259,7 +267,7 @@ PERIMORTEM_UNIT_TEST(LocalTests, reachable_names_cannot_be_shadowed) {
   }
 }
 
-PERIMORTEM_UNIT_TEST(LocalTests, shadow_note_names_original_declaration) {
+PERIMORTEM_UNIT_TEST(LocalTests, shadow_diagnostic) {
   static constexpr View::Bytes source =
       "// Shadow diagnostic.\n"
       "dialect : Library;\n"
@@ -270,7 +278,9 @@ PERIMORTEM_UNIT_TEST(LocalTests, shadow_note_names_original_declaration) {
       "  }\n"
       "  return;\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   EXPECT_NOT(interpret(workspace, errors, source));
@@ -284,7 +294,7 @@ PERIMORTEM_UNIT_TEST(LocalTests, shadow_note_names_original_declaration) {
       Count(-1));
 }
 
-PERIMORTEM_UNIT_TEST(LocalTests, invalid_type_flow_is_not_published) {
+PERIMORTEM_UNIT_TEST(LocalTests, type_rejection) {
   static constexpr Static::Vector<View::Bytes, 5> sources = {{
     "// Forward Local.\ndialect : Library; private invalid : func = [] -> Bool { const first := later; const later : Bool = true; return first; }"_view,
     "// Mismatched Local.\ndialect : Library; private invalid : func = [] -> [] { state value : Bool = 1; }"_view,
@@ -298,9 +308,7 @@ PERIMORTEM_UNIT_TEST(LocalTests, invalid_type_flow_is_not_published) {
   }
 }
 
-PERIMORTEM_UNIT_TEST(
-    LocalTests,
-    explicit_type_survives_initializer_diagnostics) {
+PERIMORTEM_UNIT_TEST(LocalTests, explicit_type_errors) {
   static constexpr View::Bytes source =
       "// Typed Local diagnostic recovery.\n"
       "dialect : Library;\n"
@@ -316,12 +324,13 @@ PERIMORTEM_UNIT_TEST(
       "  state total : U64 = pair -> sum();\n"
       "  return total;\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   EXPECT_NOT(interpret(workspace, errors, source));
-  EXPECT(
-      &workspace.resolve_context("LocalTest"_view) == &Invalid::get_invalid());
+  EXPECT(retains_library_source(workspace, "LocalTest"_view));
   ASSERT_EQ(errors.get_size(), Count(1));
 
   Perimortem::Memory::Allocator::Arena rendered;

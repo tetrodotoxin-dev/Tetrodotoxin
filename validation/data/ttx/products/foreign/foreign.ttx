@@ -1,0 +1,43 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+// Foreign access and invocation acceptance.
+dialect : Library;
+
+foreign "C" {
+  expose state library_foreign_bias  : U64;
+  public state library_foreign_state : U64;
+
+  public func library_foreign_add[.left : U64, .right : U64] -> U64;
+  public func llvm_large_sum[.value : CrossArtifactLarge] -> U64;
+}
+
+private total : U64 = 0;
+
+public cross_artifact : func = [] -> U64 {
+  state value : CrossArtifactLarge = (.first = 4, .second = 5, .third = 6);
+  return foreign -> llvm_large_sum(value);
+}
+
+// Stable C interoperability entry with repeated TTX-owned Static state.
+public library_native : func = [] -> U64 {
+  total += PrivateOps -> increment();
+  foreign.library_foreign_state = total;
+  return foreign -> library_foreign_add(
+    foreign.library_foreign_state,
+    foreign.library_foreign_bias,
+  );
+}
+
+// This local carrier deliberately has a distinct semantic identity from the
+// provider's Large Type. The shared C boundary, rather than one LLVM module,
+// must agree on its physical System V aggregate representation.
+private CrossArtifactLarge : struct {
+  public state first  : U64 = 0;
+  public state second : U64 = 0;
+  public state third  : U64 = 0;
+}
+
+private PrivateOps : struct {
+  public increment : func = [] -> U64 : return 20;
+}

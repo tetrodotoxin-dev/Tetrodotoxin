@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -15,8 +15,8 @@ namespace Tetrodotoxin::Diagnostics {
 // Exact lookup remains with the semantic owner. These operations borrow the
 // complete candidate set for one selection transaction and return a formatted
 // hint without retaining candidate or result state. Candidate order is
-// preference order: the first exact or one-edit name returns immediately,
-// while the first two-edit name is only a fallback.
+// preference order: the first exact or one edit name returns immediately,
+// while the first two edit name is only a fallback.
 class Suggestions {
  public:
   static auto possible_candidate(

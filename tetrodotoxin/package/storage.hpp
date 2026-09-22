@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -20,13 +20,14 @@
 
 namespace Tetrodotoxin::Package {
 
-// Opens the physical root for one Package and caches every successful Source
-// or resource read by its normalized logical route.
+// Opens the physical root for one Package and caches every successful source
+// or resource read by its canonical logical route.
 //
-// Package::Language::Source owns the semantic name and authored route. Storage
-// resolves only that route into a diagnostic path and bytes. Content remains
-// valid for this opened acquisition transaction. A semantic consumer copies
-// any retained view into its own graph domain before Storage closes.
+// The importing source owns its local Alias name and relative spelling.
+// Storage resolves only the canonical route into a diagnostic path and bytes.
+// Content remains valid for this opened acquisition transaction. A semantic
+// consumer copies any retained view into its own graph domain before Storage
+// closes.
 //
 // The cache belongs to this opened Package storage only. Storage never
 // interprets content or derives semantic identity from a route.

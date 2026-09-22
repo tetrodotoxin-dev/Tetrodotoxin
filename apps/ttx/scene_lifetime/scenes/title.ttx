@@ -1,33 +1,60 @@
-// Tetrodotoxin
-// Copyright (c) 2023-present Matt Kaes and contributors
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
 //
-// A mock title screen that responds to simple inputs.
-//
+// A title screen that publishes keyboard input as Scene Signals.
 dialect : Scene;
 
-private const title_card : Graphics::Sprite = new;
+public Graphics : alias = package(.name = "Perimortem.Graphics", .version = "1.0");
+public System : alias = package(.name = "Perimortem.System", .version = "1.0");
+private Blend : alias = source("../shaders/blend.ttx");
+using System::Key;
 
 signal space_pressed;
 signal shift_pressed;
+private state title_card : Graphics::Sprite;
+private state title_material : Blend::Material;
+private state elapsed : R64 = 0.0;
 
-Scene prepare[self] -> Void {
-  state image := Graphics::Image -> decode($[resources/logo.png]);
-  self.title_card.image       = image;
-  self.title_card.size_pixels = image -> get_size_pixels();
-  self.title_card.position    = (.x = 200.0, .y = 250.0);
-  self.title_card.tone        = (.r = 1.0, .g = 1.0, .b = 1.0, .a = 1.0);
-  return;
+Scene prepare[self] -> [] {
+  state image := Graphics::Format::PNG -> decode(.bytes = $[../resources/logo.png] ->
+      get_view())!;
+  state texture : Graphics::Texture2D = (
+    .image = image,
+    .sampler = new[Graphics::Sampler2D],
+  );
+  state noise_image := Graphics::Format::PNG -> decode(.bytes = $[../resources/perlin.png] ->
+      get_view())!;
+  state noise_sampler : Graphics::Sampler2D = (
+    .addressing = Graphics::Sampler2D::Addressing::wrap,
+    .filtering = Graphics::Sampler2D::Filtering::linear,
+  );
+  state noise_texture : Graphics::Texture2D = (
+    .image = noise_image,
+    .sampler = noise_sampler,
+  );
+  state position : Graphics::Point2D = (.x = 100.0, .y = 220.0);
+  state display_size : Graphics::Size2D = (.width = 600, .height = 157);
+  self.elapsed = 0.0;
+  self.title_card.texture = texture;
+  self.title_material.noise = noise_texture;
+  self.title_card.material = self.title_material;
+  self.title_card.size = display_size;
+  self.title_card.transform = (
+    .translation = position,
+    .scale_x = 1.0,
+    .scale_y = 1.0,
+    .rotation = 0.0,
+  );
 }
 
-Scene release[self] -> Void : return;
-Scene update[self, .delta_time : R64] -> Scene::Flow {
-  const input := System -> get_input();
-  if (input -> pressed(.key = System::Key -> space())) : return Scene::Flow -> emit(
-    self.space_pressed,
-  );
-  if (input -> pressed(.key = System::Key -> shift())) : return Scene::Flow -> emit(
-    self.shift_pressed,
-  );
+Scene release[self] -> [] : return;
+Scene update[self, .delta_time : R64] -> [] {
+  self.elapsed = self.elapsed + delta_time;
 
-  return Scene::Flow -> stay();
+  state wrapped_time : R64 = self.elapsed % 16.0;
+  self.title_material.parameters.time_milliseconds = new[U32](wrapped_time * 1000.0);
+
+  state input := System::Input -> snapshot();
+  if input -> pressed(.key = space) : emit space_pressed;
+  if input -> pressed(.key = shift) : emit shift_pressed;
 }

@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/memory/allocator/arena.hpp"
@@ -13,11 +13,6 @@ Allocator::Arena::Arena() {
   rented_block = nullptr;
 
   fetch_page(page_size);
-}
-
-Allocator::Arena::Arena(Arena&& arena) {
-  rented_block = arena.rented_block;
-  arena.rented_block = nullptr;
 }
 
 Allocator::Arena::~Arena() {

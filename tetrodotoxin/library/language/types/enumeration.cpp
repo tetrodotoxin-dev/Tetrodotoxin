@@ -1,7 +1,9 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/types/enumeration.hpp"
+
+#include "tetrodotoxin/source/documentation.hpp"
 
 #include "perimortem/core/static/vector.hpp"
 #include "perimortem/core/math.hpp"
@@ -9,8 +11,6 @@
 
 #include "perimortem/memory/dynamic/vector.hpp"
 
-#include "tetrodotoxin/language/parser/comment.hpp"
-#include "tetrodotoxin/library/archive/declaration.hpp"
 #include "tetrodotoxin/library/builtin/enum/name.hpp"
 #include "tetrodotoxin/library/builtin/enum/size.hpp"
 #include "tetrodotoxin/library/language/constants/enumeration.hpp"
@@ -18,100 +18,21 @@
 #include "tetrodotoxin/library/language/model/types/signed.hpp"
 #include "tetrodotoxin/library/language/model/types/unsigned.hpp"
 #include "tetrodotoxin/library/language/types/view.hpp"
-#include "tetrodotoxin/library/llvm/builder.hpp"
-#include "ttx/concept/invalid.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Utility;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library::Language;
-
-auto Types::Enumeration::persist(Archive::Writer& writer) const -> Bool {
-  auto record = writer.begin(Archive::Tag::Enumeration);
-  Archive::Declaration declaration(definition);
-  BAIL_IF(
-      !declaration.write(writer) || !storage_reference.persist(writer) ||
-      cases.get_size() > U32(-1));
-
-  writer.write(U32(cases.get_size()));
-  for (Count index = 0; index < cases.get_size(); index++) {
-    auto case_record = writer.begin(Archive::Tag::EnumerationCase);
-    const Ttx::Model::Alias& selected =
-        cases.get_view().get_data()[index].get();
-    auto value = get_case_value(index);
-    BAIL_IF(
-        !writer.write(selected.get_documentation()) ||
-        !writer.write(selected.get_name()) || !value);
-    writer.write(*value);
-    BAIL_IF(!writer.finish(case_record));
-  }
-  return writer.finish(record);
-}
-
-auto Types::Enumeration::restore(
-    Archive::Reader& reader,
-    Allocator::Arena& arena,
-    Abstract& host) -> Option<Enumeration&> {
-  auto record = reader.read_record();
-  BAIL_IF(
-      !record || record->get_tag() != U16(Archive::Tag::Enumeration) ||
-      record->is_optional());
-
-  Archive::Reader contents(record->get_payload());
-  auto declaration = Archive::Declaration::read(contents, arena);
-  auto storage = TypeReference::restore(contents, arena, host);
-  auto count = contents.read_u32();
-  BAIL_IF(!declaration || !storage || !count);
-
-  auto& definition = declaration->create_definition(arena, host);
-  Enumeration& enumeration =
-      arena.construct_from<Enumeration>([&]() -> Enumeration {
-        return Enumeration(arena, definition, *storage);
-      });
-  enumeration.source_cases.reset(*count);
-  enumeration.cases.reset(*count);
-  for (Count index = 0; index < *count; index++) {
-    auto case_record = contents.read_record();
-    BAIL_IF(
-        !case_record ||
-        case_record->get_tag() != U16(Archive::Tag::EnumerationCase) ||
-        case_record->is_optional());
-    Archive::Reader case_contents(case_record->get_payload());
-    auto documentation = case_contents.read_documentation(arena);
-    auto name = case_contents.read_bytes();
-    auto value = case_contents.read_u64();
-    BAIL_IF(
-        !documentation || !name || name->is_empty() || !value ||
-        !case_contents.is_complete());
-
-    Core::View::Bytes retained_name = arena.proxy(*name);
-    enumeration.source_cases.insert(
-        SourceCase{
-          .name = retained_name,
-          .value = {},
-          .documentation = *documentation,
-          .anchor = Anchor::create(Span()),
-          .name_anchor = Anchor::create(Span()),
-          .value_anchor = Anchor::create(Span()),
-        });
-    const Abstract& constant =
-        Constants::Enumeration::create_synthetic(arena, enumeration, *value);
-    const Ttx::Model::Alias& alias = arena.construct<Ttx::Model::Alias>(
-        retained_name, constant, *documentation);
-    enumeration.cases.insert(alias);
-  }
-  BAIL_IF(!contents.is_complete());
-  return enumeration;
-}
 
 static auto select_intrinsic_type(
     const Types::Enumeration& enumeration,
     Core::View::Bytes name) -> Option<const Model::Type&> {
   return enumeration.get_host()
-      .resolve_context(name)
+      .resolve_concept(name)
       .resolve()
       .select<Model::Type>();
 }
@@ -120,7 +41,7 @@ static auto select_name_type(const Types::Enumeration& enumeration)
     -> Option<const Model::Type&> {
   auto bytes = select_intrinsic_type(enumeration, "U8"_view);
   const Abstract& selected =
-      enumeration.get_host().resolve_context("View"_view).resolve();
+      enumeration.get_host().resolve_concept("View"_view).resolve();
   auto generic = selected.select<Generic>();
   BAIL_IF(!bytes || !generic);
 
@@ -137,70 +58,10 @@ static auto select_name_type(const Types::Enumeration& enumeration)
           });
 }
 
-struct ParsedCase {
-  Core::View::Bytes name;
-  Core::View::Bytes value;
-  const Documentation& documentation;
-  Anchor anchor;
-  Anchor name_anchor;
-  Anchor value_anchor;
-};
-
 struct ParsedValue {
   S64 signed_value;
   U64 unsigned_value;
 };
-
-static auto parse_case(Cursor& cursor, const Documentation& documentation)
-    -> Option<ParsedCase> {
-  Token name_token = cursor.require(
-      Code::Type::Addressable,
-      "Library Enumeration cases require an addressable name."_view);
-  BAIL_IF(!name_token);
-
-  // TODO: Allow Enumeration cases to infer the next value when no assignment
-  // is present.
-  BAIL_IF(!cursor.require(
-      Code::Type::Assign,
-      "Library Enumeration cases require an explicit `=` value."_view));
-
-  // TODO: Admit case expressions once complete folding can supply one
-  // Constant.
-  Token value_opening = cursor.current();
-  Token value_token;
-  if (cursor.matches(Code::Type::SubOp)) {
-    cursor.consume();
-    value_token = cursor.require(
-        Code::Type::Numeric,
-        "A negative Enumeration case requires a decimal integer."_view);
-  } else if (
-      cursor.matches(Code::Type::Numeric) || cursor.matches(Code::Type::Hex)) {
-    value_token = cursor.consume();
-  } else {
-    cursor.create_token_error(
-        "Library Enumeration cases require a decimal or hexadecimal "
-        "integer."_view);
-    return {};
-  }
-
-  BAIL_IF(!value_token);
-
-  Token terminator = cursor.require(
-      Code::Type::EndStatement,
-      "Library Enumeration cases require one terminating `;`."_view);
-  BAIL_IF(!terminator);
-
-  Span value_span(value_opening, value_token);
-  Core::View::Bytes source = cursor.get_source_text();
-  return ParsedCase{
-    .name = name_token.caculate_text(source),
-    .value = value_span.caculate_text(source),
-    .documentation = documentation,
-    .anchor = Anchor::create(name_token, Span(name_token, terminator)),
-    .name_anchor = Anchor::create(Span(name_token)),
-    .value_anchor = Anchor::create(value_token, value_span),
-  };
-}
 
 static auto read_unsigned(
     Core::View::Bytes text,
@@ -259,110 +120,62 @@ Tetrodotoxin::Library::Language::Types::Enumeration::Enumeration(
     Allocator::Arena& domain,
     Tetrodotoxin::Language::Definition& definition,
     TypeReference storage_reference)
-    : definition(definition),
+    : static_scope(*this),
+      definition(definition),
       domain(domain),
       storage_reference(storage_reference),
       source_cases(domain),
       cases(domain) {}
 
-auto Tetrodotoxin::Library::Language::Types::Enumeration::interpret(
-    Cursor& cursor,
-    Tetrodotoxin::Language::Definition& definition) -> Option<Enumeration&> {
-  // Cases remain local until the closing brace proves one complete body. A
-  // malformed body rejects the source transaction without publishing a
-  // partial case inventory.
-  Allocator::Arena& domain = cursor.get_arena();
-  // Enumeration needs only contextual queries from its Definition host. The
-  // declaration owner independently decides where this Type is published.
-  if (definition.get_name_token().get_code() != Code::Type::Type) {
-    cursor.create_token_error(
-        definition.get_name_token(),
-        "Library Enumerations require an authored Type shaped name."_view);
-    return {};
-  }
+auto Tetrodotoxin::Library::Language::Types::Enumeration::create_authored(
+    Allocator::Arena& domain,
+    Tetrodotoxin::Language::Definition& definition,
+    TypeReference storage_reference,
+    Core::View::Vector<Case> cases) -> Enumeration& {
+  return create(domain, definition, storage_reference, cases);
+}
 
-  if (definition.get_visibility() ==
-      Tetrodotoxin::Language::Visibility::Exposed) {
-    cursor.create_token_error(
-        definition.get_visibility_token(),
-        "Library Enumerations accept only `public` or `private` visibility."_view);
-    return {};
-  }
-
-  if (!definition.get_modifiers().is_empty()) {
-    cursor.create_token_error(
-        definition.get_modifiers().get_data()[0],
-        "Library Enumerations do not accept evaluation modifiers."_view);
-    return {};
-  }
-
-  Token enumeration_token = cursor.require(
-      Code::Type::Enum,
-      "Library Enumeration declarations require `enum`."_view);
-  BAIL_IF(!enumeration_token);
-  BAIL_IF(!cursor.require(
-      Code::Type::BracketStart,
-      "Library Enumeration storage requires an opening `[`."_view));
-
-  auto storage = TypeReference::parse(definition.get_host(), cursor);
-  BAIL_IF(!storage);
-  BAIL_IF(!cursor.require(
-      Code::Type::BracketEnd,
-      "Library Enumeration storage requires a closing `]`."_view));
-  BAIL_IF(!cursor.require(
-      Code::Type::ScopeStart,
-      "Library Enumeration bodies require an opening `{`."_view));
-
-  Managed::Vector<ParsedCase> parsed_cases(domain);
-  while (!cursor.matches(Code::Type::ScopeEnd)) {
-    if (cursor.matches(Code::Type::Terminal)) {
-      cursor.create_token_error(
-          "Library Enumeration body reached the end of source before "
-          "`}`."_view);
-      return {};
-    }
-
-    const Documentation& case_documentation =
-        Tetrodotoxin::Language::Parser::Comment::parse(cursor);
-    auto parsed = parse_case(cursor, case_documentation);
-    BAIL_IF(!parsed);
-    if (parsed_cases.get_view().contains([&](const ParsedCase& existing) {
-          return existing.name == parsed->name;
-        })) {
-      cursor.create_expression_error(
-          parsed->name_anchor,
-          "Duplicate case name in one Library Enumeration."_view);
-      return {};
-    }
-
-    parsed_cases.insert(*parsed);
-  }
-
-  Token closing = cursor.consume();
-  BAIL_IF(!definition.complete(enumeration_token, closing));
-
-  // The complete grammar begins one nonmoving Type and then copies only its
-  // compact source slots. Constants and Aliases wait for the storage Type so
-  // no provisional value graph survives interpretation.
+auto Tetrodotoxin::Library::Language::Types::Enumeration::create(
+    Allocator::Arena& domain,
+    Tetrodotoxin::Language::Definition& definition,
+    TypeReference storage_reference,
+    Core::View::Vector<Case> cases) -> Enumeration& {
   Enumeration& enumeration =
       domain.construct_from<Enumeration>([&]() -> Enumeration {
-        return Enumeration(domain, definition, *storage);
+        return Enumeration(domain, definition, storage_reference);
       });
-  enumeration.source_cases.reset(parsed_cases.get_size());
-  for (Count i = 0; i < parsed_cases.get_size(); i++) {
-    const ParsedCase& parsed = parsed_cases[i];
-    SourceCase source_case{
-      .name = parsed.name,
-      .value = parsed.value,
-      .documentation = parsed.documentation,
-      .anchor = parsed.anchor,
-      .name_anchor = parsed.name_anchor,
-      .value_anchor = parsed.value_anchor,
-    };
+  enumeration.source_cases.reset(cases.get_size());
+  for (const Case& source_case : cases) {
     enumeration.source_cases.insert(source_case);
   }
-
   return enumeration;
+}
+
+auto Tetrodotoxin::Library::Language::Types::Enumeration::retain_restored_case(
+    Core::View::Bytes name,
+    U64 value,
+    const Tetrodotoxin::Source::Documentation& documentation) -> Bool {
+  BAIL_IF(stage != Stage::Authored || name.is_empty());
+  for (const Case& retained : source_cases.get_view()) {
+    BAIL_IF(retained.name == name);
+  }
+
+  source_cases.insert(
+      Case{
+        .name = name,
+        .value = {},
+        .documentation = documentation,
+        .anchor = Anchor::create(Span()),
+        .name_anchor = Anchor::create(Span()),
+        .value_anchor = Anchor::create(Span()),
+      });
+  const Abstract& constant =
+      Constants::Enumeration::create_synthetic(domain, *this, value);
+  auto& declaration = Tetrodotoxin::Language::Definition::create_synthetic(
+      domain, documentation, *this, name,
+      Tetrodotoxin::Language::Visibility::Public, Anchor::create(Span()));
+  cases.insert(domain.construct<Member>(declaration, constant));
+  return True;
 }
 
 auto Tetrodotoxin::Library::Language::Types::Enumeration::link_types(
@@ -401,12 +214,16 @@ auto Tetrodotoxin::Library::Language::Types::Enumeration::link_types(
       domain, Builtin::Enum::Name::create(domain, *this, *name_type), True);
   auto& size = Builtin::Enum::Size::create(
       domain, *unsigned_count, source_cases.get_size());
-  generated_size = Option<Reference<const Model::Addressable>>(
-      Reference<const Model::Addressable>(size));
+  generated_size = Option<Reference<const Model::Memory>>(
+      Reference<const Model::Memory>(size));
 
   storage_type = Reference<const Model::Type>(*selected_type);
   stage = Stage::StorageLinked;
-  return True;
+  // Cases are immutable Type members whose literal storage is already known at
+  // this barrier. Publishing them here lets Function bodies use the exact
+  // declaration identities without waiting for the later constant cache
+  // finalization pass.
+  return finalize(cursor);
 }
 
 auto Types::Enumeration::link_restored_types() -> Bool {
@@ -432,18 +249,15 @@ auto Types::Enumeration::link_restored_types() -> Bool {
       domain, Builtin::Enum::Name::create(domain, *this, *name_type), True);
   auto& size = Builtin::Enum::Size::create(
       domain, *unsigned_count, source_cases.get_size());
-  generated_size = Reference<const Model::Addressable>(size);
+  generated_size = Reference<const Model::Memory>(size);
   storage_type = Reference<const Model::Type>(*selected_type);
-  stage = Stage::StorageLinked;
+  stage = Stage::Finalized;
   return True;
 }
 
 auto Types::Enumeration::finalize_restored() -> Bool {
-  BAIL_IF(
-      stage != Stage::StorageLinked ||
-      cases.get_size() != source_cases.get_size());
-  stage = Stage::Finalized;
-  return True;
+  return stage == Stage::Finalized &&
+         cases.get_size() == source_cases.get_size();
 }
 
 auto Tetrodotoxin::Library::Language::Types::Enumeration::finalize(
@@ -475,11 +289,11 @@ auto Tetrodotoxin::Library::Language::Types::Enumeration::finalize(
   Bool failed = False;
 
   // Parsing and width checks finish for the complete inventory before any
-  // Constant or Alias becomes queryable. One bad case therefore leaves the
-  // Enumeration with no partial lookup surface.
+  // Constant or declaration becomes queryable. One bad case therefore leaves
+  // the Enumeration with no partial lookup surface.
   if (type.is<Tetrodotoxin::Library::Language::Model::Types::Signed>()) {
     for (Count i = 0; i < source_cases.get_size(); i++) {
-      const SourceCase& source_case = source_cases[i];
+      const Case& source_case = source_cases[i];
       S64 value = 0;
       Bool parsed = read_signed(
           source_case.value, source_case.value_anchor, cursor, value);
@@ -505,7 +319,7 @@ auto Tetrodotoxin::Library::Language::Types::Enumeration::finalize(
     }
   } else {
     for (Count i = 0; i < source_cases.get_size(); i++) {
-      const SourceCase& source_case = source_cases[i];
+      const Case& source_case = source_cases[i];
       if (source_case.value[0] == '-') {
         cursor.create_expression_error(
             source_case.value_anchor,
@@ -545,16 +359,18 @@ auto Tetrodotoxin::Library::Language::Types::Enumeration::finalize(
 
   cases.reset(source_cases.get_size());
   for (Count i = 0; i < source_cases.get_size(); i++) {
-    const SourceCase& source_case = source_cases[i];
+    const Case& source_case = source_cases[i];
     const ParsedValue& value = values[i];
     U64 representation = type.is<Model::Types::Signed>()
                              ? U64(value.signed_value)
                              : value.unsigned_value;
     const Abstract& constant = Constants::Enumeration::create_authored(
         domain, *this, representation, source_case.value_anchor);
-    const Ttx::Model::Alias& alias = domain.construct<Ttx::Model::Alias>(
-        source_case.name, constant, source_case.documentation);
-    cases.insert(alias);
+    auto& declaration = Tetrodotoxin::Language::Definition::create_authored(
+        cursor, source_case.documentation, *this, {}, {},
+        Tetrodotoxin::Language::Visibility::Public, {}, source_case.name,
+        source_case.name_anchor.get_token(), {}, source_case.anchor);
+    cases.insert(domain.construct<Member>(declaration, constant));
   }
 
   stage = Stage::Finalized;
@@ -564,39 +380,67 @@ auto Tetrodotoxin::Library::Language::Types::Enumeration::finalize(
 auto Tetrodotoxin::Library::Language::Types::Enumeration::resolve() const
     -> const Abstract& {
   if (stage < Stage::StorageLinked) {
-    return Invalid::get_invalid();
+    return Unknown::get_unknown();
   }
 
   return *this;
 }
 
-auto Tetrodotoxin::Library::Language::Types::Enumeration::resolve_context(
+auto Tetrodotoxin::Library::Language::Types::Enumeration::resolve_concept(
     Core::View::Bytes route) const -> const Abstract& {
-  if (stage != Stage::Finalized) {
-    return Invalid::get_invalid();
+  if (route == "static"_view) {
+    return static_scope;
+  }
+  if (route == "instance"_view) {
+    return Model::Type::resolve_concept("instance"_view);
   }
 
-  auto case_view = cases.get_view();
-  for (Count i = 0; i < cases.get_size(); i++) {
-    const Ttx::Model::Alias& alias = case_view.get_data()[i].get();
-    if (alias.get_name() == route) {
-      return alias;
+  return static_scope.resolve_concept(route);
+}
+
+auto Types::Enumeration::Authority::resolve_concept(
+    Core::View::Bytes route) const -> const Abstract& {
+  if (owner.stage != Stage::Finalized) {
+    return Unknown::get_unknown();
+  }
+
+  auto case_view = owner.cases.get_view();
+  for (Count i = 0; i < case_view.get_size(); i++) {
+    const Abstract& member = case_view.get_data()[i].get();
+    if (member.get_name() == route) {
+      return member;
     }
   }
 
-  return Invalid::get_invalid();
-}
-
-auto Tetrodotoxin::Library::Language::Types::Enumeration::resolve_type_access(
-    const Abstract&,
-    Core::View::Bytes route,
-    Model::Type::Access access) const -> const Abstract& {
-  if (access == Model::Type::Access::Static && generated_size &&
-      generated_size->get().get_name() == route) {
-    return generated_size->get();
+  if (owner.generated_size && owner.generated_size->get().get_name() == route) {
+    return owner.generated_size->get();
   }
 
-  return Invalid::get_invalid();
+  return None::get_none();
+}
+
+auto Types::Enumeration::visit_concepts(Abstract::Visitor visitor) const
+    -> void {
+  visitor("static"_view, static_scope);
+  const Abstract& instance = Model::Type::resolve_concept("instance"_view);
+  if (!instance.is<None>()) {
+    visitor("instance"_view, instance);
+  }
+}
+
+auto Types::Enumeration::Authority::visit_concepts(
+    Abstract::Visitor visitor) const -> void {
+  if (owner.stage != Stage::Finalized) {
+    return;
+  }
+  for (const auto& retained : owner.cases.get_view()) {
+    const auto& member = retained.get();
+    visitor(member.get_name(), member);
+  }
+  if (owner.generated_size) {
+    const auto& size = owner.generated_size->get();
+    visitor(size.get_name(), size);
+  }
 }
 
 auto Tetrodotoxin::Library::Language::Types::Enumeration::create_default(
@@ -614,7 +458,7 @@ auto Tetrodotoxin::Library::Language::Types::Enumeration::get_storage_type()
 }
 
 auto Tetrodotoxin::Library::Language::Types::Enumeration::get_cases() const
-    -> Core::View::Vector<Reference<const Ttx::Model::Alias>> {
+    -> Core::View::Vector<Reference<const Abstract>> {
   return cases;
 }
 
@@ -654,8 +498,8 @@ auto Tetrodotoxin::Library::Language::Types::Enumeration::find_case_name(
 auto Tetrodotoxin::Library::Language::Types::Enumeration::accepts_iteration(
     const Layout& bindings) const -> Bool {
   auto value_entry = bindings.get_abstract(0);
-  auto value = value_entry ? value_entry->select<Ttx::Model::Addressable>()
-                           : Option<const Ttx::Model::Addressable&>();
+  auto value = value_entry ? value_entry->select<Tetrodotoxin::Source::Addressable>()
+                           : Option<const Tetrodotoxin::Source::Addressable&>();
   auto value_name = bindings.get_name(0);
   if (!value || !value_name || *value_name != "value"_view) {
     return False;
@@ -671,129 +515,12 @@ auto Tetrodotoxin::Library::Language::Types::Enumeration::accepts_iteration(
   }
 
   auto name_entry = bindings.get_abstract(1);
-  auto name = name_entry ? name_entry->select<Ttx::Model::Addressable>()
-                         : Option<const Ttx::Model::Addressable&>();
+  auto name = name_entry ? name_entry->select<Tetrodotoxin::Source::Addressable>()
+                         : Option<const Tetrodotoxin::Source::Addressable&>();
   auto name_name = bindings.get_name(1);
   auto view = name ? name->get_type().resolve().select<Types::View>()
                    : Option<const Types::View&>();
   auto byte_type = select_intrinsic_type(*this, "U8"_view);
   return name_name && *name_name == "name"_view && view && byte_type &&
          &view->get_element_type().resolve() == &byte_type->resolve();
-}
-
-auto Tetrodotoxin::Library::Language::Types::Enumeration::begin_iteration(
-    Llvm::Builder& body,
-    const Abstract& owner,
-    const Layout& bindings,
-    const Ttx::Model::Pack&) const -> Bool {
-  BAIL_IF(!accepts_iteration(bindings));
-
-  Dynamic::Vector<U64> values;
-  Dynamic::Vector<Core::View::Bytes> names;
-  values.resize(cases.get_size());
-  if (bindings.get_size() == 2) {
-    names.resize(cases.get_size());
-  }
-
-  for (Count index = 0; index < cases.get_size(); index++) {
-    auto value = get_case_value(index);
-    BAIL_IF(!value);
-    values[index] = *value;
-    if (names.get_size()) {
-      names[index] = get_case_name(index);
-    }
-  }
-
-  return body.begin_enumeration(
-      owner, bindings, values.get_view(), names.get_view());
-}
-
-auto Tetrodotoxin::Library::Language::Types::Enumeration::reserve(
-    Llvm::Program& program) const -> Bool {
-  const auto& carriers = program.get_carriers();
-  auto storage = get_storage_type();
-  if (!storage) {
-    return False;
-  }
-
-  auto reserved =
-      carriers.reserve(program, *this, Llvm::Carriers::Kind::Enumeration);
-  if (!reserved) {
-    return False;
-  }
-
-  if (!*reserved) {
-    return True;
-  }
-
-  Bool storage_reserved = storage->reserve(program);
-  if (!storage_reserved) {
-    return False;
-  }
-
-  if (!generated_size || !generated_size->get().reserve_declaration(program)) {
-    return False;
-  }
-
-  return reserve_callables(program);
-}
-
-auto Tetrodotoxin::Library::Language::Types::Enumeration::complete(
-    Llvm::Program& program) const -> Bool {
-  const auto& carriers = program.get_carriers();
-  auto storage = get_storage_type();
-  if (!storage) {
-    return False;
-  }
-
-  auto began = carriers.begin_completion(program, *this);
-  if (!began) {
-    return False;
-  }
-
-  if (!*began) {
-    return True;
-  }
-
-  Bool storage_completed = storage->complete(program);
-  if (!storage_completed) {
-    return False;
-  }
-
-  if (!generated_size || !generated_size->get().complete_declaration(program)) {
-    return False;
-  }
-
-  Bool callables_completed = complete_callables(program);
-  if (!callables_completed) {
-    return False;
-  }
-
-  Bool carrier_completed =
-      carriers.complete(program, *this, Llvm::Carriers::Kind::Enumeration);
-  if (!carrier_completed || !complete_debug(program)) {
-    return False;
-  }
-
-  for (Count index = 0; index < cases.get_size(); index++) {
-    const Ttx::Model::Alias& alias = cases.get_view().get_data()[index].get();
-    auto value = get_case_value(index);
-    if (!value) {
-      return False;
-    }
-
-    if (storage->is<Model::Types::Signed>()) {
-      if (!program.get_debug().signed_enumerator(
-              program, *this, alias, S64(*value))) {
-        return False;
-      }
-    } else {
-      if (!program.get_debug().unsigned_enumerator(
-              program, *this, alias, *value)) {
-        return False;
-      }
-    }
-  }
-
-  return True;
 }

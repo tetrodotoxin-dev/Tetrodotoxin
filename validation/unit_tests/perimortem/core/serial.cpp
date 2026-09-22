@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/core/reader/serial.hpp"
@@ -197,7 +197,7 @@ PERIMORTEM_UNIT_TEST(CoreSerialWriter, negative_values) {
   // Negative values should compress to their smaller unsigned representation.
   // 0xFFFFFFFFFFFFFF9C gets converted to 100 and uses only 1 byte for the value
   // while storing the negate flag (0x10).
-  writer << /* -100 */ 0xFFFFFFFFFFFFFF9C;
+  writer << /* negative 100 */ 0xFFFFFFFFFFFFFF9C;
 
   EXPECT(writer.is_valid());
   EXPECT_HEX(

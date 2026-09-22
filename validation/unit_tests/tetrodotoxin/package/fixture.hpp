@@ -1,15 +1,17 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
 
 #include "perimortem/core/static/vector.hpp"
 
+#include "tetrodotoxin/language/parser/comment.hpp"
+#include "tetrodotoxin/language/parser/dialect.hpp"
 #include "tetrodotoxin/package/dialect.hpp"
 #include "tetrodotoxin/package/language/monograph.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 namespace Validation {
 
@@ -20,22 +22,28 @@ namespace Validation {
 inline auto interpret_package(
     Perimortem::Memory::Allocator::Arena& arena,
     Tetrodotoxin::Package::Dialect& dialect,
-    Ttx::Lexical::Errors& errors,
+    Tetrodotoxin::Source::Lexical::Errors& errors,
     Perimortem::Core::View::Bytes source,
     Perimortem::Core::View::Bytes path)
     -> Perimortem::Core::Option<Tetrodotoxin::Package::Language::Monograph&> {
   Perimortem::Core::View::Bytes retained_source = arena.proxy(source);
   Perimortem::Core::View::Bytes retained_path = arena.proxy(path);
-  Ttx::Lexical::Tokenizer tokenizer(arena, retained_source, retained_path);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
-  Ttx::Lexical::Cursor cursor(tokenizer, errors, associations);
-  Perimortem::Core::Static::Vector<
-      Ttx::Concept::Reference<Tetrodotoxin::Language::Dialect>, 1>
-      installed = {{dialect}};
-
-  auto interpreted = Tetrodotoxin::Language::Dialect::interpret_source(
-      installed.get_view(), cursor, dialect);
-  if (!interpreted ||
+  Tetrodotoxin::Source::Lexical::Tokenizer tokenizer(arena, retained_source, retained_path);
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Cursor cursor(tokenizer, errors, associations);
+  Count error_count = errors.get_size();
+  const auto opening = cursor.current();
+  const auto& documentation =
+      Tetrodotoxin::Language::Parser::Comment::parse(cursor);
+  const auto declaration = cursor.current();
+  const auto name = Tetrodotoxin::Language::Parser::Dialect::parse(cursor);
+  if (name != dialect.get_name()) {
+    return {};
+  }
+  const auto anchor = Tetrodotoxin::Source::Lexical::Anchor::create(
+      declaration, Tetrodotoxin::Source::Lexical::Span(opening, cursor.peek(-1)));
+  auto interpreted = dialect.interpret(cursor, documentation, anchor, dialect);
+  if (!interpreted || errors.get_size() != error_count ||
       !interpreted->is<Tetrodotoxin::Package::Language::Monograph>()) {
     return {};
   }

@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/flow/return.hpp"
@@ -14,13 +14,13 @@
 #include "tetrodotoxin/library/language/monograph.hpp"
 #include "tetrodotoxin/library/language/types/composite.hpp"
 #include "tetrodotoxin/library/language/types/structure.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 using Tetrodotoxin::Environment::Workspace;
 using namespace Validation;
@@ -38,14 +38,18 @@ static auto interpret(Workspace& workspace, Errors& errors, View::Bytes source)
 }
 
 static auto rejects_interpretation(View::Bytes source) -> Bool {
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   return !interpret(workspace, errors, source) && !errors.is_empty();
 }
 
 static auto rejects_link(View::Bytes source) -> Bool {
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
@@ -80,7 +84,7 @@ static auto find_return(const Language::Function& function)
   return {};
 }
 
-PERIMORTEM_UNIT_TEST(ReturnTests, complete_layout_fitting) {
+PERIMORTEM_UNIT_TEST(ReturnTests, layout_fitting) {
   static constexpr View::Bytes source =
       "// Return Layout flow.\n"
       "dialect : Library;\n"
@@ -112,13 +116,15 @@ PERIMORTEM_UNIT_TEST(ReturnTests, complete_layout_fitting) {
       "    return packet.[];\n"
       "  }\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
   ASSERT(monograph);
 
-  const Abstract& flow_identity = monograph->resolve_context("Flow"_view);
+  const Abstract& flow_identity = monograph->resolve_concept("Flow"_view);
   ASSERT(flow_identity.is<Language::Types::Structure>());
   const auto& flow =
       static_cast<const Language::Types::Structure&>(flow_identity);
@@ -170,7 +176,7 @@ PERIMORTEM_UNIT_TEST(ReturnTests, complete_layout_fitting) {
 
   Perimortem::Memory::Allocator::Arena transaction;
   Tokenizer tokenizer(transaction, source, "return.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   ASSERT(monograph->link(cursor));
   ASSERT(monograph->finalize(cursor));
@@ -178,7 +184,7 @@ PERIMORTEM_UNIT_TEST(ReturnTests, complete_layout_fitting) {
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(ReturnTests, incompatible_flow_is_rejected) {
+PERIMORTEM_UNIT_TEST(ReturnTests, incompatible_flow) {
   static constexpr Static::Vector<View::Bytes, 7> sources = {{
     "// Missing return.\ndialect : Library; private invalid : func = [] -> Bool {}"_view,
     "// Bare nonempty return.\ndialect : Library; private invalid : func = [] -> Bool { return; }"_view,
@@ -193,9 +199,9 @@ PERIMORTEM_UNIT_TEST(ReturnTests, incompatible_flow_is_rejected) {
   }
 }
 
-PERIMORTEM_UNIT_TEST(ReturnTests, unreachable_and_incomplete_syntax_roll_back) {
+PERIMORTEM_UNIT_TEST(ReturnTests, syntax_rollback) {
   static constexpr Static::Vector<View::Bytes, 3> sources = {{
-    "// Unreachable statement.\ndialect : Library; private invalid : func = [] -> [] { return; Invalid -> call(); }"_view,
+    "// Unreachable statement.\ndialect : Library; private invalid : func = [] -> [] { return; Unknown -> call(); }"_view,
     "// Missing return terminator.\ndialect : Library; private invalid : func = [] -> [] { return }"_view,
     "// Missing Pack closing parenthesis.\ndialect : Library; private invalid : func = [] -> Bool { return (true; }"_view,
   }};

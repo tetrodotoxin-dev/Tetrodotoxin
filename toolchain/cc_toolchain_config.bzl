@@ -1,3 +1,6 @@
+# # Tetrodotoxin
+# Copyright (c) 2023-present Matt Kaes and contributors
+
 """
 Toolchain configuration for Perimortem
 

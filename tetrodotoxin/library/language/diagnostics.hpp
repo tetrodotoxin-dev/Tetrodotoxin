@@ -1,11 +1,11 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
 
 #include "tetrodotoxin/library/language/model/pack.hpp"
-#include "ttx/concept/layout.hpp"
-#include "ttx/lexical/errors.hpp"
+#include "tetrodotoxin/source/layout.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
 
 namespace Tetrodotoxin::Library::Language {
 
@@ -15,15 +15,15 @@ namespace Tetrodotoxin::Library::Language {
 class Diagnostics {
  public:
   static auto write_type(
-      Ttx::Lexical::Errors::Report& report,
-      const Ttx::Concept::Abstract& abstract) -> void;
+      Tetrodotoxin::Source::Lexical::Errors::Report& report,
+      const Tetrodotoxin::Source::Abstract& abstract) -> void;
 
   static auto write_layout(
-      Ttx::Lexical::Errors::Report& report,
-      const Ttx::Concept::Layout& layout) -> void;
+      Tetrodotoxin::Source::Lexical::Errors::Report& report,
+      const Tetrodotoxin::Source::Layout& layout) -> void;
 
   static auto write_pack(
-      Ttx::Lexical::Errors::Report& report,
+      Tetrodotoxin::Source::Lexical::Errors::Report& report,
       const Model::Pack& pack) -> void;
 };
 

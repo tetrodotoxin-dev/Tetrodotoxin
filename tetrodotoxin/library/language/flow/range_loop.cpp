@@ -1,19 +1,17 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/flow/range_loop.hpp"
 
 #include "tetrodotoxin/library/language/expression.hpp"
-#include "tetrodotoxin/library/language/model/parser/layout.hpp"
-#include "tetrodotoxin/library/language/parser/expression.hpp"
-#include "tetrodotoxin/library/llvm/builder.hpp"
-#include "ttx/concept/invalid.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
 Language::Flow::RangeLoop::RangeLoop(
@@ -37,76 +35,26 @@ Language::Flow::RangeLoop::RangeLoop(
   }
 }
 
-auto Language::Flow::RangeLoop::interpret(
-    Cursor& cursor,
+auto Language::Flow::RangeLoop::create_authored(
+    Allocator::Arena& domain,
     Block& lexical_context,
-    Language::Model::Callable& function,
-    const Language::Model::Type& access_scope) -> Option<RangeLoop&> {
-  Allocator::Arena& domain = cursor.get_arena();
-  Token opening = cursor.require(
-      Code::Type::For, "Library for loops require the `for` keyword."_view);
-  BAIL_IF(!opening);
-
-  if (!cursor.matches(Code::Type::BracketStart)) {
-    cursor.create_token_error(
-        "Library for loop bindings require one bracketed named Layout."_view);
-    return {};
-  }
-
-  Managed::Vector<AuthoredBinding> bindings(domain);
-  auto binding_end = Model::Parser::Layout::parse(
-      cursor, [&](Cursor& entry, Count, Option<Token> selected_name) -> Bool {
-        if (!selected_name ||
-            selected_name->get_code() != Code::Type::Addressable) {
-          entry.create_token_error(
-              "A Library for loop binding requires `.name : Type`."_view);
-          return False;
-        }
-
-        View::Bytes name =
-            selected_name->caculate_text(cursor.get_source_text());
-        if (bindings.get_view().contains([&](const AuthoredBinding& existing) {
-              return existing.name == name;
-            })) {
-          entry.create_token_error(
-              *selected_name,
-              "A Library for loop binding name must be unique."_view);
-          return False;
-        }
-
-        auto selected_type = TypeReference::parse(lexical_context, entry);
-        BAIL_IF(!selected_type);
-        bindings.insert({*selected_name, name, *selected_type});
-        return True;
-      });
-  BAIL_IF(!binding_end);
-  if (bindings.is_empty()) {
-    cursor.create_expression_error(
-        Span(opening, *binding_end),
-        "A Library for loop requires at least one named binding."_view,
-        "Use `[.name : Type]` before the `in` keyword."_view);
-    return {};
-  }
-
-  BAIL_IF(!cursor.require(
-      Code::Type::In,
-      "Library for loop bindings require the `in` keyword."_view));
-
-  auto input = Parser::Expression::parse(lexical_context, cursor);
-  BAIL_IF(!input);
-
-  RangeLoop& loop = domain.construct_from<RangeLoop>([&]() -> RangeLoop {
-    return RangeLoop(
-        domain, lexical_context, bindings.get_view(), *input,
-        Anchor::create(opening, Span(opening, cursor.peek(-1))));
+    View::Vector<AuthoredBinding> bindings,
+    Language::Model::Pack& input,
+    Anchor anchor) -> RangeLoop& {
+  return domain.construct_from<RangeLoop>([&]() -> RangeLoop {
+    return RangeLoop(domain, lexical_context, bindings, input, anchor);
   });
+}
 
-  auto body = Block::interpret(
-      cursor, loop, function, access_scope, Reference<const Abstract>(loop));
-  BAIL_IF(!body);
-  loop.body = Reference<Block>(*body);
-  loop.anchor = Anchor::create(opening, Span(opening, cursor.peek(-1)));
-  return loop;
+auto Language::Flow::RangeLoop::complete_body(
+    Block& selected,
+    Anchor selected_anchor) -> Bool {
+  if (body) {
+    return &body->get() == &selected;
+  }
+  body = Reference<Block>(selected);
+  anchor = selected_anchor;
+  return True;
 }
 
 auto Language::Flow::RangeLoop::link(
@@ -121,8 +69,8 @@ auto Language::Flow::RangeLoop::link(
       domain);
   selected_types.reset(authored_bindings.get_size());
   for (const AuthoredBinding& binding : authored_bindings.get_view()) {
-    const Abstract& shadowed = lexical_context.resolve_context(binding.name);
-    if (!shadowed.is<Invalid>()) {
+    const Abstract& shadowed = lexical_context.resolve_concept(binding.name);
+    if (!shadowed.is<Unknown>() && !shadowed.is<None>()) {
       auto report =
           cursor.create_report(Anchor::create(Span(binding.name_token)));
       report << "Library for binding shadows a reachable lexical binding."_view;
@@ -162,7 +110,7 @@ auto Language::Flow::RangeLoop::link(
   if (!binding_layout) {
     for (Count index = 0; index < authored_bindings.get_size(); index++) {
       const AuthoredBinding& source = authored_bindings[index];
-      auto binding = Parameter::create_authored(
+      auto binding = Tetrodotoxin::Source::Layouts::Addressable::create_authored(
           domain, source.name, selected_types[index].get());
       BAIL_IF(!binding);
       bindings.insert(*binding);
@@ -170,7 +118,7 @@ auto Language::Flow::RangeLoop::link(
       cursor.get_associations().create(
           Anchor::create(Span(source.name_token)), *binding);
     }
-    binding_layout = Ttx::Model::Layouts::Named(binding_entries.get_view());
+    binding_layout = Tetrodotoxin::Source::Layouts::Named(binding_entries.get_view());
   } else {
     BAIL_IF(bindings.get_size() != selected_types.get_size());
     for (Count index = 0; index < bindings.get_size(); index++) {
@@ -188,7 +136,7 @@ auto Language::Flow::RangeLoop::link(
   if (direct_type) {
     selected_input = *direct_type;
   } else {
-    auto expression = retained_input.select<Language::Expression>();
+    auto expression = retained_input.select_identity<Language::Expression>();
     if (expression) {
       selected_input =
           expression->get_result().resolve().select<Language::Model::Type>();
@@ -225,37 +173,27 @@ auto Language::Flow::RangeLoop::finalize(Cursor& cursor) -> void {
       [&](Reference<Block>& selected) { selected.get().finalize(cursor); });
 }
 
-auto Language::Flow::RangeLoop::lower(Llvm::Builder& target) const -> Bool {
-  if (!input_type || !binding_layout || !body) {
-    return False;
-  }
-
-  Bool input_lowered = input.get().lower(target);
-  if (!input_lowered) {
-    return False;
-  }
-
-  Bool began = input_type->get().begin_iteration(
-      target, *this, *binding_layout, input.get());
-  if (!began) {
-    return False;
-  }
-
-  Bool body_lowered = body->get().lower(target);
-  if (!body_lowered) {
-    return False;
-  }
-
-  return target.end_iteration(*this);
-}
-
-auto Language::Flow::RangeLoop::resolve_context(View::Bytes route) const
+auto Language::Flow::RangeLoop::resolve_concept(View::Bytes route) const
     -> const Abstract& {
-  for (const Reference<Parameter>& binding : bindings.get_view()) {
+  for (const Reference<Tetrodotoxin::Source::Layouts::Addressable>& binding :
+       bindings.get_view()) {
     if (binding.get().get_name() == route) {
       return binding.get();
     }
   }
 
-  return lexical_context.resolve_context(route);
+  return lexical_context.resolve_concept(route);
+}
+
+auto Language::Flow::RangeLoop::resolve_authored_context(
+    View::Bytes route,
+    Count offset) const -> const Abstract& {
+  for (const Reference<Tetrodotoxin::Source::Layouts::Addressable>& binding :
+       bindings.get_view()) {
+    if (binding.get().get_name() == route) {
+      return binding.get();
+    }
+  }
+
+  return lexical_context.resolve_authored_context(route, offset);
 }

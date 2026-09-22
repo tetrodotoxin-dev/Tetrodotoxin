@@ -1,0 +1,11 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+// Publishes the exact vector Types shared by Pipeline, Shader, and Graphics.
+//
+dialect : Package;
+package(.name = "Perimortem.Math", .version = "1.0");
+
+public Vec2D : alias = source("vec2d.ttx")::Vec2D;
+public Vec3D : alias = source("vec3d.ttx")::Vec3D;
+public Vec4D : alias = source("vec4d.ttx")::Vec4D;

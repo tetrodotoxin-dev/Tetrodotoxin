@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -11,14 +11,14 @@
 #include "perimortem/memory/managed/vector.hpp"
 
 #include "tetrodotoxin/language/dialect.hpp"
-#include "ttx/concept/reference.hpp"
+#include "tetrodotoxin/source/reference.hpp"
 
 namespace Tetrodotoxin::Environment {
 
-// Toolchain owns the installed family of Tetrodotoxin languages. Every
-// Workspace can borrow the same immutable Dialect identities, while the
-// semantic objects produced from a source stay with that Workspace. Installing
-// dependencies first makes the language family one clear directed graph.
+// Toolchain borrows the installed family of Tetrodotoxin languages. Their
+// caller constructs the dependencies and keeps them alive until this Toolchain
+// and every Workspace borrowing them have ended. Only sources created through
+// process belong to the Toolchain itself.
 class Toolchain {
  public:
   Toolchain();
@@ -29,40 +29,46 @@ class Toolchain {
   auto operator=(const Toolchain&) -> Toolchain& = delete;
   auto operator=(Toolchain&&) -> Toolchain& = delete;
 
-  template <typename TargetDialect, typename... DependencyDialects>
-  auto install(
-      Perimortem::Core::View::Bytes name,
-      DependencyDialects&... dependencies)
-      -> Perimortem::Core::Option<TargetDialect&> {
-    BAIL_IF(contains_name(name));
+  // Adds the Dialect to be useable by the toolchain under it's provided name.
+  // Returns false if a Dialect is already registered with that name.
+  auto install(Language::Dialect& dialect) -> Bool {
+    BAIL_IF(contains_name(dialect.get_name()));
 
-    Bool dependencies_installed =
-        (contains(static_cast<Language::Dialect&>(dependencies)) && ...);
-    BAIL_IF(!dependencies_installed);
-
-    Perimortem::Core::View::Bytes retained_name = arena.proxy(name);
-    auto& dialect =
-        arena.construct<TargetDialect>(retained_name, dependencies...);
     dialects.insert(dialect);
-    return dialect;
+    return True;
   }
 
   auto find(Perimortem::Core::View::Bytes name) const
       -> Perimortem::Core::Option<Language::Dialect&>;
 
+  // Reads one source and dispatches its body to the named Dialect if installed.
+  // The toolchain manages the the life time of the returned Monograph and its
+  // source bytes from disk.
+  //
+  // While `process` is how most Dialects drive their actual side effects, only
+  // the side effects reachable from Monograph are exposed to invokers of the
+  // toolchain. Communicating via memory side channels or other means is allowed
+  // but it's considered undefined behavior as far as Tetrodotoxin is concerned.
+  auto process(
+      Perimortem::Core::View::Bytes source,
+      Tetrodotoxin::Source::Lexical::Errors& errors)
+      -> Perimortem::Core::Option<Language::Monograph&>;
+
   constexpr auto get_dialects() const -> Perimortem::Core::View::Vector<
-      Ttx::Concept::Reference<Language::Dialect>> {
+      Tetrodotoxin::Source::Reference<Language::Dialect>> {
     return dialects;
   }
 
  private:
   auto contains_name(Perimortem::Core::View::Bytes name) const -> Bool;
-  auto contains(const Language::Dialect& dialect) const -> Bool;
 
   Perimortem::Memory::Allocator::Arena arena;
   Perimortem::Memory::Managed::Vector<
-      Ttx::Concept::Reference<Language::Dialect>>
+      Tetrodotoxin::Source::Reference<Language::Dialect>>
       dialects;
+  Perimortem::Memory::Managed::Vector<
+      Tetrodotoxin::Source::Reference<Language::Monograph>>
+      sources;
 };
 
 }  // namespace Tetrodotoxin::Environment

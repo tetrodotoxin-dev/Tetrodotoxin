@@ -1,7 +1,9 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
-#include "tetrodotoxin/library/language/parser/literal.hpp"
+#include "tetrodotoxin/library/interpreter/literal.hpp"
+
+#include "tetrodotoxin/source/documentation.hpp"
 
 #include "validation/unit_test.hpp"
 #include "validation/unit_tests/tetrodotoxin/library/language/fixture.hpp"
@@ -22,17 +24,17 @@
 #include "tetrodotoxin/library/language/constants/unsigned.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
 #include "tetrodotoxin/library/language/types/fixed.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Utility;
 using namespace Tetrodotoxin;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Validation;
 
 static Harness LiteralTests = {
@@ -70,10 +72,10 @@ class LiteralContext : public Abstract {
         empty(domain, View::Bytes()) {}
 
   auto get_name() const -> View::Bytes override { return "Context"_view; }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
-  auto resolve_context(View::Bytes route) const -> const Abstract& override {
+  auto resolve_concept(View::Bytes route) const -> const Abstract& override {
     if (route == "$[table]"_view) {
       observations.table_seen = True;
       return table;
@@ -93,7 +95,7 @@ class LiteralContext : public Abstract {
       return *this;
     }
 
-    return Invalid::get_invalid();
+    return Unknown::get_unknown();
   }
 
   LiteralObservations& observations;
@@ -108,13 +110,13 @@ static auto create_monograph(
     Abstract& context) -> Option<Library::Language::Monograph&> {
   Errors errors;
   Tokenizer tokenizer(domain, ""_view, "literal-source.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   Anchor source_anchor = Anchor::create(Span());
-  auto monograph = dialect.interpret(
-      cursor, Documentation::get_empty(), source_anchor, context);
-  BAIL_IF(!monograph || !errors.is_empty());
-  return monograph->select<Library::Language::Monograph>();
+  auto interpretation = dialect.interpret(
+      cursor, Tetrodotoxin::Source::Documentation::get_empty(), source_anchor, context);
+  BAIL_IF(!interpretation || !errors.is_empty());
+  return interpretation->select<Library::Language::Monograph>();
 }
 
 static auto matches_token(const Cursor& cursor, Token expected) -> Bool {
@@ -129,9 +131,9 @@ static auto parse_one(
     View::Bytes source,
     Errors& errors) -> Option<Library::Language::Constant&> {
   Tokenizer tokenizer(domain, source, "literal.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
-  auto parsed = Library::Language::Parser::Literal::parse(context, cursor);
+  auto parsed = Library::Interpreter::Literal::parse(context, cursor);
   if (parsed && !cursor.matches(Code::Type::Terminal)) {
     return {};
   }
@@ -145,10 +147,10 @@ static auto rejects(
     View::Bytes source) -> Bool {
   Errors errors;
   Tokenizer tokenizer(domain, source, "rejected-literal.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   Token start = cursor.current();
-  auto parsed = Library::Language::Parser::Literal::parse(context, cursor);
+  auto parsed = Library::Interpreter::Literal::parse(context, cursor);
   return !parsed && matches_token(cursor, start) && !errors.is_empty();
 }
 
@@ -158,10 +160,10 @@ static auto render_rejection(
     View::Bytes source) -> Dynamic::Bytes {
   Errors errors;
   Tokenizer tokenizer(domain, source, "diagnostic-literal.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   Token start = cursor.current();
-  auto parsed = Library::Language::Parser::Literal::parse(context, cursor);
+  auto parsed = Library::Interpreter::Literal::parse(context, cursor);
   if (parsed || !matches_token(cursor, start) || errors.get_size() != 1) {
     return Dynamic::Bytes("unexpected literal diagnostic state"_view);
   }
@@ -185,15 +187,15 @@ PERIMORTEM_UNIT_TEST(LiteralTests, scalar_inference) {
   Errors errors;
   Tokenizer tokenizer(
       domain, "true false 42 0x2A -7 1.5"_view, "scalars.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
 
-  auto true_value = Library::Language::Parser::Literal::parse(graph, cursor);
-  auto false_value = Library::Language::Parser::Literal::parse(graph, cursor);
-  auto decimal = Library::Language::Parser::Literal::parse(graph, cursor);
-  auto hexadecimal = Library::Language::Parser::Literal::parse(graph, cursor);
-  auto signed_value = Library::Language::Parser::Literal::parse(graph, cursor);
-  auto real = Library::Language::Parser::Literal::parse(graph, cursor);
+  auto true_value = Library::Interpreter::Literal::parse(graph, cursor);
+  auto false_value = Library::Interpreter::Literal::parse(graph, cursor);
+  auto decimal = Library::Interpreter::Literal::parse(graph, cursor);
+  auto hexadecimal = Library::Interpreter::Literal::parse(graph, cursor);
+  auto signed_value = Library::Interpreter::Literal::parse(graph, cursor);
+  auto real = Library::Interpreter::Literal::parse(graph, cursor);
 
   ASSERT(
       true_value && false_value && decimal && hexadecimal && signed_value &&
@@ -248,12 +250,12 @@ PERIMORTEM_UNIT_TEST(LiteralTests, byte_domains) {
   Errors errors;
   Dynamic::Bytes source("\"a\\\"b\" 0x[54\t54\n58\r31] \"\""_view);
   Tokenizer tokenizer(domain, source, "bytes.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
 
-  auto quoted = Library::Language::Parser::Literal::parse(graph, cursor);
-  auto hexadecimal = Library::Language::Parser::Literal::parse(graph, cursor);
-  auto empty = Library::Language::Parser::Literal::parse(graph, cursor);
+  auto quoted = Library::Interpreter::Literal::parse(graph, cursor);
+  auto hexadecimal = Library::Interpreter::Literal::parse(graph, cursor);
+  auto empty = Library::Interpreter::Literal::parse(graph, cursor);
 
   ASSERT(quoted && hexadecimal && empty);
   ASSERT(quoted->is<Library::Language::Constants::Bytes>());
@@ -366,23 +368,23 @@ PERIMORTEM_UNIT_TEST(LiteralTests, embedded_resolution) {
   View::Bytes table_backing = context.table.get_value();
   Errors errors;
   Tokenizer tokenizer(domain, "$[table] $[empty]"_view, "embedded.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
 
-  auto table = Library::Language::Parser::Literal::parse(source, cursor);
+  auto table = Library::Interpreter::Literal::parse(source, cursor);
   EXPECT(observations.table_seen);
-  auto empty = Library::Language::Parser::Literal::parse(source, cursor);
+  auto empty = Library::Interpreter::Literal::parse(source, cursor);
   EXPECT(observations.empty_seen);
 
   Errors postfix_errors;
   Tokenizer postfix_tokenizer(
       domain, "$[table]:[2, 4]"_view, "postfix-slice.ttx"_view);
-  Ttx::Lexical::Associations postfix_associations(
+  Tetrodotoxin::Source::Lexical::Associations postfix_associations(
       postfix_tokenizer.get_arena());
   Cursor postfix_cursor(
       postfix_tokenizer, postfix_errors, postfix_associations);
   auto postfix_base =
-      Library::Language::Parser::Literal::parse(source, postfix_cursor);
+      Library::Interpreter::Literal::parse(source, postfix_cursor);
 
   ASSERT(table && empty && postfix_base);
   ASSERT(table->is<Library::Language::Constants::Bytes>());
@@ -419,10 +421,10 @@ PERIMORTEM_UNIT_TEST(LiteralTests, contextual_error) {
   auto& source = *monograph;
   Errors errors;
   Tokenizer tokenizer(domain, "\n$[error]"_view, "resource-error.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
 
-  auto parsed = Library::Language::Parser::Literal::parse(source, cursor);
+  auto parsed = Library::Interpreter::Literal::parse(source, cursor);
   View::Bytes rendered = errors.render_message(render_arena, 0);
 
   EXPECT_NOT(parsed);

@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -18,7 +18,7 @@ namespace Perimortem::Memory::Allocator {
 // transaction.
 //
 // `construct()` begins an object's lifetime, but Arena does not call individual
-// destructors when it resets. Arena-owned objects must therefore release no
+// destructors when it resets. Arena owned objects must therefore release no
 // independently owned resources from their destructors. In particular, rented
 // Bibliotheca storage must be remitted before the arena is reset or destroyed.
 class Arena {
@@ -29,7 +29,12 @@ class Arena {
   static constexpr U64 arena_alignment = sizeof(Count);
 
   Arena();
-  Arena(Arena&&);
+
+  constexpr Arena(Arena&& arena) : rented_block(nullptr), usage(0) {
+    Perimortem::Core::Data::swap(rented_block, arena.rented_block);
+    Perimortem::Core::Data::swap(usage, arena.usage);
+  }
+
   ~Arena();
   Arena(const Arena&) = delete;
   auto operator=(const Arena&) -> Arena& = delete;
@@ -39,7 +44,7 @@ class Arena {
     // Fetch a new page if we are full due to either running out of our current
     // page, or needing to allocate an object larger than our page size.
     //
-    // An arena favors cheap allocation over page demotion. A long-lived arena
+    // An arena favors cheap allocation over page demotion. A long lived arena
     // can therefore retain an unusually large page after one large request.
     // Use it for bounded transactions rather than an unbounded object cache.
     if (usage + bytes_requested > page_size) {
@@ -75,7 +80,8 @@ class Arena {
   auto construct(arg_types&&... args) -> type& {
     static_assert(alignof(type) <= arena_alignment);
     U8* ptr = allocate(sizeof(type)).get_data();
-    return *new (ptr) type(static_cast<arg_types&&>(args)...);
+    return *new (ptr, Core::Placement::Construct)
+        type(static_cast<arg_types&&>(args)...);
   }
 
   // Allocates one object from an exact value produced by its owning factory.
@@ -89,7 +95,8 @@ class Arena {
     static_assert(
         __is_same(type, decltype(static_cast<factory_type&&>(factory)())));
     U8* ptr = allocate(sizeof(type)).get_data();
-    return *new (ptr) type(static_cast<factory_type&&>(factory)());
+    return *new (ptr, Core::Placement::Construct)
+        type(static_cast<factory_type&&>(factory)());
   }
 
   // Creates a duplicate of the target buffer in the current arena.

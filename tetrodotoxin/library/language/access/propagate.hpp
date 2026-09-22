@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -6,39 +6,42 @@
 #include "perimortem/core/option.hpp"
 
 #include "tetrodotoxin/library/language/expression.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Language::Access {
 
-// Propagate delegates its continuation and escape edges to the exact receiver
-// Type. Option and inactive Flags escape with empty flow, while Result supplies
-// one typed error Pack that the enclosing Function must receive explicitly.
+// Propagate is a special control flow access (post fix ?) that will `BAIL_IF`
+// in the middle of an access expression allowing it to be chained.
+//
+// It can be used for scenarios where it would be verbose to break up an
+// expression chain to check `if !option : return`, but it desugars to the same
+// resulting control flow. It does carry the explicit semantics through the
+// expression chain, but we don't currently perform any meaningful optimizations
+// by utilizing this fact.
 class Propagate : public Expression {
  public:
   TTX_CONTRACT(Propagate, Expression);
 
-  static auto parse(
-      const Ttx::Concept::Abstract& context,
-      Ttx::Lexical::Cursor& cursor,
-      Expression& receiver) -> Perimortem::Core::Option<Expression&>;
+  static auto create_authored(
+      Perimortem::Memory::Allocator::Arena& domain,
+      Model::Pack& receiver,
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> Propagate&;
 
   auto link(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& lexical_context,
-      Perimortem::Core::Option<const Ttx::Concept::Abstract&> access_scope = {})
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& lexical_context,
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&> access_scope = {})
       -> Bool override;
 
   TTX_NAME("Propagate"_view);
   TTX_EMPTY_DOCUMENTATION();
 
-  auto get_type() const -> const Ttx::Concept::Abstract& override;
+  auto get_type() const -> const Tetrodotoxin::Source::Abstract& override;
 
-  auto finalize(Ttx::Lexical::Cursor& cursor) -> void override;
+  auto finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> void override;
 
-  auto lower(Llvm::Builder& body) const -> Bool override;
-
-  constexpr auto get_receiver() const -> const Expression& { return receiver; }
+  constexpr auto get_receiver() const -> const Model::Pack& { return receiver; }
 
   constexpr auto get_escape() const -> const Model::Pack& {
     return escape.get();
@@ -70,18 +73,18 @@ class Propagate : public Expression {
   };
 
   constexpr Propagate(
-      Expression& receiver,
+      Model::Pack& receiver,
       Model::Pack& empty_escape,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor)
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor)
       : Expression(anchor), receiver(receiver), escape(empty_escape) {}
 
-  Expression& receiver;
-  Ttx::Concept::Reference<Model::Pack> escape;
-  Perimortem::Core::Option<Ttx::Concept::Reference<const Model::Type>>
+  Model::Pack& receiver;
+  Tetrodotoxin::Source::PackReference<Model::Pack> escape;
+  Perimortem::Core::Option<Tetrodotoxin::Source::Reference<const Model::Type>>
       receiver_type;
-  Perimortem::Core::Option<Ttx::Concept::Reference<const Model::Type>>
+  Perimortem::Core::Option<Tetrodotoxin::Source::Reference<const Model::Type>>
       continuation_type;
-  Perimortem::Core::Option<Ttx::Concept::Reference<const Model::Type>>
+  Perimortem::Core::Option<Tetrodotoxin::Source::Reference<const Model::Type>>
       error_type;
 };
 

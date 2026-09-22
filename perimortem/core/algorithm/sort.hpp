@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -14,7 +14,7 @@ namespace Perimortem::Core::Algorithm {
 // Very similar to std::sort but optimized to perform ~20% better for extremely
 // large arrays.
 //
-// Sorting works on non-movable types however it still invalidates all pointers
+// Sorting works on nonmovable types however it still invalidates all pointers
 // to objects in the array.
 //
 // `Math::sort` only requires a type to support `operator>`.
@@ -87,7 +87,7 @@ constexpr auto sort(Core::Access::Vector<type> access)
   auto heap_sort = [&heapify_max](type* partition, Count size) -> void {
     // Heapify the partition.
     for (Count i = size / 2; i > 0; i--) {
-      heapify_max(partition, i - 1, size);
+      heapify_max(partition, size, i - 1);
     }
 
     // Perform the actual heap sort.
@@ -132,7 +132,7 @@ constexpr auto sort(Core::Access::Vector<type> access)
     return new_pivot;
   };
 
-  // Lomuto quicksort + ninther/median-of-3 pivot + heapsort fallback.
+  // Lomuto quicksort + ninther/median of three pivot + heapsort fallback.
   // Subarrays chucks of size <= 32 are left for a single insertion sort.
   constexpr auto insertion_sort_cutoff = Count(32);
   constexpr auto ninther_median_cutoff = Count(128);
@@ -140,8 +140,8 @@ constexpr auto sort(Core::Access::Vector<type> access)
                        Count depth) -> void {
     while (partition_size > insertion_sort_cutoff) {
       // Decrement depth and check if we are below the point for heap_sort.
-      // Perform a post -- to decrement the value in the event we continue.
-      // If the value is zero and underflows we throw it away anyway.
+      // Perform a post decrement to decrement the value in the event we
+      // continue. If the value is zero and underflows we throw it away anyway.
       if (depth-- == 0) {
         heap_sort(partition, partition_size);
         return;

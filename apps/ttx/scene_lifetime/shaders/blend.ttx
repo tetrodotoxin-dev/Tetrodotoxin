@@ -1,0 +1,59 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+// Scene Lifetime's application-specific scrolling noise blend.
+//
+dialect : Shader;
+
+public Math : alias = package(.name = "Perimortem.Math", .version = "1.0");
+public Graphics : alias = package(.name = "Perimortem.Graphics", .version = "1.0");
+implements package(.name = "Perimortem.Graphics", .version = "1.0")::Pipeline::TexturedQuad2D;
+
+public noise : resource read Graphics::Texture2D -> Graphics::Texture2D;
+public time_milliseconds : uniform U32 = new[U32];
+
+Shader vertex[
+  .position : Math::Vec2D,
+  .texture_uv : Math::Vec2D,
+] -> [
+  .position : Math::Vec4D,
+  .texture_uv : Math::Vec2D,
+] {
+  state one := inputs.transform_x.w / inputs.transform_x.w;
+  state two := one + one;
+  state zero := one - one;
+  state pixel : Math::Vec2D = (
+    .x = inputs.transform_x.x * position.x + inputs.transform_x.y * position.y +
+        inputs.transform_x.z,
+    .y = inputs.transform_y.x * position.x + inputs.transform_y.y * position.y +
+        inputs.transform_y.z,
+  );
+  state clip : Math::Vec2D = (
+    .x = pixel.x / inputs.transform_x.w * two - one,
+    .y = pixel.y / inputs.transform_y.w * two - one,
+  );
+  state clip_position : Math::Vec4D = (
+    .x = clip.x,
+    .y = clip.y,
+    .z = zero,
+    .w = one,
+  );
+  state sampled_uv : Math::Vec2D = (
+    .x = texture_uv.x,
+    .y = texture_uv.y,
+  );
+  return (.position = clip_position, .texture_uv = sampled_uv);
+}
+
+Shader fragment[.texture_uv : Math::Vec2D] -> [.color : Math::Vec4D] {
+  state time_milliseconds := new[R32](parameters.time_milliseconds);
+  state time := time_milliseconds / new[R32](1000.0);
+  state noise_uv : Math::Vec2D = (
+    .x = texture_uv.x + time * new[R32](0.125),
+    .y = texture_uv.y + time * new[R32](0.0625),
+  );
+  state sampled := image -> sample(.uv = texture_uv);
+  state noise_sample := noise -> sample(.uv = noise_uv);
+  state color : Math::Vec4D = (sampled.[x, y, z], sampled.w * noise_sample.x);
+  return (.color = color);
+}

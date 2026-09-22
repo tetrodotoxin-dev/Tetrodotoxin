@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/package/resources.hpp"
@@ -7,30 +7,16 @@
 
 #include "perimortem/system/path.hpp"
 
-#include "ttx/concept/invalid.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::System;
 using namespace Perimortem::Utility;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
-
-static auto construct_resource(Allocator::Arena& domain, View::Bytes value)
-    -> Tetrodotoxin::Language::Resource& {
-  class RetainedResource : public Tetrodotoxin::Language::Resource {
-   public:
-    constexpr RetainedResource(View::Bytes value) : value(value) {}
-
-    constexpr auto get_value() const -> View::Bytes override { return value; }
-
-   private:
-    View::Bytes value;
-  };
-
-  return domain.construct<RetainedResource>(value);
-}
 
 static auto construct_error(
     Allocator::Arena& domain,
@@ -80,6 +66,25 @@ static auto construct_error(
   return domain.construct<RetainedError>(failure);
 }
 
+Package::Resources::Resources(
+    Allocator::Arena& domain,
+    View::Vector<Reference<Package::Resource>> restored,
+    Bool sealed)
+    : domain(domain),
+      storage(nullptr),
+      stage(sealed ? Stage::Sealed : Stage::Pending),
+      resource_cache(domain),
+      error_cache(domain),
+      values(domain) {
+  for (const Reference<Package::Resource>& retained : restored) {
+    Package::Resource& resource = retained.get();
+    if (!resource_cache.contains(resource.get_route())) {
+      resource_cache.launder(resource.get_route(), resource);
+      values.insert(resource);
+    }
+  }
+}
+
 auto Package::Resources::connect(Storage& selected) -> Bool {
   if (stage != Stage::Pending) {
     return False;
@@ -123,19 +128,22 @@ auto Package::Resources::resolve(View::Bytes logical_route) -> const Abstract& {
   }
 
   // Sealing removes the only physical capability. Existing identities were
-  // selected above, while a new request stays Invalid instead of reopening or
+  // selected above; a new route is then proven absent rather than reopening or
   // retaining Storage through the semantic Package graph.
   if (stage != Stage::Connected) {
-    return Invalid::get_invalid();
+    return stage == Stage::Sealed
+               ? static_cast<const Abstract&>(None::get_none())
+               : static_cast<const Abstract&>(Unknown::get_unknown());
   }
 
   auto read = storage->read(logical_route);
   return read.visit(
       [&](Package::Content& content) -> const Abstract& {
-        View::Bytes retained_key = domain.proxy(content.get_diagnostic_path());
-        Tetrodotoxin::Language::Resource& retained =
-            construct_resource(domain, domain.proxy(content.get_contents()));
+        View::Bytes retained_key = domain.proxy(request_key);
+        Package::Resource& retained = Package::Resource::create(
+            domain, retained_key, content.get_contents());
         resource_cache.launder(retained_key, retained);
+        values.insert(retained);
         return retained;
       },
       [&](const Package::Storage::Failure& failure) -> const Abstract& {

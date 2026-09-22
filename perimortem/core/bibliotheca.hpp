@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -56,7 +56,7 @@ class Bibliotheca {
   // An empty entry has zero capacity.
   static auto capacity(U8* entry) -> Count;
 
-  // Associates one immutable runtime descriptor with a checked-out Object
+  // Associates one immutable runtime descriptor with a checked out Object
   // block without consuming the algorithm underwrite region.
   static auto bind_object(U8* entry, const void* descriptor) -> void;
 

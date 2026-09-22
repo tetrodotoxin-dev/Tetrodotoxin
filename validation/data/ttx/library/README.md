@@ -12,8 +12,8 @@ file defines the exact production behavior it observes.
 | [`value_acceptance.ttx`](value_acceptance.ttx) | focused production Workspace acceptance for defaults, scalar operations, value access, invocation, Address chaining, and Swizzle fitting |
 | [`propagation.ttx`](propagation.ttx) | focused production Workspace acceptance for Option and Result fitting, defaults, typed propagation, Bool propagation, unwrap, and Match elimination |
 | [`broad.ttx`](broad.ttx) | broad Library source corpus covering declarations, Layouts, access chains, expressions, control flow, Foreign, Struct, Object, and Enumeration syntax |
-| [`foreign.ttx`](foreign.ttx) | consolidated Foreign semantics and repeated state C interoperability |
-| [`runtime.ttx`](../llvm/runtime.ttx) | executable Library and LLVM matrix for Locals, calls, control flow, safe access, Option and Result ownership, Enumeration iteration, and logging owned by TTX |
+| [`foreign.ttx`](../products/foreign/foreign.ttx) | consolidated Foreign semantics and repeated state C interoperability |
+| [`runtime.ttx`](../products/runtime/runtime.ttx) | executable Library and LLVM matrix for Locals, calls, control flow, safe access, Option and Result ownership, Enumeration iteration, and logging owned by TTX |
 | [`foreign_harness.c`](../llvm/foreign_harness.c) | generated C header interoperability provider used by the validation binary |
 | [`runtime_harness.c`](../llvm/runtime_harness.c) | generated C header runtime observer used by the validation binary |
 
@@ -23,7 +23,7 @@ the represented capabilities. Tokenization alone is not acceptance evidence.
 
 ## Executable acceptance
 
-[`runtime.ttx`](../llvm/runtime.ttx) keeps the completed
+[`runtime.ttx`](../products/runtime/runtime.ttx) keeps the completed
 Library statement owner in one Function body. Its semantic test opens the
 source through the production Workspace, completes every lifecycle barrier,
 then inspects the real statement identities and authored order. The ordinary
@@ -53,7 +53,7 @@ selection, argument Pack fitting, and result Pack flow are one source construct.
 `Packet` deliberately declares both Static and Self Callables named `identity`.
 Static has no implicit Self parameter. Self reserves parameter entry zero for
 the selected receiver reference. A scalar `self` result returns that same
-reference for chaining; `[self]` is its explicit one-entry Layout form.
+reference for chaining. `[self]` is its explicit one entry Layout form.
 
 ## Layouts and Packs
 
@@ -98,7 +98,7 @@ code.
 
 ## Foreign declarations
 
-[`foreign.ttx`](foreign.ttx) declares the three external categories:
+[`foreign.ttx`](../products/foreign/foreign.ttx) declares the three external categories:
 
 1. `library_foreign_bias` is an exposed external State that cannot be written.
 2. `library_foreign_state` is a writable external Addressable.
@@ -110,7 +110,7 @@ Native provider selection remains outside source lookup.
 
 ## Native ABI fixture
 
-[`foreign.ttx`](foreign.ttx) and
+[`foreign.ttx`](../products/foreign/foreign.ttx) and
 [`foreign_harness.c`](../llvm/foreign_harness.c) describe an interaction with two calls. The
 Library source increments private state by 20, copies it to imported state, adds
 an imported bias of 2, and returns the result.

@@ -1,0 +1,16 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+// A two component real vector.
+//
+dialect : Library;
+
+// Vec2D stores two ordered R32 components named x and y.
+//
+// It remains a general vector so domain Packages can build points, sizes, and
+// other meanings without changing this shared Type.
+@capability("vector")
+public Vec2D : struct {
+  public state x : R32;
+  public state y : R32;
+}

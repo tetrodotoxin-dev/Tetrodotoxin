@@ -1,0 +1,22 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+// Target-neutral two-dimensional sampling policy.
+//
+dialect : Library;
+
+public Sampler2D : struct {
+  public state addressing : Addressing;
+  public state filtering  : Filtering;
+
+  public Addressing : enum[U8] {
+    clamp = 1;
+    wrap = 2;
+    zero = 0;
+  }
+
+  public Filtering : enum[U8] {
+    linear = 0;
+    nearest = 1;
+  }
+}

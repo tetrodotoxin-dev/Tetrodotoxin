@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/compression/lz77.hpp"
@@ -12,7 +12,7 @@
 using namespace Perimortem::Core;
 using namespace Perimortem;
 
-// `hash_table` maps a 3-byte hash to the most recent input position that
+// `hash_table` maps a three byte hash to the most recent input position that
 // produced it. `chain_table` maps each window position to the previous input
 // position with the same hash, forming a linked list of match candidates.
 // Together they implement a classic LZ77 sliding window hash chain.

@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -7,7 +7,7 @@
 
 namespace Perimortem::Utility {
 
-// A half-open interval described by its first index and element count.
+// A half open interval described by its first index and element count.
 struct Range {
   Count start = 0;
   Count size = 0;

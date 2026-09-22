@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -67,8 +67,8 @@ class Huffman {
       if (length > 0) {
         Count position = fill_offset[length]++;
         symbol_map[position] = U16(i);
-        // Store codes in bit-reversed form so the writer can place them
-        // directly into the accumulator without a per-symbol reversal.
+        // Store codes in bit reversed form so the writer can place them
+        // directly into the accumulator without a per symbol reversal.
         U32 canonical = base_code[length] + U32(position - base_index[length]);
         U32 reversed = 0;
         for (Count bit = 0; bit < length; bit++) {
@@ -81,8 +81,8 @@ class Huffman {
       }
     }
 
-    // Populate 9-bit fast decode table. encode_codes already holds bit-reversed
-    // codes, so each entry's stream_bits is just the stored value directly.
+    // Populate the 9 bit fast decode table. The encode table already holds the
+    // reversed bits, so each entry can use the stored stream value directly.
     for (Count symbol = 0; symbol < code_lengths.get_size(); symbol++) {
       Count length = lengths[symbol];
       if (length == 0 || length > fast_bits) {
@@ -123,7 +123,7 @@ class Huffman {
   }
 
   constexpr auto decode_symbol(BitStream::Reader& reader) const -> U16 {
-    // Fast path: one 9-bit peek + table lookup covers codes up to 9 bits long.
+    // Fast path: one 9 bit peek + table lookup covers codes up to 9 bits long.
     const auto fast_key = reader.peek_code(fast_bits);
     const FastEntry& fast_entry = fast_table[fast_key];
     if (fast_entry.length > 0) {
@@ -131,7 +131,7 @@ class Huffman {
       return fast_entry.symbol;
     }
 
-    // Slow path: bit-by-bit accumulation for codes longer than 9 bits.
+    // Slow path: bit by bit accumulation for codes longer than 9 bits.
     U32 accumulated_code = 0;
     for (Count i = 1; i <= max_bits; i++) {
       accumulated_code = (accumulated_code << 1) | reader.read_bit().value;

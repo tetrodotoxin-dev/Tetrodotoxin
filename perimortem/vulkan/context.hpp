@@ -1,14 +1,13 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
 
 #include <vulkan/vulkan.h>
-#ifdef PERI_LINUX
-#include <vulkan/vulkan_wayland.h>
-#endif
 
 #include "perimortem/core/perimortem.hpp"
+
+#include "perimortem/system/presentation.hpp"
 
 namespace Perimortem::Vulkan {
 
@@ -16,9 +15,7 @@ namespace Perimortem::Vulkan {
 // queue, and command pool for the lifetime of the application.
 class Context {
  public:
-#ifdef PERI_LINUX
-  static auto create(wl_display* display, wl_surface* surface) -> Context;
-#endif
+  static auto create(System::Presentation presentation) -> Context;
 
   Context() = default;
   ~Context();
@@ -34,6 +31,7 @@ class Context {
   auto get_graphics_queue_family() const -> U32;
   auto get_command_pool() const -> VkCommandPool;
   auto get_surface() const -> VkSurfaceKHR;
+  auto supports_float64() const -> Bool;
 
   // Returns the index of the first memory type that satisfies both the type
   // filter bitmask and the required property flags. Returns UINT32_MAX if
@@ -41,7 +39,7 @@ class Context {
   auto find_memory_type(U32 type_filter, VkMemoryPropertyFlags properties) const
       -> U32;
 
-  // One-shot transfer commands are scoped by the caller: begin records a
+  // One shot transfer commands are scoped by the caller: begin records a
   // transient command buffer, submit ends it and blocks until the GPU is done.
   auto begin_immediate_commands() const -> VkCommandBuffer;
   auto submit_immediate_commands(VkCommandBuffer command_buffer) const -> void;
@@ -54,6 +52,7 @@ class Context {
   VkQueue graphics_queue = VK_NULL_HANDLE;
   U32 graphics_queue_family = 0;
   VkCommandPool command_pool = VK_NULL_HANDLE;
+  Bool float64 = False;
 };
 
 }  // namespace Perimortem::Vulkan

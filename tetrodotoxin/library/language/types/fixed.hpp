@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -6,9 +6,9 @@
 #include "perimortem/core/option.hpp"
 
 #include "tetrodotoxin/library/language/types/contiguous.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/model/documentations/comment.hpp"
-#include "ttx/model/layouts/ranged.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/documentations/comment.hpp"
+#include "tetrodotoxin/source/layouts/ranged.hpp"
 
 namespace Tetrodotoxin::Library::Language::Types {
 
@@ -47,13 +47,8 @@ class Fixed : public Contiguous {
       Model::Pack& source) const
       -> Perimortem::Core::Option<Model::Pack&> override;
 
-  auto reserve(Llvm::Program& program) const -> Bool override;
-
-  auto complete(Llvm::Program& program) const -> Bool override;
-  TTX_CONSTEXPR_INVALID_CONTEXT;
-
   constexpr auto get_layout() const
-      -> const Ttx::Model::Layouts::Ranged& override {
+      -> const Tetrodotoxin::Source::Layouts::Ranged& override {
     return layout;
   }
 
@@ -67,8 +62,8 @@ class Fixed : public Contiguous {
   Perimortem::Core::View::Bytes name;
   const Model::Type& element;
   ::U64 extent;
-  Ttx::Model::Layouts::Ranged layout;
-  static constexpr Ttx::Model::Documentations::Comment documentation{
+  Tetrodotoxin::Source::Layouts::Ranged layout;
+  static constexpr Tetrodotoxin::Source::Documentations::Comment documentation{
     "Creates a fixed homogeneous range Type."_view,
   };
 };

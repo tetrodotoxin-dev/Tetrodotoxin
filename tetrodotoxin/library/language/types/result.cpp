@@ -1,10 +1,9 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/types/result.hpp"
 
 #include "tetrodotoxin/library/language/constants/result.hpp"
-#include "tetrodotoxin/library/llvm/builder.hpp"
 
 using namespace Perimortem;
 using namespace Tetrodotoxin::Library::Language;
@@ -31,14 +30,6 @@ auto Types::Result::fold_propagation(Model::Pack& source) const
              : Core::Option<Model::Pack&>();
 }
 
-auto Types::Result::lower_propagation(
-    Llvm::Builder& body,
-    const Model::Pack& result,
-    const Model::Pack& source,
-    const Model::Pack& escape) const -> Bool {
-  return body.propagate_result(*this, value, error, result, source, escape);
-}
-
 auto Types::Result::accepts(const Model::Pack& source) const -> Bool {
   if (source.fits(*this)) {
     return True;
@@ -57,44 +48,7 @@ auto Types::Result::create_fitted(
                 : Core::Option<Model::Pack&>();
 }
 
-auto Types::Result::reserve(Llvm::Program& program) const -> Bool {
-  const auto& carriers = program.get_carriers();
-  auto reserved =
-      carriers.reserve(program, *this, Llvm::Carriers::Kind::Result);
-  if (!reserved) {
-    return False;
-  }
-
-  if (!*reserved) {
-    return True;
-  }
-
-  return value.reserve(program) && error.reserve(program) &&
-         flag.reserve(program);
-}
-
-auto Types::Result::complete(Llvm::Program& program) const -> Bool {
-  const auto& carriers = program.get_carriers();
-  auto began = carriers.begin_completion(program, *this);
-  if (!began) {
-    return False;
-  }
-
-  if (!*began) {
-    return True;
-  }
-
-  Bool alternatives = value.complete(program) && error.complete(program);
-  if (!alternatives || !flag.complete(program)) {
-    return False;
-  }
-
-  Bool carrier_completed =
-      carriers.complete(program, *this, Llvm::Carriers::Kind::Result);
-  return carrier_completed && complete_debug(program);
-}
-
-auto Types::Result::validate_layout(Ttx::Lexical::Cursor& cursor) const
+auto Types::Result::validate_layout(Tetrodotoxin::Source::Lexical::Cursor& cursor) const
     -> Bool {
   if (!value.get_layout().is_empty() && !error.get_layout().is_empty()) {
     return True;

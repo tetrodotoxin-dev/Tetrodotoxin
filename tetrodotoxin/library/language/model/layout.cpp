@@ -1,22 +1,21 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/model/layout.hpp"
 
 #include "perimortem/core/diagnostics/log.hpp"
 
-#include "tetrodotoxin/library/language/model/parser/layout.hpp"
 #include "tetrodotoxin/library/language/model/type.hpp"
-#include "tetrodotoxin/library/language/parameter.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/model/addressable.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/addressable.hpp"
+#include "tetrodotoxin/source/layouts/addressable.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Utility;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
 static auto select_entry_type(const Abstract& entry) -> Option<const Type&> {
@@ -28,14 +27,14 @@ static auto select_entry_type(const Abstract& entry) -> Option<const Type&> {
   return entry.select<Addressable>().visit(
       []() -> Option<const Type&> { return {}; },
       [](const Addressable& addressable) -> Option<const Type&> {
-        return addressable.get_type();
+        return addressable.get_type().select<Type>();
       });
 }
 
 static auto resolves_for_fitting(const Abstract& entry) -> const Abstract& {
   // Authored Layouts retain direct Type and Parameter edges before every Type
   // necessarily resolves. Those identities are already canonical. Resolving
-  // first would collapse distinct staged Types to the shared Invalid object.
+  // first would collapse distinct staged Types to the shared Unknown object.
   if (entry.is<Type>()) {
     return entry;
   }
@@ -53,7 +52,7 @@ static auto resolves_for_fitting(const Abstract& entry) -> const Abstract& {
       [](const Abstract& abstract) -> const Abstract& { return abstract; });
 }
 
-static auto get_slot_name(const Ttx::Concept::Layout& layout, Count index)
+static auto get_slot_name(const Tetrodotoxin::Source::Layout& layout, Count index)
     -> Option<View::Bytes> {
   auto explicit_name = layout.get_name(index);
   if (explicit_name) {
@@ -69,154 +68,95 @@ static auto get_slot_name(const Ttx::Concept::Layout& layout, Count index)
       });
 }
 
-auto Language::Model::Layout::interpret_parameters(
-    Cursor& cursor,
-    const Abstract& host) -> Option<Layout&> {
-  return interpret(cursor, host, True);
+auto Language::Model::Layout::create_authored(
+    Allocator::Arena& domain,
+    Managed::Vector<Slot> slots,
+    Anchor anchor,
+    Bool parameters) -> Layout& {
+  return create(domain, slots, anchor, parameters);
 }
 
-auto Language::Model::Layout::interpret(Cursor& cursor, const Abstract& host)
-    -> Option<Layout&> {
-  return interpret(cursor, host, False);
-}
-
-auto Language::Model::Layout::interpret(
-    Cursor& cursor,
-    const Abstract& host,
-    Bool parameters) -> Option<Layout&> {
-  // Parser::Layout owns the bracket and separator grammar. This owner retains
-  // delayed Type routes so declaration order does not become a parse rule.
-  Allocator::Arena& domain = cursor.get_arena();
-  Token opening = cursor.current();
-  Managed::Vector<Slot> slots(domain);
-  auto closing = Parser::Layout::parse(
-      cursor,
-      [&](Cursor& entry, Count index, Option<Token> name_token) -> Bool {
-        if (entry.matches(Code::Type::Self)) {
-          Bool bracketed =
-              name_token && name_token->get_code() == Code::Type::Self;
-          Bool scalar_result = !parameters && !name_token;
-          if (index != 0 || (!bracketed && !scalar_result)) {
-            entry.create_token_error(
-                "Library `self` must be the first Function Layout entry."_view);
-            return False;
-          }
-
-          Token self = entry.consume();
-          slots.insert(Slot({}, Anchor::create(Span(self)), "self"_view));
-          return True;
-        }
-
-        if (!entry.matches(Code::Type::Type)) {
-          entry.create_token_error(
-              "Library Layout entries require one Type reference."_view);
-          return False;
-        }
-
-        Token slot_opening = name_token ? entry.peek(-3) : entry.current();
-        auto type = TypeReference::parse(host, entry);
-        BAIL_IF(!type);
-
-        View::Bytes name;
-        Anchor slot_anchor = type->get_anchor();
-        if (name_token) {
-          name = name_token->caculate_text(entry.get_source_text());
-          slot_anchor = Anchor::create(
-              *name_token,
-              Span(slot_opening, type->get_anchor().get_span().get_end()));
-        }
-
-        slots.insert(Slot(*type, slot_anchor, name));
-        return True;
-      });
-  BAIL_IF(!closing);
-
-  if (parameters && !slots.is_empty() && slots.at(0).name.is_empty()) {
-    cursor.create_expression_error(
-        slots.at(0).anchor,
-        "Library Function parameters require one Named Layout."_view,
-        "Use `[]` for no parameters or name every entry as `.name : Type`."_view);
-    return {};
-  }
-  if (!parameters && !slots.is_empty() && !slots.at(0).type_reference &&
-      slots.get_size() != 1) {
-    cursor.create_expression_error(
-        slots.at(0).anchor,
-        "Library `[self]` must be the complete Function result Layout."_view,
-        "Return only the receiver reference or use authored result Types."_view);
-    return {};
-  }
-
-  Anchor anchor = Anchor::create(opening, Span(opening, *closing));
-  Layout& layout = domain.construct_from<Layout>(
+auto Language::Model::Layout::create(
+    Allocator::Arena& domain,
+    Managed::Vector<Slot> slots,
+    Anchor anchor,
+    Bool parameters) -> Layout& {
+  return domain.construct_from<Layout>(
       [&]() -> Layout { return Layout(domain, slots, anchor, parameters); });
-  return layout;
 }
 
-auto Language::Model::Layout::persist(Archive::Writer& writer) const -> Bool {
-  auto record = writer.begin(Archive::Tag::Layout);
-  BAIL_IF(get_size() > U32(-1));
-
-  writer.write(U32(get_size()));
-  for (Count index = 0; index < get_size(); index++) {
-    BAIL_IF(!writer.write(slots.at(index).name));
-
-    auto reference = get_type_reference(index);
-    writer.write(U8(reference ? 1 : 0));
-    BAIL_IF(reference && !reference->persist(writer));
+auto Language::Model::Layout::retain_generated_slot(
+    TypeReference type_reference,
+    View::Bytes name,
+    View::Vector<Tetrodotoxin::Language::Attribute> attributes) -> Bool {
+  BAIL_IF(!slots.is_empty() && is_linked());
+  for (const Slot& slot : slots.get_view()) {
+    BAIL_IF(!name.is_empty() && slot.get_name() == name);
   }
-  return writer.finish(record);
+
+  slots.insert(Slot(type_reference, Anchor::create(Span()), name, attributes));
+  return True;
 }
 
-auto Language::Model::Layout::restore(
-    Archive::Reader& reader,
-    Allocator::Arena& arena,
-    const Abstract& context,
-    Bool parameters) -> Option<Layout&> {
-  auto record = reader.read_record();
+auto Language::Model::Layout::retain_generated_slot(
+    const Type& type,
+    View::Bytes name,
+    View::Vector<Tetrodotoxin::Language::Attribute> attributes) -> Bool {
+  BAIL_IF(type.get_layout().is_empty());
+  for (const Slot& slot : slots.get_view()) {
+    BAIL_IF(!name.is_empty() && slot.get_name() == name);
+  }
+
+  Slot slot({}, Anchor::create(Span()), name, attributes);
+  if (parameters) {
+    auto parameter =
+        Tetrodotoxin::Source::Layouts::Addressable::create_authored(domain, name, type);
+    BAIL_IF(!parameter);
+    slot.edge = Reference<const Abstract>(*parameter);
+  } else {
+    slot.edge = Reference<const Abstract>(type);
+  }
+  slots.insert(slot);
+  return True;
+}
+
+auto Language::Model::Layout::retain_generated_edge(
+    Count index,
+    const Type& type) -> Bool {
   BAIL_IF(
-      !record || record->get_tag() != U16(Archive::Tag::Layout) ||
-      record->is_optional());
-
-  Archive::Reader contents(record->get_payload());
-  auto count = contents.read_u32();
-  BAIL_IF(!count || Count(*count) > record->get_payload().get_size());
-
-  Managed::Vector<Slot> slots(arena);
-  for (Count index = 0; index < *count; index++) {
-    auto name = contents.read_bytes();
-    auto has_reference = contents.read_u8();
-    BAIL_IF(!name || !has_reference || *has_reference > 1);
-
-    Option<TypeReference> reference;
-    if (*has_reference == 1) {
-      // TypeReference restoration does not resolve its route. The Layout's
-      // source-free link barrier receives the real host after every member has
-      // reserved its declaration identities.
-      auto restored = TypeReference::restore(contents, arena, context);
-      BAIL_IF(!restored);
-      reference = *restored;
-    }
-
-    slots.insert(Slot(reference, Anchor::create(Span()), arena.proxy(*name)));
+      index >= slots.get_size() || slots[index].type_reference ||
+      type.get_layout().is_empty());
+  Slot& slot = slots[index];
+  if (slot.edge) {
+    auto retained = select_entry_type(slot.edge->get());
+    return retained && &*retained == &type;
   }
-  BAIL_IF(!contents.is_complete());
-
-  return arena.construct_from<Layout>([&]() -> Layout {
-    return Layout(arena, slots, Anchor::create(Span()), parameters);
-  });
+  if (parameters) {
+    auto parameter = Tetrodotoxin::Source::Layouts::Addressable::create_authored(
+        domain, slot.name, type);
+    BAIL_IF(!parameter);
+    slot.edge = Reference<const Abstract>(*parameter);
+  } else {
+    slot.edge = Reference<const Abstract>(type);
+  }
+  return True;
 }
 
 auto Language::Model::Layout::link_restored(
     const Abstract& host,
     Bool parameters,
-    Option<const Ttx::Model::Addressable&> self) -> Bool {
+    Option<const Tetrodotoxin::Source::Addressable&> self) -> Bool {
   if (is_linked()) {
     return True;
   }
 
   for (Count index = 0; index < slots.get_size(); index++) {
     Slot& slot = slots[index];
+    if (!slot.type_reference && slot.edge) {
+      auto retained = select_entry_type(slot.edge->get());
+      BAIL_IF(!retained || retained->get_layout().is_empty());
+      continue;
+    }
     Option<const Type&> type;
     if (!slot.type_reference) {
       if (!parameters) {
@@ -243,7 +183,10 @@ auto Language::Model::Layout::link_restored(
 
     BAIL_IF(type->get_layout().is_empty());
     if (parameters) {
-      auto parameter = Parameter::create_authored(domain, slot.name, *type);
+      auto source = slot.type_reference ? slot.type_reference->get_interface()
+                                        : type->get_interface();
+      auto parameter = Tetrodotoxin::Source::Layouts::Addressable::create_authored(
+          domain, slot.name, *type, source);
       BAIL_IF(!parameter);
       slot.edge = Reference<const Abstract>(*parameter);
     } else {
@@ -256,29 +199,39 @@ auto Language::Model::Layout::link_restored(
 }
 
 auto Language::Model::Layout::link_parameters(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& host) -> Bool {
   return link(cursor, host, True, {});
 }
 
 auto Language::Model::Layout::link_types(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& host,
-    Option<const Ttx::Model::Addressable&> self) -> Bool {
+    Option<const Tetrodotoxin::Source::Addressable&> self) -> Bool {
   return link(cursor, host, False, self);
 }
 
 auto Language::Model::Layout::link(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& host,
     Bool parameters,
-    Option<const Ttx::Model::Addressable&> self) -> Bool {
+    Option<const Tetrodotoxin::Source::Addressable&> self) -> Bool {
   // Linking settles every slot before exposing the Layout. Parameter Layouts
-  // replace their authored slot with one real Parameter identity. Ordinary
+  // replace each authored slot with one real Layout-owned Addressable. Ordinary
   // results retain their selected Type, while `self` reuses parameter zero.
   Bool failed = False;
   for (Count i = 0; i < slots.get_size(); i++) {
     Slot& slot = slots[i];
+    if (!slot.type_reference && slot.edge) {
+      auto retained = select_entry_type(slot.edge->get());
+      if (!retained || retained->get_layout().is_empty()) {
+        cursor.create_expression_error(
+            slot.anchor,
+            "Generated Function Layout edge no longer selects a value Type."_view);
+        failed = True;
+      }
+      continue;
+    }
     Option<const Type&> type;
     if (!slot.type_reference) {
       if (!parameters) {
@@ -296,7 +249,7 @@ auto Language::Model::Layout::link(
           cursor.create_expression_error(
               slot.anchor,
               "Repeated `[self]` result linking selected a different receiver."_view,
-              "Preserve the Function's original self Parameter identity."_view);
+              "Preserve the Function's original self Addressable identity."_view);
           failed = True;
         } else if (!slot.edge) {
           slot.edge = Reference<const Abstract>(*self);
@@ -372,19 +325,22 @@ auto Language::Model::Layout::link(
     }
 
     if (slot.edge) {
-      auto parameter = slot.edge->get().select<Language::Parameter>();
+      auto parameter =
+          slot.edge->get().select<Tetrodotoxin::Source::Layouts::Addressable>();
       if (!parameter || &parameter->get_type() != &*type) {
         cursor.create_expression_error(
             slot.get_type_anchor(),
             "Repeated parameter linking selected a different semantic edge."_view,
-            "Preserve the original Parameter and resolved Type identity."_view);
+            "Preserve the original parameter Addressable and Type identity."_view);
         failed = True;
       }
       continue;
     }
 
-    auto parameter =
-        Language::Parameter::create_authored(domain, slot.name, *type);
+    auto source = slot.type_reference ? slot.type_reference->get_interface()
+                                      : type->get_interface();
+    auto parameter = Tetrodotoxin::Source::Layouts::Addressable::create_authored(
+        domain, slot.name, *type, source);
     if (!parameter) {
       cursor.create_expression_error(
           slot.anchor,
@@ -400,25 +356,51 @@ auto Language::Model::Layout::link(
   return !failed && is_linked();
 }
 
-auto Language::Model::Layout::resolve_named(View::Bytes route) const
-    -> const Abstract& {
-  if (!is_linked()) {
-    return Invalid::get_invalid();
-  }
-
+auto Language::Model::Layout::resolve_named(
+    View::Bytes route,
+    Option<const Abstract&> host) const -> const Abstract& {
   for (Count i = 0; i < get_size(); i++) {
-    auto name = get_name(i);
-    auto entry = get_abstract(i);
-    if (name && *name == route && entry) {
-      return *entry;
+    Slot& slot = slots.at(i);
+    if (slot.name != route) {
+      continue;
     }
+    if (slot.edge) {
+      return slot.edge->get();
+    }
+    if (!parameters || !host || !slot.type_reference) {
+      return Unknown::get_unknown();
+    }
+
+    Option<const Type&> type;
+    slot.type_reference->resolve_lexical(*host).visit(
+        [&](const Abstract& selected) { type = selected.select<Type>(); },
+        [](const TypeReference::Failure&) {});
+    if (!type || type->get_layout().is_empty()) {
+      return Unknown::get_unknown();
+    }
+    auto source = slot.type_reference ? slot.type_reference->get_interface()
+                                      : type->get_interface();
+    auto parameter = Tetrodotoxin::Source::Layouts::Addressable::create_authored(
+        domain, slot.name, *type, source);
+    if (!parameter) {
+      return Unknown::get_unknown();
+    }
+    slot.edge = Reference<const Abstract>(*parameter);
+    return *parameter;
   }
 
-  return Invalid::get_invalid();
+  return Unknown::get_unknown();
+}
+
+auto Language::Model::Layout::get_slot_attributes(Count index) const
+    -> View::Vector<Tetrodotoxin::Language::Attribute> {
+  return index < slots.get_size()
+             ? slots.at(index).get_attributes()
+             : View::Vector<Tetrodotoxin::Language::Attribute>();
 }
 
 auto Language::Model::Layout::validate_publication(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& host) const -> Bool {
   auto context = host.select<Language::Model::Type>();
   if (!is_linked() || !context) {
@@ -438,7 +420,7 @@ auto Language::Model::Layout::validate_publication(
       cursor.create_expression_error(
           slot.get_type_anchor(),
           "A published Function Layout retains an invalid semantic entry."_view,
-          "Retain the exact Parameter or Type selected during linking."_view);
+          "Retain the exact Addressable or Type selected during linking."_view);
       valid = False;
       continue;
     }
@@ -448,7 +430,13 @@ auto Language::Model::Layout::validate_publication(
     // Function signature merely because linking retained its identity.
     Bool reachable = slot.type_reference.visit(
         [&]() {
-          return Bool(i == 0 && slot.name == "self"_view && &*type == &host);
+          // A generated slot already retains the exact Type selected by its
+          // embedding Dialect. Authored slots still repeat their public route
+          // below, while self proves the same direct host relationship.
+          return Bool(
+              slot.edge &&
+              ((i == 0 && slot.name == "self"_view && &*type == &host) ||
+               slot.name != "self"_view));
         },
         [&](const TypeReference& reference) {
           Option<const Abstract&> selected;
@@ -506,6 +494,30 @@ auto Language::Model::Layout::get_size() const -> Count {
   return slots.get_size();
 }
 
+auto Language::Model::Layout::get_interface() const
+    -> Tetrodotoxin::Source::Layout::Handle {
+  static const Tetrodotoxin::Source::Layout::Operations operations = {
+    [](const void* source) -> Count {
+      return static_cast<const Layout*>(source)->get_size();
+    },
+    [](const void* source, Count index) -> Option<Abstract::Handle> {
+      const auto& layout = *static_cast<const Layout*>(source);
+      auto slot = layout.get_slot(index);
+      if (!slot || !slot->edge) {
+        return {};
+      }
+      if (!layout.parameters && slot->type_reference) {
+        return slot->type_reference->get_interface();
+      }
+      return slot->edge->get().get_interface();
+    },
+    [](const void* source, Count index) -> Option<View::Bytes> {
+      return static_cast<const Layout*>(source)->get_name(index);
+    },
+  };
+  return Tetrodotoxin::Source::Layout::Handle(this, operations);
+}
+
 auto Language::Model::Layout::get_abstract(Count index) const
     -> Option<const Abstract&> {
   auto slot = get_slot(index);
@@ -523,7 +535,7 @@ auto Language::Model::Layout::get_name(Count index) const
 }
 
 auto Language::Model::Layout::get_slot_anchor(Count index) const
-    -> Option<Ttx::Lexical::Anchor> {
+    -> Option<Tetrodotoxin::Source::Lexical::Anchor> {
   auto slot = get_slot(index);
   BAIL_IF(!slot);
   return slot->anchor;
@@ -536,8 +548,13 @@ auto Language::Model::Layout::get_type_reference(Count index) const
   return *slot->type_reference;
 }
 
+auto Language::Model::Layout::get_declared_name(Count index) const
+    -> View::Bytes {
+  return index < slots.get_size() ? slots.at(index).name : View::Bytes();
+}
+
 auto Language::Model::Layout::fits_value(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count source_index,
     Count target_index) const -> Bool {
   auto source = get_abstract(source_index);
@@ -548,7 +565,7 @@ auto Language::Model::Layout::fits_value(
 }
 
 auto Language::Model::Layout::fits_entry(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count source_index,
     Count target_index) const -> Bool {
   BAIL_IF(source_index >= get_size() || target_index >= target.get_size());
@@ -576,7 +593,7 @@ auto Language::Model::Layout::has_unique_names() const -> Bool {
 }
 
 auto Language::Model::Layout::fits_at(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count target_offset) const -> Bool {
   BAIL_IF(!has_target_segment(target, target_offset));
 
@@ -613,7 +630,7 @@ auto Language::Model::Layout::fits_at(
 }
 
 auto Language::Model::Layout::get_fitted_at(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count target_offset,
     Count target_index) const -> Result<const Abstract&, Errors> {
   if (target_index >= get_size()) {

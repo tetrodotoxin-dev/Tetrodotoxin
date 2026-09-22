@@ -1,44 +1,31 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/access/propagate.hpp"
 
 #include "tetrodotoxin/library/language/diagnostics.hpp"
 #include "tetrodotoxin/library/language/flow/scope.hpp"
-#include "tetrodotoxin/library/llvm/builder.hpp"
-#include "ttx/concept/invalid.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
-auto Language::Access::Propagate::parse(
-    const Abstract&,
-    Cursor& cursor,
-    Expression& receiver) -> Core::Option<Expression&> {
-  Memory::Allocator::Arena& domain = cursor.get_arena();
-  Token operation = cursor.require(
-      Code::Type::QuestionOp, "Library propagation requires postfix `?`."_view);
-  BAIL_IF(!operation);
-
-  auto receiver_anchor = receiver.get_anchor();
-  BAIL_IF(!receiver_anchor);
-  Anchor anchor =
-      Anchor::create(operation, receiver_anchor->get_span(), Span(operation));
-  // Every propagation begins with an empty escape Pack. A receiver with a typed
-  // error replaces it during linking before Function result negotiation.
+auto Language::Access::Propagate::create_authored(
+    Memory::Allocator::Arena& domain,
+    Model::Pack& receiver,
+    Anchor anchor) -> Propagate& {
   Model::Pack& empty_escape = Model::Pack::create_empty(domain);
-  Propagate& propagate = Expression::create_authored<Propagate>(
+  return Expression::create_authored<Propagate>(
       domain, anchor, [&](Core::Option<Anchor> source) -> Propagate {
         return Propagate(receiver, empty_escape, source);
       });
-  return propagate;
 }
 
 auto Language::Access::Propagate::link(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& lexical_context,
     Core::Option<const Abstract&> access_scope) -> Bool {
   BAIL_IF(!receiver.link(cursor, lexical_context, access_scope));
@@ -74,9 +61,9 @@ auto Language::Access::Propagate::link(
       ErrorEscape& created = Expression::create_synthetic<ErrorEscape>(
           cursor.get_arena(),
           [&](Core::Option<Anchor>) { return ErrorEscape(*propagated_error); });
-      escape = Ttx::Concept::Reference<Model::Pack>(created);
+      escape = Tetrodotoxin::Source::PackReference<Model::Pack>(created);
       error_type =
-          Ttx::Concept::Reference<const Model::Type>(*propagated_error);
+          Tetrodotoxin::Source::Reference<const Model::Type>(*propagated_error);
     }
   } else if (error_type) {
     cursor.create_expression_error(
@@ -126,7 +113,7 @@ auto Language::Access::Propagate::link(
 
 auto Language::Access::Propagate::get_type() const -> const Abstract& {
   return continuation_type.visit(
-      []() -> const Abstract& { return Invalid::get_invalid(); },
+      []() -> const Abstract& { return Unknown::get_unknown(); },
       [](const Reference<const Language::Model::Type>& selected)
           -> const Abstract& { return selected.get(); });
 }
@@ -137,30 +124,11 @@ auto Language::Access::Propagate::finalize(Cursor& cursor) -> void {
   Expression::finalize(cursor);
 }
 
-auto Language::Access::Propagate::lower(Llvm::Builder& body) const -> Bool {
-  auto folded = lower_folded(body);
-  if (folded) {
-    return *folded;
-  }
-
-  if (!receiver_type || !continuation_type) {
-    return False;
-  }
-
-  Bool receiver_lowered = receiver.lower(body);
-  if (!receiver_lowered) {
-    return False;
-  }
-
-  return receiver_type->get().lower_propagation(
-      body, *this, receiver, escape.get());
-}
-
 auto Language::Access::Propagate::evaluate()
     -> Utility::Result<Core::Option<Model::Pack&>, Expression::Error> {
   Core::Option<Model::Pack&> folded;
   Core::Option<Expression::Error> error;
-  receiver.fold().visit(
+  Expression::fold(receiver).visit(
       [&](const Core::Option<Model::Pack&>& selected) { folded = selected; },
       [&](const Expression::Error& selected) { error = selected; });
   if (error) {

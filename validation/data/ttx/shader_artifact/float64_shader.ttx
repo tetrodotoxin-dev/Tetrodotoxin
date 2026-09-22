@@ -1,0 +1,19 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+dialect : Shader;
+
+public Math : alias = package(.name = "Perimortem.Math", .version = "1.0");
+implements source("render.ttx");
+
+public time : uniform R64 = 0.0;
+
+Shader fragment[.color : Math::Vec4D] -> [.color : Math::Vec4D] {
+  state copied : Math::Vec4D = (
+    .x = color.x + color.y + new[R32](parameters.time % 1.0),
+    .y = color.y + color.z,
+    .z = color.z + color.w,
+    .w = color.w + color.x,
+  );
+  return (.color = copied);
+}

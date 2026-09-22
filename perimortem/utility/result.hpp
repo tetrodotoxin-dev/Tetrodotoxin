@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -111,9 +111,10 @@ class Result {
   constexpr auto construct_value(candidate_type&& candidate) -> void {
     if constexpr (__is_lvalue_reference(value_type)) {
       auto& reference = static_cast<value_type>(candidate);
-      new (&value) ValueStorage(&reference);
+      new (&value, Core::Placement::Construct) ValueStorage(&reference);
     } else {
-      new (&value) ValueStorage(static_cast<candidate_type&&>(candidate));
+      new (&value, Core::Placement::Construct)
+          ValueStorage(static_cast<candidate_type&&>(candidate));
     }
 
     value_selected = True;
@@ -121,7 +122,8 @@ class Result {
 
   template <typename candidate_type>
   constexpr auto construct_error(candidate_type&& candidate) -> void {
-    new (&error) error_type(static_cast<candidate_type&&>(candidate));
+    new (&error, Core::Placement::Construct)
+        error_type(static_cast<candidate_type&&>(candidate));
     value_selected = False;
   }
 

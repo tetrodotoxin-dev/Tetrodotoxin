@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -7,9 +7,9 @@
 
 namespace Perimortem::Core::View {
 
-// Selection is a read-only iterator over the values in any View admitted by
-// one predicate. The same value is the range returned to range-for and the
-// iterator returned by begin() and end(); it retains no parallel indices or
+// Selection is a read only iterator over the values in any View admitted by
+// one predicate. The same value is the range returned to range iteration and
+// the iterator returned by begin() and end(). It retains no parallel indices or
 // selected storage.
 template <
     typename view_type,

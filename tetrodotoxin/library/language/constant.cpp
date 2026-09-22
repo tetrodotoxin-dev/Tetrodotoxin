@@ -1,18 +1,36 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/constant.hpp"
 
-#include "tetrodotoxin/library/llvm/builder.hpp"
+#include "ttx/concept/domain.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
+using Ttx::Semantic::Negotiation::Binding;
 using namespace Tetrodotoxin::Library;
 
-auto Language::Constant::prepare_carrier(Llvm::Builder& body) const -> Bool {
-  Llvm::Program& program = body.get_program();
-  return get_type().reserve_value(program) &&
-         get_type().complete_value(program);
+auto Language::Constant::bind_interface(Perimortem::System::Uuid requested)
+    const -> Utility::Result<Binding, Binding::Failure> {
+  if (requested == Ttx::Concept::Domain::contract_id) {
+    static const Ttx::Concept::Domain::Operations operations = {
+      [](const void* source, ttx_abstract* result) -> ttx_binding_status {
+        const auto& value = *static_cast<const Constant*>(source);
+        *result = value.get_type().get_interface().get_abi();
+        return TTX_BINDING_SATISFIED;
+      },
+    };
+    return Binding::provide<Domain>(this, operations);
+  }
+  return Tetrodotoxin::Source::Constant::bind_interface(requested);
+}
+
+auto Language::Constant::get_value_type(Count index) const
+    -> const Tetrodotoxin::Source::Abstract& {
+  return index == 0 ? static_cast<const Tetrodotoxin::Source::Abstract&>(get_type())
+                    : static_cast<const Tetrodotoxin::Source::Abstract&>(
+                          Tetrodotoxin::Source::Unknown::get_unknown());
 }
 
 auto Language::Constant::have_equal_values(

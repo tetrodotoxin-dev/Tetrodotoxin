@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -6,8 +6,8 @@
 #include "perimortem/core/option.hpp"
 
 #include "tetrodotoxin/library/language/types/contiguous.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/model/documentations/comment.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/documentations/comment.hpp"
 
 namespace Tetrodotoxin::Library::Language::Types {
 
@@ -37,11 +37,6 @@ class Access : public Contiguous {
   auto create_default(Perimortem::Memory::Allocator::Arena& arena) const
       -> Perimortem::Core::Option<Model::Pack&> override;
 
-  auto reserve(Llvm::Program& program) const -> Bool override;
-
-  auto complete(Llvm::Program& program) const -> Bool override;
-  TTX_CONSTEXPR_INVALID_CONTEXT;
-
   constexpr auto get_element_type() const -> const Model::Type& override {
     return element;
   }
@@ -49,7 +44,7 @@ class Access : public Contiguous {
  private:
   Perimortem::Core::View::Bytes name;
   const Model::Type& element;
-  static constexpr Ttx::Model::Documentations::Comment documentation{
+  static constexpr Tetrodotoxin::Source::Documentations::Comment documentation{
     "Provides writable access to contiguous values."_view,
   };
 };

@@ -1,34 +1,30 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/types/source.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "perimortem/core/diagnostics/log.hpp"
 
-#include "tetrodotoxin/language/parser/comment.hpp"
-#include "tetrodotoxin/library/language/model/addressable.hpp"
+#include "tetrodotoxin/language/import.hpp"
+#include "tetrodotoxin/library/language/model/memory.hpp"
 #include "tetrodotoxin/library/language/model/callable.hpp"
-#include "tetrodotoxin/library/llvm/builder.hpp"
-#include "ttx/concept/invalid.hpp"
+#include "tetrodotoxin/library/language/monograph.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library::Language;
 
 using Tetrodotoxin::Language::Visibility;
-using Type = Model::Type;
-
-static auto is_foreign_keyword(const Cursor& cursor) -> Bool {
-  return cursor.matches(Code::Type::Addressable) &&
-         cursor.current().caculate_text(cursor.get_source_text()) ==
-             "foreign"_view;
-}
 
 auto Types::Source::create_synthetic(
     Allocator::Arena& domain,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     Abstract& host,
     const Anchor& source_anchor) -> Source& {
   // The root has no instance state, so its empty Layout exists before any
@@ -41,76 +37,12 @@ auto Types::Source::create_synthetic(
       [&]() -> Source { return Source(domain, definition); });
 }
 
-auto Types::Source::parse_definition(
-    Cursor& cursor,
-    const Documentation& documentation) -> Bool {
-  auto definition =
-      Tetrodotoxin::Language::Definition::parse(cursor, documentation, *this);
-  BAIL_IF(!definition || !interpret_definition(cursor, *definition));
+auto Types::Source::retain_import_route(Import import) -> Bool {
+  if (imports_linked) {
+    return False;
+  }
+  import_routes.insert(import);
   return True;
-}
-
-auto Types::Source::parse(Cursor& cursor) -> Bool {
-  while (!cursor.matches(Code::Type::Terminal)) {
-    // Every root form begins with the same optional Documentation. Source
-    // parses it once and passes that exact object to the selected owner so
-    // Import, Foreign, and Definition never speculate over the prefix
-    // independently.
-    const Documentation& documentation =
-        Tetrodotoxin::Language::Parser::Comment::parse(cursor);
-
-    if (cursor.matches(Code::Type::Using)) {
-      auto import = Import::parse(cursor, documentation);
-      BAIL_IF(!import || imports_linked);
-      import_routes.insert(*import);
-      continue;
-    }
-
-    if (is_foreign_keyword(cursor)) {
-      BAIL_IF(!foreign.parse(cursor, documentation));
-      continue;
-    }
-
-    BAIL_IF(!parse_definition(cursor, documentation));
-  }
-
-  return True;
-}
-
-auto Types::Source::persist(Archive::Writer& writer) const -> Bool {
-  auto record = writer.begin(Archive::Tag::Source);
-  BAIL_IF(
-      !writer.write(get_documentation()) || import_routes.get_size() > U32(-1));
-
-  writer.write(U32(import_routes.get_size()));
-  for (const Import& import : import_routes.get_view()) {
-    BAIL_IF(!import.persist(writer));
-  }
-
-  writer.write(U8(foreign.is_authored() ? 1 : 0));
-  BAIL_IF(foreign.is_authored() && !foreign.persist(writer));
-
-  Bool public_only = writer.get_profile() ==
-                     Tetrodotoxin::Language::Persistence::Profile::Interface;
-  BAIL_IF(!persist_declarations(writer, public_only));
-  return writer.finish(record);
-}
-
-auto Types::Source::restore(
-    Archive::Reader& contents,
-    Tetrodotoxin::Language::Persistence::Profile profile) -> Bool {
-  auto import_count = contents.read_u32();
-  BAIL_IF(!import_count);
-  for (Count index = 0; index < *import_count; index++) {
-    auto import = Import::restore(contents, get_domain(), get_host());
-    BAIL_IF(!import);
-    import_routes.insert(*import);
-  }
-
-  auto has_foreign = contents.read_u8();
-  BAIL_IF(!has_foreign || *has_foreign > 1);
-  BAIL_IF(*has_foreign == 1 && !foreign.restore(contents));
-  return restore_declarations(contents, profile);
 }
 
 auto Types::Source::link_types(Cursor& cursor) -> Bool {
@@ -160,11 +92,11 @@ auto Types::Source::link_restored(Abstract& interpretation_context) -> Bool {
     for (const Import& import : import_routes.get_view()) {
       Option<const Abstract&> selected;
       import.get_type_reference()
-          .resolve(interpretation_context)
+          .resolve_lexical(interpretation_context)
           .visit(
               [&](const Abstract& resolved) { selected = resolved; },
               [](const TypeReference::Failure&) {});
-      if (!selected || !retain_import(selected->resolve())) {
+      if (!selected || !retain_import_context(selected->resolve())) {
         Diagnostics::Log::error(
             "Restored Library Import did not resolve in Package context."_view);
         return False;
@@ -219,14 +151,17 @@ auto Types::Source::can_bind_static(const Abstract& binding, Category category)
   if (category != Category::Type) {
     return True;
   }
+  if (binding.is<Tetrodotoxin::Language::Import>()) {
+    return True;
+  }
 
-  View::Bytes name = binding.get_name();
-  return get_host().resolve_context(name).is<Invalid>();
+  auto monograph = get_host().select<Library::Language::Monograph>();
+  return !monograph || monograph->can_bind_source_type(binding.get_name());
 }
 
-auto Types::Source::retain_import(const Abstract& imported) -> Bool {
+auto Types::Source::retain_import_context(const Abstract& imported) -> Bool {
   const Abstract& context = imported.resolve();
-  BAIL_IF(context.is<Invalid>() || &context == this);
+  BAIL_IF(context.is<Unknown>() || context.is<None>() || &context == this);
 
   if (imports.get_view().contains(
           [&](const Reference<const Abstract>& retained) -> Bool {
@@ -237,7 +172,14 @@ auto Types::Source::retain_import(const Abstract& imported) -> Bool {
 
   auto has_conflict = [&](auto bindings) -> Bool {
     for (const Reference<Abstract>& binding : bindings) {
-      if (!context.resolve_context(binding.get().get_name()).is<Invalid>()) {
+      const Abstract& visible = context.visit<Composite>(
+          [&](const Composite& composite) -> const Abstract& {
+            return composite.resolve_public_context(binding.get().get_name());
+          },
+          [&](const Abstract& selected) -> const Abstract& {
+            return selected.resolve_concept(binding.get().get_name());
+          });
+      if (!visible.is<Unknown>() && !visible.is<None>()) {
         return True;
       }
     }
@@ -286,7 +228,7 @@ auto Types::Source::link_imports(
 
     auto selected = import.get_type_reference().resolve_authored(
         cursor, interpretation_context);
-    if (!selected || selected->resolve().is<Invalid>()) {
+    if (!selected || selected->resolve().is<Unknown>()) {
       if (selected) {
         cursor.create_expression_error(
             Anchor::create(import.get_span()),
@@ -297,7 +239,7 @@ auto Types::Source::link_imports(
       continue;
     }
 
-    if (!retain_import(selected->resolve())) {
+    if (!retain_import_context(selected->resolve())) {
       cursor.create_expression_error(
           Anchor::create(import.get_span()),
           "Library Import conflicts with this source context."_view,
@@ -312,7 +254,10 @@ auto Types::Source::link_imports(
   return True;
 }
 
-auto Types::Source::bind_static(Abstract& binding, Category category) -> Bool {
+auto Types::Source::bind_static(
+    Abstract& binding,
+    Category category,
+    Bool published) -> Bool {
   // Types and Callables enter only while the source declaration is open.
   // Addressables also have one deliberate late phase after every provider
   // Field has settled, but before any initializer consumes source lookup.
@@ -323,7 +268,7 @@ auto Types::Source::bind_static(Abstract& binding, Category category) -> Bool {
 
   // Synthetic bindings admitted through this path have no Definition and
   // therefore never enter this source's public lookup index.
-  publish_binding(binding, category, False, False);
+  publish_binding(binding, category, published, False);
   return True;
 }
 
@@ -335,14 +280,14 @@ auto Types::Source::retain_binding(
   BAIL_IF(!can_accept_definition());
 
   if (category == Category::Addressable) {
-    auto addressable = binding.select<Model::Addressable>();
+    auto addressable = binding.select<Model::Memory>();
     BAIL_IF(!addressable);
 
     // Source has no instance value. The retained Addressable declares whether
     // it contributes storage so Field does not inspect its concrete host.
     if (addressable->contributes_to_instance_layout()) {
       cursor.create_token_error(
-          definition.get_name_token(),
+          definition.get_authored().get_name(),
           "Library Source rejects instance state Fields."_view,
           "Use an ordinary Static Field or move state into a Structure or "
           "Object."_view);
@@ -354,7 +299,7 @@ auto Types::Source::retain_binding(
     auto callable = binding.select<Model::Callable>();
     BAIL_IF(!callable);
     if (callable->declares_self()) {
-      Token name = definition.get_name_token();
+      Token name = definition.get_authored().get_name();
       cursor.create_expression_error(
           name ? Option<Anchor>(Anchor::create(Span(name))) : Option<Anchor>(),
           "A top level Library Function cannot receive `self`."_view,
@@ -365,25 +310,39 @@ auto Types::Source::retain_binding(
 
   BAIL_IF(!can_bind_static(binding, category));
   publish_binding(binding, category, definition.is_published());
-  cursor.get_associations().create(definition.get_name_anchor(), binding);
+  cursor.get_associations().create(
+      Anchor::create(Span(definition.get_authored().get_name())), binding);
   return True;
 }
 
-auto Types::Source::resolve_context(View::Bytes route) const
+auto Types::Source::resolve_concept(View::Bytes route) const
     -> const Abstract& {
   // Foreign is one reserved receiver context, while authored Source names use
-  // the ordinary public categories. The Monograph fallback composes intrinsic,
-  // outer Package, and using contexts without copying any of their bindings.
+  // the ordinary public categories. The Monograph fallback supplies intrinsic
+  // and source-local import names.
   if (route == "foreign"_view && foreign.is_authored()) {
     return foreign;
   }
-
-  const Abstract& local = resolve_local(route, Visibility::Public);
-  if (!local.is<Invalid>()) {
-    return local;
+  if (route == "static"_view || route == "instance"_view) {
+    return Composite::resolve_concept(route);
   }
 
-  return get_host().resolve_context(route);
+  const Abstract& local = resolve_public_context(route);
+  return !local.is<Unknown>() && !local.is<None>()
+             ? local
+             : get_host().resolve_concept(route);
+}
+
+auto Types::Source::resolve_lexical_context(View::Bytes route) const
+    -> const Abstract& {
+  auto monograph = get_host().select<Language::Monograph>();
+  return monograph ? monograph->resolve_lexical_context(route)
+                   : Composite::resolve_lexical_context(route);
+}
+
+auto Types::Source::resolve_public_context(View::Bytes route) const
+    -> const Abstract& {
+  return resolve_local(route, Visibility::Public);
 }
 
 auto Types::Source::create_default(Allocator::Arena&) const
@@ -398,141 +357,32 @@ auto Types::Source::resolve_imports(View::Bytes route) const
   // Using contexts are composable query fallbacks, not an ordered shadowing
   // list. Context, access, and call queries all accept no answer as missing and
   // repeated answers only when they resolve to the same identity. Distinct
-  // provider identities make the query ambiguous and therefore Invalid.
-  Option<const Abstract&> selected;
-  for (const Reference<const Abstract>& retained : imports.get_view()) {
-    const Abstract& candidate = retained.get().resolve_context(route);
-    if (candidate.is<Invalid>()) {
-      continue;
-    }
-    if (selected && &selected->resolve() != &candidate.resolve()) {
-      return Invalid::get_invalid();
-    }
-    selected = candidate;
-  }
-
-  return selected ? *selected : Invalid::get_invalid();
-}
-
-auto Types::Source::resolve_type_access(
-    const Abstract& host,
-    View::Bytes route,
-    Type::Access access) const -> const Abstract& {
-  const Abstract& local = Composite::resolve_type_access(host, route, access);
-  if (!local.is<Invalid>()) {
-    return local;
-  }
-
+  // provider identities make the query ambiguous and therefore Unknown.
   Option<const Abstract&> selected;
   for (const Reference<const Abstract>& retained : imports.get_view()) {
     const Abstract& context = retained.get();
-    const Abstract& candidate = context.visit<Type>(
-        [&](const Type& type) -> const Abstract& {
-          return type.resolve_type_access(host, route, Type::Access::Static);
+    const Abstract& candidate = context.visit<Composite>(
+        [&](const Composite& composite) -> const Abstract& {
+          return composite.resolve_public_context(route);
         },
         [&](const Abstract& provider) -> const Abstract& {
-          return provider.resolve_access(host, route);
+          return provider.resolve_concept(route);
         });
-    if (candidate.is<Invalid>()) {
+    if (candidate.is<Unknown>() || candidate.is<None>()) {
       continue;
     }
     if (selected && &selected->resolve() != &candidate.resolve()) {
-      return Invalid::get_invalid();
+      return Unknown::get_unknown();
     }
     selected = candidate;
   }
 
-  return selected ? *selected : Invalid::get_invalid();
-}
-
-auto Types::Source::resolve_type_call(
-    const Abstract& host,
-    View::Bytes route,
-    Type::Access access) const -> const Abstract& {
-  const Abstract& local = Model::Type::resolve_type_call(host, route, access);
-  if (!local.is<Invalid>()) {
-    return local;
-  }
-
-  Option<const Abstract&> selected;
-  for (const Reference<const Abstract>& retained : imports.get_view()) {
-    const Abstract& context = retained.get();
-    const Abstract& candidate = context.visit<Type>(
-        [&](const Type& type) -> const Abstract& {
-          return type.resolve_type_call(host, route, Type::Access::Static);
-        },
-        [&](const Abstract& provider) -> const Abstract& {
-          return provider.resolve_call(host, route);
-        });
-    if (candidate.is<Invalid>()) {
-      continue;
-    }
-    if (selected && &selected->resolve() != &candidate.resolve()) {
-      return Invalid::get_invalid();
-    }
-    selected = candidate;
-  }
-
-  return selected ? *selected : Invalid::get_invalid();
+  return selected ? *selected : Unknown::get_unknown();
 }
 
 auto Types::Source::resolve_local(View::Bytes route, Visibility visibility)
     const -> const Abstract& {
-  for (const Reference<Abstract>& binding : get_addressables(visibility)) {
-    if (binding.get().get_name() == route) {
-      return binding.get();
-    }
-  }
-
-  for (const Reference<Abstract>& binding : get_types(visibility)) {
-    if (binding.get().get_name() == route) {
-      return binding.get();
-    }
-  }
-
-  for (const Reference<Abstract>& binding : get_callables(visibility)) {
-    if (binding.get().get_name() == route) {
-      return binding.get();
-    }
-  }
-
-  return Invalid::get_invalid();
-}
-
-auto Types::Source::reserve_carrier(Llvm::Program& program) const
-    -> Option<Bool> {
-  const auto& carriers = program.get_carriers();
-  return carriers.reserve(program, *this, Llvm::Carriers::Kind::Context);
-}
-
-auto Types::Source::complete_carrier(Llvm::Program& program) const -> Bool {
-  const auto& carriers = program.get_carriers();
-  return carriers.complete(program, *this, Llvm::Carriers::Kind::Context);
-}
-
-auto Types::Source::reserve(Llvm::Program& program) const -> Bool {
-  Bool source_reserved = Composite::reserve(program);
-  if (!source_reserved) {
-    return False;
-  }
-
-  return foreign.reserve(program);
-}
-
-auto Types::Source::complete(Llvm::Program& program) const -> Bool {
-  Bool source_completed = Composite::complete(program);
-  if (!source_completed) {
-    return False;
-  }
-
-  return foreign.complete(program);
-}
-
-auto Types::Source::lower(Llvm::Program& program) const -> Bool {
-  Bool source_lowered = Composite::lower(program);
-  if (!source_lowered) {
-    return False;
-  }
-
-  return foreign.lower(program);
+  return visibility == Visibility::Private
+             ? get_static_authority().resolve_concept(route)
+             : get_static_authority().resolve_published(route);
 }

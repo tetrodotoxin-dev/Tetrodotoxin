@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 //
@@ -38,6 +38,8 @@
 
 #pragma once
 
+#include "perimortem/core/perimortem.h"
+
 // Since Perimortem is exception free the header provides a macro to propagate
 // failures up the stack with a slightly less verbose syntax. It's mostly used
 // with `Option` but it can be used anywhere a default constructed object is the
@@ -48,33 +50,6 @@
       return {};       \
     }                  \
   } while (false)
-
-// Unsigned Integers
-using U8 = unsigned char;
-using U16 = unsigned short int;
-// Legacy support for LP32
-#ifdef __LP32__
-using U32 = unsigned long;
-#else
-using U32 = unsigned int;
-#endif
-using U64 = unsigned long long;
-
-using S8 = signed char;
-using S16 = signed short int;
-// Legacy support for LP32
-#ifdef __LP32__
-using S32 = signed long;
-#else
-using S32 = signed int;
-#endif
-using S64 = signed long long;
-
-using R32 = float;
-using R64 = double;
-
-// Definition for all used based types.
-using Count = U64;
 
 // Cpp interop
 using CppSize = __SIZE_TYPE__;
@@ -120,23 +95,31 @@ constexpr Bool True = Bool(true);
 // False value that prevents implicit conversion to int.
 constexpr Bool False = Bool(false);
 
-// Ensure the data model is correct.
-static_assert(sizeof(U8) == 1);
-static_assert(sizeof(U16) == 2);
-static_assert(sizeof(U32) == 4);
-static_assert(sizeof(U64) == 8);
-static_assert(sizeof(U8) == sizeof(S8));
 static_assert(__is_same(S8, signed char));
-static_assert(sizeof(U16) == sizeof(S16));
-static_assert(sizeof(U32) == sizeof(S32));
-static_assert(sizeof(U64) == sizeof(S64));
-static_assert(sizeof(R32) == 4);
-static_assert(sizeof(R64) == 8);
-
 static_assert(sizeof(Bool) == 1);
 
-#ifndef _NEW
-constexpr void* operator new(CppSize size, void* ptr) noexcept {
-  return ptr;
+namespace Perimortem::Core {
+
+// Placement distinguishes Perimortem's construction expression from the
+// standard allocation signature. The address stays an ordinary pointer, which
+// lets Clang recognize and remove the forced inline allocation step even in a
+// debug build.
+enum class Placement : U8 {
+  Construct,
+};
+
+}  // namespace Perimortem::Core
+
+__attribute__((always_inline)) constexpr auto operator new(
+    CppSize,
+    void* address,
+    Perimortem::Core::Placement) noexcept -> void* {
+  return address;
 }
-#endif
+
+// Construction borrows its address, so the matching failure path has no
+// allocation to release when another C++ consumer enables exceptions.
+__attribute__((always_inline)) constexpr auto operator delete(
+    void*,
+    void*,
+    Perimortem::Core::Placement) noexcept -> void {}

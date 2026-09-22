@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -20,7 +20,7 @@ class Version {
   constexpr Version(U16 major, U16 minor) : major(major), minor(minor) {}
 
   // Parses the canonical textual representation without ever constructing a
-  // floating-point value. Leading zeroes are rejected so accepted text has one
+  // floating point value. Leading zeroes are rejected so accepted text has one
   // stable round trip. Invalid text and the reserved `0.0` value return the
   // null Version.
   static constexpr auto parse(Perimortem::Core::View::Bytes text) -> Version {

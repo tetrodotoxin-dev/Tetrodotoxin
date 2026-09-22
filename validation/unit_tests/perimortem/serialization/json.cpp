@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "validation/unit_test.hpp"
@@ -130,7 +130,7 @@ PERIMORTEM_UNIT_TEST(SerializationJson, parse_values) {
   EXPECT_TEXT(value.get_string(), ""_view);
 }
 
-PERIMORTEM_UNIT_TEST(SerializationJson, escaped_string_boundaries) {
+PERIMORTEM_UNIT_TEST(SerializationJson, string_boundaries) {
   Allocator::Arena arena;
   Json::Node parsed;
   parsed.parse(
@@ -145,7 +145,7 @@ PERIMORTEM_UNIT_TEST(SerializationJson, escaped_string_boundaries) {
   EXPECT_TEXT(source.format(arena), "\"line\\n\\\"title\\\"\\\\end\""_view);
 }
 
-PERIMORTEM_UNIT_TEST(SerializationJson, decode_string_escapes) {
+PERIMORTEM_UNIT_TEST(SerializationJson, string_escapes) {
   Allocator::Arena arena;
   Json::Node value;
   value.parse(

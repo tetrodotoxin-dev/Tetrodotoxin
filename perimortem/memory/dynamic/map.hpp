@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -127,7 +127,7 @@ class Map {
 
     ensure_capacity(size + 1);
     Entry* empty = get_empty(hash);
-    new (empty) Entry(key, value);
+    new (empty, Core::Placement::Construct) Entry(key, value);
     size++;
     return empty;
   }
@@ -148,7 +148,7 @@ class Map {
 
     ensure_capacity(size + 1);
     Entry* empty = get_empty(hash);
-    new (empty)
+    new (empty, Core::Placement::Construct)
         Entry(static_cast<key_type&&>(key), static_cast<value_type&&>(value));
     size++;
     return empty;
@@ -253,7 +253,7 @@ class Map {
 
     ensure_capacity(size + 1);
     Entry* entry = get_empty(hash);
-    new (entry) Entry(key, value_type());
+    new (entry, Core::Placement::Construct) Entry(key, value_type());
     size++;
     return entry->value;
   }

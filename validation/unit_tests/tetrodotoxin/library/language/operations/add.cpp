@@ -1,7 +1,9 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/operations/add.hpp"
+
+#include "tetrodotoxin/source/documentation.hpp"
 
 #include "validation/unit_test.hpp"
 #include "validation/unit_tests/tetrodotoxin/library/language/fixture.hpp"
@@ -20,15 +22,15 @@
 #include "tetrodotoxin/library/language/types/u16.hpp"
 #include "tetrodotoxin/library/language/types/u64.hpp"
 #include "tetrodotoxin/library/language/types/u8.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Utility;
 using namespace Tetrodotoxin::Library::Language;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Validation;
 
 static Harness LibraryAdd = {
@@ -41,8 +43,8 @@ class AddExpression : public Expression {
       : Expression({}), name(name), type(type) {}
 
   auto get_name() const -> View::Bytes override { return name; }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
   auto get_type() const -> const Abstract& override { return type; }
 
@@ -54,42 +56,49 @@ class AddExpression : public Expression {
 static auto link_operation(Operation& operation, const Abstract& context)
     -> Bool {
   Allocator::Arena transaction;
-  Ttx::Lexical::Errors errors;
-  Ttx::Lexical::Tokenizer tokenizer(transaction, {}, "<operation>"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
-  Ttx::Lexical::Cursor cursor(tokenizer, errors, associations);
+  Tetrodotoxin::Source::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Tokenizer tokenizer(transaction, {}, "<operation>"_view);
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Cursor cursor(tokenizer, errors, associations);
   return operation.link(cursor, context);
 }
 
 static auto selected(
     const Result<Option<Model::Pack&>, Expression::Error>& result)
-    -> Option<Expression&> {
+    -> Option<Tetrodotoxin::Library::Language::Constant&> {
   return result.visit(
-      [](const Option<Model::Pack&>& folded) -> Option<Expression&> {
+      [](const Option<Model::Pack&>& folded)
+          -> Option<Tetrodotoxin::Library::Language::Constant&> {
         return folded.visit(
-            []() -> Option<Expression&> { return {}; },
-            [](Model::Pack& selected) -> Option<Expression&> {
-              return selected.select<Expression>();
+            []() -> Option<Tetrodotoxin::Library::Language::Constant&> {
+              return {};
+            },
+            [](Model::Pack& selected)
+                -> Option<Tetrodotoxin::Library::Language::Constant&> {
+              return selected
+                  .select_identity<Tetrodotoxin::Library::Language::Constant>();
             });
       },
-      [](const Expression::Error&) -> Option<Expression&> { return {}; });
+      [](const Expression::Error&)
+          -> Option<Tetrodotoxin::Library::Language::Constant&> { return {}; });
 }
 
 static auto reports(
     const Result<Option<Model::Pack&>, Expression::Error>& result,
     Expression::Error::Type expected,
-    const Expression& origin) -> Bool {
+    const Abstract& origin) -> Bool {
   return result.visit(
       [](const Option<Model::Pack&>&) { return False; },
       [&](const Expression::Error& error) {
-        return error.get_type() == expected &&
-                       &error.get_expression() == &origin
+        return error.get_type() == expected && &error.get_subject() == &origin
                    ? True
                    : False;
       });
 }
 
-static auto get_unsigned(const Expression& expression) -> Option<U64> {
+static auto get_unsigned(
+    const Tetrodotoxin::Library::Language::Constant& expression)
+    -> Option<U64> {
   return expression.visit<Constants::Unsigned>(
       [](const Constants::Unsigned& value) -> Option<U64> {
         return value.get_value();
@@ -97,7 +106,9 @@ static auto get_unsigned(const Expression& expression) -> Option<U64> {
       [](const Abstract&) -> Option<U64> { return {}; });
 }
 
-static auto get_signed(const Expression& expression) -> Option<S64> {
+static auto get_signed(
+    const Tetrodotoxin::Library::Language::Constant& expression)
+    -> Option<S64> {
   return expression.visit<Constants::Signed>(
       [](const Constants::Signed& value) -> Option<S64> {
         return value.get_value();
@@ -105,7 +116,9 @@ static auto get_signed(const Expression& expression) -> Option<S64> {
       [](const Abstract&) -> Option<S64> { return {}; });
 }
 
-static auto get_real(const Expression& expression) -> Option<R64> {
+static auto get_real(
+    const Tetrodotoxin::Library::Language::Constant& expression)
+    -> Option<R64> {
   return expression.visit<Constants::Real>(
       [](const Constants::Real& value) -> Option<R64> {
         return value.get_value();
@@ -113,7 +126,7 @@ static auto get_real(const Expression& expression) -> Option<R64> {
       [](const Abstract&) -> Option<R64> { return {}; });
 }
 
-PERIMORTEM_UNIT_TEST(LibraryAdd, exact_type_selection_and_partial) {
+PERIMORTEM_UNIT_TEST(LibraryAdd, type_selection) {
   Allocator::Arena domain;
   Tetrodotoxin::Library::Dialect producer;
   auto& source = create_library_monograph(domain, producer);
@@ -147,7 +160,7 @@ PERIMORTEM_UNIT_TEST(LibraryAdd, exact_type_selection_and_partial) {
   EXPECT_NOT(selected(unsigned_add.fold()));
 }
 
-PERIMORTEM_UNIT_TEST(LibraryAdd, integer_width_and_host_overflow) {
+PERIMORTEM_UNIT_TEST(LibraryAdd, integer_overflow) {
   Allocator::Arena domain;
   Tetrodotoxin::Library::Dialect producer;
   auto& source = create_library_monograph(domain, producer);
@@ -190,7 +203,7 @@ PERIMORTEM_UNIT_TEST(LibraryAdd, integer_width_and_host_overflow) {
       signed_underflow));
 }
 
-PERIMORTEM_UNIT_TEST(LibraryAdd, integer_results_retain_type) {
+PERIMORTEM_UNIT_TEST(LibraryAdd, result_type) {
   Allocator::Arena domain;
   Tetrodotoxin::Library::Dialect producer;
   auto& source = create_library_monograph(domain, producer);
@@ -253,7 +266,7 @@ PERIMORTEM_UNIT_TEST(LibraryAdd, ieee_real_domains) {
   EXPECT(unordered_value && __builtin_isnan(*unordered_value));
 }
 
-PERIMORTEM_UNIT_TEST(LibraryAdd, recursive_fold_is_idempotent) {
+PERIMORTEM_UNIT_TEST(LibraryAdd, stable_folding) {
   Allocator::Arena domain;
   Tetrodotoxin::Library::Dialect producer;
   auto& source = create_library_monograph(domain, producer);
@@ -273,7 +286,7 @@ PERIMORTEM_UNIT_TEST(LibraryAdd, recursive_fold_is_idempotent) {
   EXPECT(get_unsigned(*first) == Option<U64>(6));
 }
 
-PERIMORTEM_UNIT_TEST(LibraryAdd, recursive_error_keeps_child_origin) {
+PERIMORTEM_UNIT_TEST(LibraryAdd, child_error_origin) {
   Allocator::Arena domain;
   Tetrodotoxin::Library::Dialect producer;
   auto& source = create_library_monograph(domain, producer);
@@ -288,7 +301,7 @@ PERIMORTEM_UNIT_TEST(LibraryAdd, recursive_error_keeps_child_origin) {
       reports(root.fold(), Expression::Error::Type::ArithmeticOverflow, child));
 }
 
-PERIMORTEM_UNIT_TEST(LibraryAdd, invalid_constant_keeps_operand_origin) {
+PERIMORTEM_UNIT_TEST(LibraryAdd, operand_error_origin) {
   Allocator::Arena domain;
   Tetrodotoxin::Library::Dialect producer;
   auto& source = create_library_monograph(domain, producer);
@@ -301,7 +314,7 @@ PERIMORTEM_UNIT_TEST(LibraryAdd, invalid_constant_keeps_operand_origin) {
   EXPECT(reports(add.fold(), Expression::Error::Type::InvalidConstant, wrong));
 }
 
-PERIMORTEM_UNIT_TEST(LibraryAdd, rejects_nonnumeric_and_mixed_domains) {
+PERIMORTEM_UNIT_TEST(LibraryAdd, invalid_domains) {
   Allocator::Arena domain;
   Tetrodotoxin::Library::Dialect producer;
   auto& source = create_library_monograph(domain, producer);

@@ -1,9 +1,9 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 // benchmark runner — analogous to validation/unit_test.cpp but for
 // performance measurement rather than correctness. Each benchmark is called
-// repeatedly until a wall-clock cap is reached; timing samples are sorted and
+// repeatedly until a wall clock cap is reached. Timing samples are sorted and
 // split into three percentile buckets to distinguish typical from outlier
 // performance.
 

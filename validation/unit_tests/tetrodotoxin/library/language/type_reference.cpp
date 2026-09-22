@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/type_reference.hpp"
@@ -13,6 +13,7 @@
 
 #include "tetrodotoxin/environment/workspace.hpp"
 #include "tetrodotoxin/library/dialect.hpp"
+#include "tetrodotoxin/library/interpreter/type_reference.hpp"
 #include "tetrodotoxin/library/language/field.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
 #include "tetrodotoxin/library/language/types/access.hpp"
@@ -20,17 +21,18 @@
 #include "tetrodotoxin/library/language/types/fixed.hpp"
 #include "tetrodotoxin/library/language/types/source.hpp"
 #include "tetrodotoxin/library/language/types/structure.hpp"
+#include "tetrodotoxin/library/language/types/u64.hpp"
 #include "tetrodotoxin/library/language/types/view.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
-#include "ttx/model/alias.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/alias.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 using Tetrodotoxin::Environment::Workspace;
 using namespace Validation;
@@ -45,9 +47,9 @@ class RouteType : public Type {
   TTX_NAME("Second"_view);
   TTX_EMPTY_DOCUMENTATION();
 
-  constexpr auto resolve_context(View::Bytes) const
+  constexpr auto resolve_concept(View::Bytes) const
       -> const Abstract& override {
-    return Invalid::get_invalid();
+    return Unknown::get_unknown();
   }
 };
 
@@ -60,9 +62,9 @@ class RouteContext : public Abstract {
   TTX_NAME(name);
   TTX_EMPTY_DOCUMENTATION();
 
-  constexpr auto resolve_context(View::Bytes route) const
+  constexpr auto resolve_concept(View::Bytes route) const
       -> const Abstract& override {
-    return route == child_name ? child : Invalid::get_invalid();
+    return route == child_name ? child : Unknown::get_unknown();
   }
 
  private:
@@ -99,21 +101,19 @@ static auto find_field(
 static auto select_structure(
     const Language::Types::Source& source,
     View::Bytes name) -> Option<const Language::Types::Structure&> {
-  const Abstract& selected = source.resolve_context(name);
+  const Abstract& selected = source.resolve_concept(name);
   BAIL_IF(!selected.is<Language::Types::Structure>());
 
   return static_cast<const Language::Types::Structure&>(selected);
 }
 
-PERIMORTEM_UNIT_TEST(
-    LibraryTypeReference,
-    each_segment_queries_the_selected_abstract) {
+PERIMORTEM_UNIT_TEST(LibraryTypeReference, segment_queries) {
   Allocator::Arena arena;
   Errors errors;
   Tokenizer tokenizer(arena, "First::Second"_view, "route.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
-  auto reference = Language::TypeReference::parse_route(cursor);
+  auto reference = Interpreter::TypeReference::parse_route(cursor);
   ASSERT(reference);
 
   RouteType terminal;
@@ -127,9 +127,29 @@ PERIMORTEM_UNIT_TEST(
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(
-    LibraryTypeReference,
-    authored_generic_types_keep_exact_recursive_identity) {
+PERIMORTEM_UNIT_TEST(LibraryTypeReference, explicit_package_alias) {
+  Allocator::Arena arena;
+  Errors errors;
+  Tokenizer tokenizer(arena, "Math::U64"_view, "route.ttx"_view);
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
+  Cursor cursor(tokenizer, errors, associations);
+  auto reference = Interpreter::TypeReference::parse_route(cursor);
+  ASSERT(reference);
+
+  Language::Types::U64 terminal;
+  Alias exported_alias("U64"_view, terminal);
+  RouteContext package("Package"_view, "U64"_view, exported_alias);
+  Alias package_alias("Math"_view, package);
+  RouteContext root("Root"_view, "Math"_view, package_alias);
+  Option<const Abstract&> selected;
+  reference->resolve(root).visit(
+      [&](const Abstract& resolved) { selected = resolved; },
+      [](const Language::TypeReference::Failure&) {});
+  EXPECT(selected && &*selected == &terminal);
+  EXPECT(errors.is_empty());
+}
+
+PERIMORTEM_UNIT_TEST(LibraryTypeReference, generic_identity) {
   static constexpr View::Bytes source =
       "// Generic TypeReference test.\n"
       "dialect : Library;\n"
@@ -143,7 +163,9 @@ PERIMORTEM_UNIT_TEST(
       "  public state ready : Bool;\n"
       "  public children : View[Node];\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph =
@@ -182,18 +204,19 @@ PERIMORTEM_UNIT_TEST(
 
   auto fixed = nested_view->get_element_type().select<Language::Types::Fixed>();
   ASSERT(fixed);
-  EXPECT(&fixed->get_element_type() == &monograph->resolve_context("U8"_view));
+  EXPECT(&fixed->get_element_type() == &monograph->resolve_concept("U8"_view));
   EXPECT_EQ(fixed->get_extent(), U64(4));
 
-  const Type* values_type = &values->get_type();
-  const Type* nested_type = &nested->get_type();
-  const Type* children_type = &children->get_type();
+  auto values_type = values->get_type().select<Type>();
+  auto nested_type = nested->get_type().select<Type>();
+  auto children_type = children->get_type().select<Type>();
+  ASSERT(values_type && nested_type && children_type);
 
   // Repeating completion observes the same Generic owned materializations
   // and the exact Types selected by the first pass.
   Allocator::Arena repeat_domain;
   Tokenizer repeat_tokenizer(repeat_domain, source, "type-reference.ttx"_view);
-  Ttx::Lexical::Associations repeat_associations(repeat_tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations repeat_associations(repeat_tokenizer.get_arena());
   Cursor repeat_cursor(repeat_tokenizer, errors, repeat_associations);
   ASSERT(monograph->link(repeat_cursor));
   catalog = select_structure(root, "Catalog"_view);
@@ -206,19 +229,17 @@ PERIMORTEM_UNIT_TEST(
   ASSERT(values);
   ASSERT(nested);
   ASSERT(children);
-  EXPECT(&values->get_type() == values_type);
-  EXPECT(&nested->get_type() == nested_type);
-  EXPECT(&children->get_type() == children_type);
+  EXPECT(&values->get_type() == &*values_type);
+  EXPECT(&nested->get_type() == &*nested_type);
+  EXPECT(&children->get_type() == &*children_type);
 
   ASSERT(monograph->finalize(repeat_cursor));
   EXPECT(errors.is_empty());
   EXPECT(
-      &workspace.resolve_context("GenericTypeReference"_view) == &*monograph);
+      &workspace.resolve_concept("GenericTypeReference"_view) == &*monograph);
 }
 
-PERIMORTEM_UNIT_TEST(
-    LibraryTypeReference,
-    generic_arguments_complete_local_and_qualified_aliases) {
+PERIMORTEM_UNIT_TEST(LibraryTypeReference, generic_aliases) {
   static constexpr View::Bytes source =
       "// Generic Alias TypeReference test.\n"
       "dialect : Library;\n"
@@ -229,7 +250,9 @@ PERIMORTEM_UNIT_TEST(
       "  public NestedAlias : alias = Later;\n"
       "}\n"
       "public Later : struct { public state ready : Bool; }"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph =
@@ -241,11 +264,11 @@ PERIMORTEM_UNIT_TEST(
   auto later = select_structure(root, "Later"_view);
   ASSERT(later);
 
-  const Abstract& local_alias = root.resolve_context("LocalView"_view);
+  const Abstract& local_alias = root.resolve_concept("LocalView"_view);
   const Abstract& qualified_alias =
-      root.resolve_context("QualifiedAccess"_view);
-  ASSERT(local_alias.is<Ttx::Model::Alias>());
-  ASSERT(qualified_alias.is<Ttx::Model::Alias>());
+      root.resolve_concept("QualifiedAccess"_view);
+  ASSERT(local_alias.is<Tetrodotoxin::Source::Alias>());
+  ASSERT(qualified_alias.is<Tetrodotoxin::Source::Alias>());
 
   auto local_view = local_alias.resolve().select<Language::Types::View>();
   auto qualified_access =
@@ -262,15 +285,15 @@ PERIMORTEM_UNIT_TEST(
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(
-    LibraryTypeReference,
-    recursive_generic_alias_cycle_publishes_no_materialization) {
+PERIMORTEM_UNIT_TEST(LibraryTypeReference, alias_cycle) {
   static constexpr View::Bytes source =
       "// Recursive Generic Alias rejection.\n"
       "dialect : Library;\n"
       "public First : alias = View[Second];\n"
       "public Second : alias = View[First];"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph =
@@ -285,9 +308,7 @@ PERIMORTEM_UNIT_TEST(
       Count(-1));
 }
 
-PERIMORTEM_UNIT_TEST(
-    LibraryTypeReference,
-    authored_generic_failures_report_once) {
+PERIMORTEM_UNIT_TEST(LibraryTypeReference, generic_errors) {
   struct Rejection {
     View::Bytes semantic_name;
     View::Bytes source;
@@ -361,7 +382,9 @@ PERIMORTEM_UNIT_TEST(
 
   for (Count i = 0; i < rejections.get_size(); i++) {
     const Rejection& rejection = rejections.get_data()[i];
-    auto workspace_toolchain = create_library_toolchain();
+    Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+    auto workspace_toolchain =
+        Validation::create_library_toolchain(workspace_toolchain_library);
     Workspace workspace(*workspace_toolchain);
     Errors errors;
     auto monograph =

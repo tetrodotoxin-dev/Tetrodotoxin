@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 import * as path from "path";
@@ -15,6 +15,36 @@ let client: LanguageClient | undefined;
 let ttx_channel: OutputChannel | undefined;
 
 const semantic_highlighting_setting = "semanticHighlighting.enabled";
+const packages_root_setting = "packagesRoot";
+const package_sources_setting = "packageSources";
+
+interface PackageSource {
+  argument: string;
+  root: string;
+}
+
+function package_sources(language_id: string): PackageSource[] {
+  const configured = workspace
+    .getConfiguration(language_id)
+    .get<Record<string, string>>(package_sources_setting, {});
+  return Object.entries(configured).map(([coordinate, configured_root]) => {
+    const separator = coordinate.lastIndexOf("@");
+    const identity = coordinate.slice(0, separator);
+    const version = coordinate.slice(separator + 1);
+    const root = resolve_configured_path(configured_root);
+    return {
+      argument: `-package-source=${identity}|${version}|${root}`,
+      root,
+    };
+  });
+}
+
+function resolve_configured_path(configured: string): string {
+  const workspace_root = workspace.workspaceFolders?.[0]?.uri.fsPath;
+  return workspace_root && !path.isAbsolute(configured)
+    ? path.resolve(workspace_root, configured)
+    : configured;
+}
 
 // TextMate remains the default color owner. The semantic middleware suppresses
 // token requests until the setting explicitly opts the document into them.
@@ -25,6 +55,19 @@ function semantic_highlighting_enabled(
   return workspace
     .getConfiguration(language_id, document?.uri)
     .get<boolean>(semantic_highlighting_setting, false);
+}
+
+function follows_call_operator(
+  document: vscode.TextDocument,
+  change: vscode.TextDocumentContentChangeEvent
+): boolean {
+  if (change.text !== " " || change.range.start.line >= document.lineCount) {
+    return false;
+  }
+
+  const line = document.lineAt(change.range.start.line).text;
+  const end = change.range.start.character + change.text.length;
+  return end <= line.length && line.slice(0, end).endsWith("-> ");
 }
 
 export function start_language_client(
@@ -38,18 +81,28 @@ export function start_language_client(
   context.subscriptions.push(ttx_channel);
 
   const server_path = context.asAbsolutePath(path.join(".", "puffer"));
-  const packages_root = context.asAbsolutePath("packages");
+  const configured_packages_root = workspace
+    .getConfiguration(language_id)
+    .get<string>(packages_root_setting, "");
+  const packages_root = configured_packages_root
+    ? resolve_configured_path(configured_packages_root)
+    : context.asAbsolutePath("packages");
+  const configured_package_sources = package_sources(language_id);
+  const repository_arguments = [
+    `-packages-root=${packages_root}`,
+    ...configured_package_sources.map((source) => source.argument),
+  ];
   ttx_channel.appendLine(`Launching Puffer LSP using path: ${server_path}`);
 
   const server_options: ServerOptions = {
     run: {
       command: server_path,
-      args: [`-packages-root=${packages_root}`],
+      args: repository_arguments,
       transport: TransportKind.pipe,
     },
     debug: {
       command: server_path,
-      args: [`-packages-root=${packages_root}`],
+      args: repository_arguments,
       transport: TransportKind.pipe,
     },
   };
@@ -90,7 +143,24 @@ export function start_language_client(
       },
     },
     synchronize: {
-      fileEvents: workspace.createFileSystemWatcher("**/*.ttx"),
+      // Package dependencies include source and arbitrary embedded resources.
+      // Puffer confines each event to active Package roots before invalidating
+      // the complete Workspace transaction.
+      fileEvents: [
+        workspace.createFileSystemWatcher("**/*"),
+        ...(configured_packages_root
+          ? [
+              workspace.createFileSystemWatcher(
+                new vscode.RelativePattern(packages_root, "**/*")
+              ),
+            ]
+          : []),
+        ...configured_package_sources.map((source) =>
+          workspace.createFileSystemWatcher(
+            new vscode.RelativePattern(source.root, "**/*")
+          )
+        ),
+      ],
     },
   };
 
@@ -134,6 +204,29 @@ export function start_language_client(
           .executeCommand("editor.action.restartSemanticTokens")
           .then(undefined, () => undefined);
       }
+    })
+  );
+
+  context.subscriptions.push(
+    workspace.onDidChangeTextDocument((event) => {
+      const editor = window.activeTextEditor;
+      const change = event.contentChanges[event.contentChanges.length - 1];
+      if (
+        !editor ||
+        editor.document !== event.document ||
+        event.document.languageId !== language_id ||
+        !change ||
+        !follows_call_operator(event.document, change)
+      ) {
+        return;
+      }
+
+      // Typing the preferred trailing space closes the suggestions opened by
+      // `>`. Reopening them after document synchronization keeps ` -> ` useful
+      // without making every ordinary space a completion trigger.
+      setTimeout(() => {
+        void vscode.commands.executeCommand("editor.action.triggerSuggest");
+      }, 0);
     })
   );
 

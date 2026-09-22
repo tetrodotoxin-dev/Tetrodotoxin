@@ -1,329 +1,151 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/package/archive/writer.hpp"
 
 #include "perimortem/core/diagnostics/log.hpp"
-#include "perimortem/core/writer/binary.hpp"
 
 #include "perimortem/memory/allocator/arena.hpp"
 #include "perimortem/memory/dynamic/vector.hpp"
 #include "perimortem/memory/managed/vector.hpp"
 
+#include "perimortem/serialization/stream/binary.hpp"
+
 #include "tetrodotoxin/language/dialect.hpp"
-#include "ttx/concept/invalid.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Perimortem::Utility;
+using namespace Perimortem::Serialization;
 using namespace Tetrodotoxin;
 
-using LittleWriter = Perimortem::Core::Writer::Binary<Data::ByteOrder::Little>;
-
-static constexpr U64 format_limit = U32(-1);
-static constexpr U32 section_header_size = 8;
-static constexpr U16 required_field = 1;
-static constexpr U16 interface_profile = 1;
-static constexpr U64 section_count =
-    U8(Package::Archive::Archive::Sections::ArtifactMetadata);
-
-// Holds the proven payload size for each canonical section and the complete
-// envelope. These measurements belong to one write transaction and never
-// become retained Archive facts.
-struct FormatSizes {
-  U32 identity = 0;
-  U32 dependencies = 0;
-  U32 members = 0;
-  U32 artifact_ids = 0;
-  U32 exports = 0;
-  U32 artifact_metadata = 0;
-  U32 body = 0;
-  Count total = 0;
-};
-
-// Includes the unsigned 32 bit length prefix in one sized byte value.
-static auto measure_sized_bytes(View::Bytes value) -> U64 {
-  return 4 + U64(value.get_size());
+static auto fits_u32(Count value) -> Bool {
+  return value <= Count(U32(-1));
 }
 
-// Record measurements exclude their outer size prefix. The containing list
-// adds that prefix exactly once after each body has been measured.
-static auto measure_dependency_record(
-    const Package::Language::Dependency& dependency) -> U64 {
-  return measure_sized_bytes(dependency.get_local_name()) +
-         measure_sized_bytes(dependency.get_package_name()) + 4;
+static auto write_bytes(
+    Stream::Binary<Data::ByteOrder::Little, Dynamic::Bytes>& writer,
+    View::Bytes value) -> Bool {
+  BAIL_IF(!fits_u32(value.get_size()));
+  writer << U32(value.get_size()) << value;
+  return True;
 }
 
-static auto measure_member_record(const Package::Archive::Member& member)
-    -> U64 {
-  return measure_sized_bytes(member.get_semantic_name()) +
-         measure_sized_bytes(member.get_dialect_name()) +
-         measure_sized_bytes(member.get_payload());
-}
-
-static auto measure_import_record(const Linker::Import& import) -> U64 {
-  return 1 + measure_sized_bytes(import.get_abi()) +
-         measure_sized_bytes(import.get_symbol()) +
-         measure_sized_bytes(import.get_provider());
-}
-
-static auto measure_artifact_record(const Package::Archive::Artifact& artifact)
-    -> U64 {
-  U64 size = measure_sized_bytes(artifact.get_id()) +
-             measure_sized_bytes(artifact.get_target()) + 8 + 4;
-  for (const Linker::Import& import : artifact.get_imports()) {
-    size += 4 + measure_import_record(import);
+static auto write_members(
+    Stream::Binary<Data::ByteOrder::Little, Dynamic::Bytes>& writer,
+    View::Vector<Package::Archive::Member> members) -> Bool {
+  BAIL_IF(!fits_u32(members.get_size()));
+  writer << U32(members.get_size());
+  for (const Package::Archive::Member& member : members) {
+    BAIL_IF(
+        !write_bytes(writer, member.get_semantic_name()) ||
+        !write_bytes(writer, member.get_dialect_name()) ||
+        !write_bytes(writer, member.get_payload()));
   }
-  return size;
+  return True;
 }
 
-static auto measure_export_record(const Package::Archive::Export& entry)
-    -> U64 {
-  return measure_sized_bytes(entry.get_semantic_route()) +
-         measure_sized_bytes(entry.get_artifact_id()) +
-         measure_sized_bytes(entry.get_symbol_locator());
+static auto write_resources(
+    Stream::Binary<Data::ByteOrder::Little, Dynamic::Bytes>& writer,
+    View::Vector<Package::Archive::Resource> resources) -> Bool {
+  BAIL_IF(!fits_u32(resources.get_size()));
+  writer << U32(resources.get_size());
+  for (const Package::Archive::Resource& resource : resources) {
+    BAIL_IF(
+        !write_bytes(writer, resource.get_route()) ||
+        !write_bytes(writer, resource.get_value()));
+  }
+  return True;
 }
 
-// Measures all seven section payloads and the complete body with unsigned 64
-// bit locals. Every nested value contributes a positive part of the body.
-// Proving the body fits therefore proves every unsigned 32 bit section and
-// record size fits before allocation begins.
-static auto calculate_sizes(const Package::Archive::Archive& archive)
-    -> Option<FormatSizes> {
-  auto dependency_values = archive.get_dependencies();
-  auto member_values = archive.get_members();
-  auto artifacts_values = archive.get_artifacts();
-  auto export_values = archive.get_exports();
-  if (dependency_values.get_size() > format_limit ||
-      member_values.get_size() > format_limit ||
-      artifacts_values.get_size() > format_limit ||
-      export_values.get_size() > format_limit) {
-    return {};
+static auto write_imports(
+    Stream::Binary<Data::ByteOrder::Little, Dynamic::Bytes>& writer,
+    View::Vector<Package::Archive::GraphImport> imports) -> Bool {
+  BAIL_IF(!fits_u32(imports.get_size()));
+  writer << U32(imports.get_size());
+  for (const Package::Archive::GraphImport& import : imports) {
+    writer << U8(import.get_kind()) << U8(import.get_visibility());
+    BAIL_IF(
+        !write_bytes(writer, import.get_importer()) ||
+        !write_bytes(writer, import.get_local_name()) ||
+        !write_bytes(writer, import.get_target()));
+    writer << import.get_version().get_major()
+           << import.get_version().get_minor();
+    BAIL_IF(!write_bytes(writer, import.get_route()));
   }
-
-  U64 identity = measure_sized_bytes(archive.get_identity());
-  U64 dependencies = 4;
-  for (Count i = 0; i < dependency_values.get_size(); i++) {
-    dependencies +=
-        4 + measure_dependency_record(dependency_values.get_data()[i]);
-  }
-
-  U64 members = 4;
-  for (Count i = 0; i < member_values.get_size(); i++) {
-    members += 4 + measure_member_record(member_values.get_data()[i]);
-  }
-
-  U64 artifact_ids = 4;
-  U64 artifact_metadata = 4;
-  for (const Package::Archive::Artifact& artifact : artifacts_values) {
-    if (artifact.get_imports().get_size() > format_limit) {
-      return {};
-    }
-    artifact_ids += 4 + measure_sized_bytes(artifact.get_id());
-    artifact_metadata += 4 + measure_artifact_record(artifact);
-  }
-
-  U64 exports = 4;
-  for (Count i = 0; i < export_values.get_size(); i++) {
-    exports += 4 + measure_export_record(export_values.get_data()[i]);
-  }
-
-  U64 body = section_header_size * section_count + identity + 4 + dependencies +
-             members + artifact_ids + exports + artifact_metadata;
-  if (body > format_limit) {
-    return {};
-  }
-
-  return FormatSizes{
-    .identity = U32(identity),
-    .dependencies = U32(dependencies),
-    .members = U32(members),
-    .artifact_ids = U32(artifact_ids),
-    .exports = U32(exports),
-    .artifact_metadata = U32(artifact_metadata),
-    .body = U32(body),
-    .total = Count(body) + Package::Archive::Archive::header_size,
-  };
-}
-
-// Writes one required section header from the Archive vocabulary. Reader may
-// accept bounded optional extensions, but canonical output contains only these
-// seven known sections.
-static auto write_section_header(
-    LittleWriter& writer,
-    Package::Archive::Archive::Sections section,
-    U32 payload_size) -> void {
-  writer << U16(section);
-  writer << required_field;
-  writer << payload_size;
-}
-
-// Writes one sized byte value whose complete framing was proven by the
-// measurement pass.
-static auto write_sized_bytes(LittleWriter& writer, View::Bytes value) -> void {
-  writer << U32(value.get_size());
-  writer << value;
+  return True;
 }
 
 auto Package::Archive::Writer::write(const Archive& archive)
     -> Option<Dynamic::Bytes> {
-  // Prove the complete envelope fits Format 2 before allocating or emitting
-  // any output.
-  auto measured = calculate_sizes(archive);
-  if (!measured) {
-    Diagnostics::Log::warning(
-        "Package::Archive::Writer exceeded the Format 2 body limit."_view);
-    return {};
-  }
+  Dynamic::Bytes body;
+  Stream::Binary<Data::ByteOrder::Little, Dynamic::Bytes> body_writer(body);
+  BAIL_IF(!write_bytes(body_writer, archive.get_identity()));
+  body_writer << archive.get_version().get_major()
+              << archive.get_version().get_minor();
+  BAIL_IF(
+      !write_members(body_writer, archive.get_members()) ||
+      !write_resources(body_writer, archive.get_resources()) ||
+      !write_imports(body_writer, archive.get_imports()) ||
+      !fits_u32(body.get_size()));
 
-  const FormatSizes& sizes = *measured;
-
-  // Allocate the exact header and body size so successful emission requires no
-  // growth and cannot leave unused capacity inside the result.
   Dynamic::Bytes output;
-  output.forgetful_resize(sizes.total);
-  LittleWriter writer(output.get_access());
-
-  // Establish the fixed Format 2 header before emitting any section payload.
-  writer << "TTXA"_view;
-  writer << U16(2);
-  writer << U16(
-      archive.get_profile() ==
-              Tetrodotoxin::Language::Persistence::Profile::Interface
-          ? interface_profile
-          : 0);
-  writer << sizes.body;
-
-  // Encode Package identity as the first required sized byte value.
-  write_section_header(writer, Archive::Sections::Identity, sizes.identity);
-  write_sized_bytes(writer, archive.get_identity());
-
-  // Encode the pinned Package version in its fixed four byte section.
-  write_section_header(writer, Archive::Sections::Version, 4);
-  writer << archive.get_version().get_major();
-  writer << archive.get_version().get_minor();
-
-  // Preserve Dependency request order and frame every record independently.
-  write_section_header(
-      writer, Archive::Sections::Dependencies, sizes.dependencies);
-  auto dependencies = archive.get_dependencies();
-  writer << U32(dependencies.get_size());
-  for (Count i = 0; i < dependencies.get_size(); i++) {
-    const auto& dependency = dependencies.get_data()[i];
-    U32 record_size = U32(measure_dependency_record(dependency));
-    writer << record_size;
-    write_sized_bytes(writer, dependency.get_local_name());
-    write_sized_bytes(writer, dependency.get_package_name());
-    writer << dependency.get_version().get_major();
-    writer << dependency.get_version().get_minor();
-  }
-
-  // Preserve Member order while keeping every semantic name, Dialect name, and
-  // opaque payload inside its own record.
-  write_section_header(writer, Archive::Sections::Members, sizes.members);
-  auto members = archive.get_members();
-  writer << U32(members.get_size());
-  for (Count i = 0; i < members.get_size(); i++) {
-    const auto& member = members.get_data()[i];
-    U32 record_size = U32(measure_member_record(member));
-    writer << record_size;
-    write_sized_bytes(writer, member.get_semantic_name());
-    write_sized_bytes(writer, member.get_dialect_name());
-    write_sized_bytes(writer, member.get_payload());
-  }
-
-  // Artifact identity remains the direct Export reference section. Metadata
-  // repeats the ID later so Reader can reject a missing or duplicate agreement.
-  write_section_header(
-      writer, Archive::Sections::ArtifactIds, sizes.artifact_ids);
-  auto artifacts = archive.get_artifacts();
-  writer << U32(artifacts.get_size());
-  for (const Package::Archive::Artifact& artifact : artifacts) {
-    U32 record_size = U32(measure_sized_bytes(artifact.get_id()));
-    writer << record_size;
-    write_sized_bytes(writer, artifact.get_id());
-  }
-
-  // Preserve Export order and keep each semantic route, artifact reference,
-  // and symbol locator inside one record.
-  write_section_header(writer, Archive::Sections::Exports, sizes.exports);
-  auto exports = archive.get_exports();
-  writer << U32(exports.get_size());
-  for (Count i = 0; i < exports.get_size(); i++) {
-    const auto& entry = exports.get_data()[i];
-    U32 record_size = U32(measure_export_record(entry));
-    writer << record_size;
-    write_sized_bytes(writer, entry.get_semantic_route());
-    write_sized_bytes(writer, entry.get_artifact_id());
-    write_sized_bytes(writer, entry.get_symbol_locator());
-  }
-
-  // Target ABI metadata follows routing so Format 2 keeps the original six
-  // section offsets stable and adds one independently framed agreement.
-  write_section_header(
-      writer, Archive::Sections::ArtifactMetadata, sizes.artifact_metadata);
-  writer << U32(artifacts.get_size());
-  for (const Package::Archive::Artifact& artifact : artifacts) {
-    U32 record_size = U32(measure_artifact_record(artifact));
-    writer << record_size;
-    write_sized_bytes(writer, artifact.get_id());
-    write_sized_bytes(writer, artifact.get_target());
-    writer << artifact.get_fingerprint().get_value();
-    writer << U32(artifact.get_imports().get_size());
-    for (const Linker::Import& import : artifact.get_imports()) {
-      writer << U32(measure_import_record(import));
-      writer << U8(import.get_kind());
-      write_sized_bytes(writer, import.get_abi());
-      write_sized_bytes(writer, import.get_symbol());
-      write_sized_bytes(writer, import.get_provider());
-    }
-  }
-
-  // Require emission to finish at the measured boundary. A mismatch means the
-  // measurement and canonical encoding no longer describe the same format.
-  if (!writer.is_valid() || writer.get_location() != output.get_size()) {
-    Diagnostics::Log::error(
-        "Package::Archive::Writer did not emit the measured Format 2 "
-        "size."_view);
-    return {};
-  }
-
-  // Transfer ownership only after the complete canonical envelope is proven.
-  return Option<Dynamic::Bytes>(static_cast<Dynamic::Bytes&&>(output));
+  Stream::Binary<Data::ByteOrder::Little, Dynamic::Bytes> writer(output);
+  writer << "TTXA"_view << U16(Archive::format) << U16(0)
+         << U32(body.get_size()) << body.get_view();
+  return static_cast<Dynamic::Bytes&&>(output);
 }
 
 auto Package::Archive::Writer::write(
     const Package::Language::Monograph& package,
     View::Bytes identity,
     Perimortem::System::Version version,
-    Tetrodotoxin::Language::Persistence::Profile profile,
-    View::Vector<Artifact> artifacts,
-    View::Vector<Export> exports) -> Option<Dynamic::Bytes> {
+    View::Vector<GraphMember> graph,
+    View::Vector<GraphImport> imports) -> Option<Dynamic::Bytes> {
   BAIL_IF(identity.is_empty());
 
   Allocator::Arena arena;
-  Dynamic::Vector<Dynamic::Bytes> payloads(package.get_sources().get_size());
+  Dynamic::Vector<Dynamic::Bytes> payloads(graph.get_size() + 1);
   Managed::Vector<Member> members(arena);
-  for (const Package::Language::Source& source : package.get_sources()) {
-    const Ttx::Concept::Abstract& selected =
-        package.resolve_context(source.get_local_name()).resolve();
-    auto member = selected.select<Tetrodotoxin::Language::Monograph>();
-    auto dialect =
-        member
-            ? member->get_language().select<Tetrodotoxin::Language::Dialect>()
-            : Option<const Tetrodotoxin::Language::Dialect&>();
-    BAIL_IF(!member || !dialect);
+  auto package_library = package.get_library()
+                             .get_language()
+                             .select<Tetrodotoxin::Language::Dialect>();
+  BAIL_IF(!package_library);
+  auto package_payload = package_library->encode(package.get_library());
+  BAIL_IF(!package_payload);
+  payloads.emplace(static_cast<Dynamic::Bytes&&>(*package_payload));
+  members.insert(Member(
+      "PackageSurface"_view, package_library->get_name(),
+      payloads[payloads.get_size() - 1].get_view()));
 
-    auto payload = dialect->encode(*member, profile);
-    BAIL_IF(!payload);
+  for (const GraphMember& selected : graph) {
+    const Tetrodotoxin::Language::Monograph& member = selected.get_monograph();
+    auto dialect =
+        member.get_language().select<Tetrodotoxin::Language::Dialect>();
+    BAIL_IF(!dialect);
+    auto payload = dialect->encode(member);
+    if (!payload) {
+      Diagnostics::Log::Message<256> message(
+          Diagnostics::Log::Level::Error, Diagnostics::Source());
+      message << "Package Archive could not encode `"_view
+              << selected.get_name() << "` with the "_view
+              << dialect->get_name() << " Dialect."_view;
+      return {};
+    }
     payloads.emplace(static_cast<Dynamic::Bytes&&>(*payload));
     members.insert(Member(
-        source.get_local_name(), dialect->get_name(),
+        selected.get_name(), dialect->get_name(),
         payloads[payloads.get_size() - 1].get_view()));
   }
 
+  Managed::Vector<Package::Archive::Resource> resources(arena);
+  for (const Tetrodotoxin::Source::Reference<Package::Resource>& retained :
+       package.get_resources().get_values()) {
+    const Package::Resource& resource = retained.get();
+    resources.insert(
+        Package::Archive::Resource(resource.get_route(), resource.get_value()));
+  }
+
   Archive archive(
-      identity, version, package.get_dependencies(), members.get_view(),
-      artifacts, exports, profile);
+      identity, version, members.get_view(), resources.get_view(), imports);
   return write(archive);
 }

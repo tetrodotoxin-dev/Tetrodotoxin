@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/generics/access.hpp"
@@ -27,11 +27,11 @@ auto Generics::Access::create(
   }
 
   auto size_type = get_context()
-                       .resolve_context("U64"_view)
+                       .resolve_concept("U64"_view)
                        .resolve()
                        .select<Language::Model::Type>();
   auto flag_type = get_context()
-                       .resolve_context("Bool"_view)
+                       .resolve_concept("Bool"_view)
                        .resolve()
                        .select<Language::Model::Type>();
   if (!size_type || !flag_type) {
@@ -39,7 +39,7 @@ auto Generics::Access::create(
   }
 
   auto view = get_context()
-                  .resolve_context("View"_view)
+                  .resolve_concept("View"_view)
                   .resolve()
                   .select<Language::Generic>();
   if (!view) {

@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -7,9 +7,9 @@
 #include "perimortem/core/option.hpp"
 
 #include "perimortem/memory/allocator/arena.hpp"
+#include "perimortem/memory/dynamic/map.hpp"
 #include "perimortem/memory/dynamic/record.hpp"
 #include "perimortem/memory/dynamic/vector.hpp"
-#include "perimortem/memory/managed/map.hpp"
 #include "perimortem/memory/managed/vector.hpp"
 
 #include "perimortem/system/version.hpp"
@@ -17,25 +17,62 @@
 #include "tetrodotoxin/environment/toolchain.hpp"
 #include "tetrodotoxin/package/archive/archive.hpp"
 #include "tetrodotoxin/package/language/monograph.hpp"
+#include "tetrodotoxin/package/resource.hpp"
 #include "tetrodotoxin/package/snapshots.hpp"
-#include "ttx/lexical/associations.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/token.hpp"
+#include "tetrodotoxin/source/lexical/associations.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/token.hpp"
 
 namespace Tetrodotoxin::Environment {
 
-// A Workspace gathers every Monograph that can refer to one another. Direct
-// sources and Package members become visible together only after the complete
-// island has finished, which keeps authored lookup independent of load order.
-class Workspace : public Ttx::Concept::Abstract {
+// A Workspace is the lifetime of one connected semantic island. It retains the
+// source transaction behind each Monograph so graph references can cross files
+// and Dialects without copying identities into a global registry.
+//
+// Incomplete transactions keep their strongest available Tokens,
+// Associations, diagnostics, and semantic edges for editor tooling. Linking
+// and finalization decide when the entire island is complete enough for a
+// Terminal producer. A later editor snapshot can release this Workspace as one
+// lifetime and recompute dependents against the replacement source identities.
+class Workspace : public Tetrodotoxin::Source::Abstract {
  public:
+  class PackageSource {
+   public:
+    constexpr PackageSource(
+        Perimortem::Core::View::Bytes name,
+        Perimortem::Core::View::Bytes logical_route,
+        const Language::Monograph& monograph)
+        : name(name), logical_route(logical_route), monograph(monograph) {}
+
+    constexpr auto get_name() const -> Perimortem::Core::View::Bytes {
+      return name;
+    }
+    constexpr auto get_logical_route() const -> Perimortem::Core::View::Bytes {
+      return logical_route;
+    }
+    constexpr auto get_monograph() const -> const Language::Monograph& {
+      return monograph;
+    }
+
+   private:
+    // The first route discovered from the Package root gives terminal products
+    // one deterministic graph key. It is not an intrinsic Monograph name;
+    // every authored Alias remains local to its importer.
+    Perimortem::Core::View::Bytes name;
+    Perimortem::Core::View::Bytes logical_route;
+    const Language::Monograph& monograph;
+  };
+
+  // Carries one Workspace owned editor projection. Semantic definitions retain
+  // their authored Anchor and source text, while an acquired file uses an
+  // empty Anchor to select the beginning of that physical input.
   class AuthoredLocation {
    public:
     constexpr AuthoredLocation(
         Perimortem::Core::View::Bytes package_root,
         Perimortem::Core::View::Bytes diagnostic_path,
         Perimortem::Core::View::Bytes source_text,
-        Ttx::Lexical::Anchor anchor)
+        Tetrodotoxin::Source::Lexical::Anchor anchor)
         : package_root(package_root),
           diagnostic_path(diagnostic_path),
           source_text(source_text),
@@ -54,13 +91,13 @@ class Workspace : public Ttx::Concept::Abstract {
       return source_text;
     }
 
-    constexpr auto get_anchor() const -> Ttx::Lexical::Anchor { return anchor; }
+    constexpr auto get_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor { return anchor; }
 
    private:
     Perimortem::Core::View::Bytes package_root;
     Perimortem::Core::View::Bytes diagnostic_path;
     Perimortem::Core::View::Bytes source_text;
-    Ttx::Lexical::Anchor anchor;
+    Tetrodotoxin::Source::Lexical::Anchor anchor;
   };
 
   Workspace(
@@ -70,59 +107,111 @@ class Workspace : public Ttx::Concept::Abstract {
           {});
   ~Workspace() override;
 
-  // A direct source joins the Workspace after parsing, linking, and
-  // finalization agree on the same graph. Keeping publication last means a
-  // failed edit leaves no partial name to discover.
+  // A direct source retains its transaction once its Dialect creates a
+  // Monograph. The optional result still reports full semantic completion, so
+  // build callers and editor callers can share one operation safely.
   auto interpret_source(
-      Ttx::Lexical::Errors& errors,
+      Tetrodotoxin::Source::Lexical::Errors& errors,
       Perimortem::Core::View::Bytes semantic_name,
       Perimortem::Core::View::Bytes diagnostic_path,
       Perimortem::Core::View::Bytes contents)
       -> Perimortem::Core::Option<Language::Monograph&>;
 
-  // A Package begins with its manifest because that table gives every member a
-  // stable name and path. Dependencies arrive as completed Workspace facts, so
-  // this import cannot quietly start another import.
+  // A Package begins with its restricted export source. Workspace follows
+  // external Types relative to each importer and terminates at
+  // exact Package facts already supplied by the terminal.
   auto import_package(
-      Ttx::Lexical::Errors& errors,
+      Tetrodotoxin::Source::Lexical::Errors& errors,
       Perimortem::Core::View::Bytes package_root,
       Perimortem::Core::View::Bytes root_semantic_name,
-      Perimortem::Core::View::Bytes root_logical_route,
-      Perimortem::Core::View::Bytes root_package_identity,
-      Perimortem::System::Version root_package_version)
+      Perimortem::Core::View::Bytes root_logical_route)
       -> Perimortem::Core::Option<Language::Monograph&>;
 
   // Archive restoration rebuilds a Package from facts that have already passed
-  // archive validation. Completing dependencies first gives restored members
-  // the same context as authored members.
+  // archive validation, reacquires its recorded Type graph, and applies the
+  // same completion order as authored sources.
   auto restore_package(
       const Package::Archive::Archive& archive,
       Perimortem::Core::View::Bytes root_semantic_name)
       -> Perimortem::Core::Option<Language::Monograph&>;
 
-  // Each completed Monograph keeps the authored index created in its source
-  // transaction. Tooling can borrow those identities while Workspace keeps
-  // their Arena alive.
+  // Each retained Monograph keeps the authored index created in its source
+  // transaction. Tooling can borrow the strongest identities interpretation
+  // established even when later completion reports an error.
   auto get_associations(const Language::Monograph& monograph) const
-      -> Perimortem::Core::Option<const Ttx::Lexical::Associations&>;
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Lexical::Associations&>;
 
   auto get_associations(Perimortem::Core::View::Bytes diagnostic_path) const
-      -> Perimortem::Core::Option<const Ttx::Lexical::Associations&>;
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Lexical::Associations&>;
 
-  // Keeping the original Token stream beside a completed source lets tooling
+  auto get_associations(
+      Perimortem::Core::View::Bytes package_root,
+      Perimortem::Core::View::Bytes logical_route) const
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Lexical::Associations&>;
+
+  auto get_monograph(Perimortem::Core::View::Bytes diagnostic_path) const
+      -> Perimortem::Core::Option<const Language::Monograph&>;
+
+  auto get_monograph(
+      Perimortem::Core::View::Bytes package_root,
+      Perimortem::Core::View::Bytes logical_route) const
+      -> Perimortem::Core::Option<const Language::Monograph&>;
+
+  auto get_completed_monograph(Perimortem::Core::View::Bytes diagnostic_path)
+      const -> Perimortem::Core::Option<const Language::Monograph&>;
+
+  auto get_completed_monograph(
+      Perimortem::Core::View::Bytes package_root,
+      Perimortem::Core::View::Bytes logical_route) const
+      -> Perimortem::Core::Option<const Language::Monograph&>;
+
+  auto get_package_source_count(
+      const Package::Language::Monograph& package) const -> Count;
+
+  auto get_package_source(
+      const Package::Language::Monograph& package,
+      Count index) const -> Perimortem::Core::Option<PackageSource>;
+
+  // Package imports terminate the local source walk. A terminal that can
+  // acquire Packages may inspect these unresolved exact requests, load those
+  // products, and rebuild the Workspace without duplicating source parsing.
+  constexpr auto get_pending_package_imports() const
+      -> Perimortem::Core::View::Vector<
+          Tetrodotoxin::Source::Reference<Language::Import>> {
+    return pending_package_imports;
+  }
+
+  // Keeping the original Token stream beside a retained source lets tooling
   // borrow the same lexical facts that built its semantic graph. That shared
   // view saves another tokenization pass and keeps source coordinates aligned.
   auto get_tokens(Perimortem::Core::View::Bytes diagnostic_path) const
-      -> Perimortem::Core::View::Vector<Ttx::Lexical::Token>;
+      -> Perimortem::Core::View::Vector<Tetrodotoxin::Source::Lexical::Token>;
 
-  auto find_authored_location(const Ttx::Concept::Abstract& semantic) const
+  auto get_tokens(
+      Perimortem::Core::View::Bytes package_root,
+      Perimortem::Core::View::Bytes logical_route) const
+      -> Perimortem::Core::View::Vector<Tetrodotoxin::Source::Lexical::Token>;
+
+  auto find_authored_location(const Tetrodotoxin::Source::Abstract& semantic) const
+      -> Perimortem::Core::Option<AuthoredLocation>;
+
+  // Tooling may project a selected locator back to the physical input that
+  // satisfied it. This query uses retained Workspace acquisition facts and
+  // does not add source paths to Import or Resource semantic identity.
+  auto find_acquired_location(
+      Perimortem::Core::View::Bytes package_root,
+      Perimortem::Core::View::Bytes logical_route,
+      Count offset,
+      const Tetrodotoxin::Source::Abstract& semantic) const
       -> Perimortem::Core::Option<AuthoredLocation>;
 
   auto get_name() const -> Perimortem::Core::View::Bytes override;
-  auto get_documentation() const -> const Ttx::Concept::Documentation& override;
-  auto resolve() const -> const Ttx::Concept::Abstract& override;
-  auto resolve_context(Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract& override;
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override;
+  auto resolve() const -> const Tetrodotoxin::Source::Abstract& override;
+  auto resolve_concept(Perimortem::Core::View::Bytes route) const
+      -> const Tetrodotoxin::Source::Abstract& override;
+  auto visit_concepts(Tetrodotoxin::Source::Abstract::Visitor visitor) const
+      -> void override;
 
  private:
   struct ImportedPackage {
@@ -131,19 +220,34 @@ class Workspace : public Ttx::Concept::Abstract {
     Package::Language::Monograph* monograph;
   };
 
-  // One published source keeps its text, Tokens, authored index, semantic root,
-  // and Arena together. That shared lifetime keeps every borrowed view valid
-  // for as long as Workspace exposes the Monograph.
-  struct PublishedSource {
+  struct PackageMember {
+    const Package::Language::Monograph* package;
+    Perimortem::Core::View::Bytes name;
+    Perimortem::Core::View::Bytes logical_route;
+    const Language::Monograph* monograph;
+  };
+
+  // One retained source keeps its text, Tokens, authored index, semantic root,
+  // and Arena together. Completion decides product eligibility without
+  // discarding the evidence an editor can still use.
+  struct RetainedSource {
     Perimortem::Core::View::Bytes package_root;
+    Perimortem::Core::View::Bytes name;
+    Perimortem::Core::View::Bytes logical_route;
     Perimortem::Core::View::Bytes diagnostic_path;
     Perimortem::Core::View::Bytes source_text;
     Perimortem::Memory::Dynamic::Record<Perimortem::Memory::Allocator::Arena>
         transaction;
     Language::Monograph& monograph;
-    Perimortem::Core::View::Vector<Ttx::Lexical::Token> tokens;
-    const Ttx::Lexical::Associations& associations;
+    Perimortem::Core::View::Vector<Tetrodotoxin::Source::Lexical::Token> tokens;
+    const Tetrodotoxin::Source::Lexical::Associations& associations;
+    Bool completed;
   };
+
+  auto find_retained_source(
+      Perimortem::Core::View::Bytes package_root,
+      Perimortem::Core::View::Bytes logical_route) const
+      -> const RetainedSource*;
 
   // Workspace borrows one Toolchain for its full lifetime. Monographs can then
   // keep the exact installed Dialect identities without owning another
@@ -153,14 +257,18 @@ class Workspace : public Ttx::Concept::Abstract {
       Perimortem::Memory::Dynamic::Record<Package::Snapshots>>
       snapshots;
   Perimortem::Memory::Allocator::Arena arena;
-  Perimortem::Memory::Dynamic::Vector<PublishedSource> published_sources;
+  Perimortem::Memory::Dynamic::Vector<RetainedSource> retained_sources;
+  Perimortem::Memory::Managed::Vector<PackageMember> package_members;
   Perimortem::Memory::Dynamic::Vector<
       Perimortem::Memory::Dynamic::Record<Perimortem::Memory::Allocator::Arena>>
       restored_transactions;
-  Perimortem::Memory::Managed::
-      Map<Perimortem::Core::View::Bytes, Language::Monograph&>
-          source_monographs;
+  Perimortem::Memory::Dynamic::Map<
+      Perimortem::Core::View::Bytes,
+      Tetrodotoxin::Source::Reference<Language::Monograph>>
+      retained_monographs;
   Perimortem::Memory::Managed::Vector<ImportedPackage> packages;
+  Perimortem::Memory::Dynamic::Vector<Tetrodotoxin::Source::Reference<Language::Import>>
+      pending_package_imports;
 };
 
 }  // namespace Tetrodotoxin::Environment

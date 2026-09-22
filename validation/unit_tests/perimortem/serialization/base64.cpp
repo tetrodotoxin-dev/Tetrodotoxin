@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/serialization/base64.hpp"
@@ -37,7 +37,7 @@ PERIMORTEM_UNIT_TEST(SerializationBase64, decode_simple) {
   EXPECT_TEXT(decoded_bytes.get_view(), source);
 }
 
-PERIMORTEM_UNIT_TEST(SerializationBase64, decode_vectorized_image) {
+PERIMORTEM_UNIT_TEST(SerializationBase64, decode_image) {
   auto source = File::read("validation/data/pngs/perimortem_icon.png"_view);
   auto base64 =
       File::read("validation/data/base64/perimortem_icon.base64"_view);
@@ -70,7 +70,7 @@ PERIMORTEM_UNIT_TEST(SerializationBase64, encode_simple) {
   EXPECT_TEXT(encoded_bytes.get_view(), encoded);
 }
 
-PERIMORTEM_UNIT_TEST(SerializationBase64, encode_vectorized_image) {
+PERIMORTEM_UNIT_TEST(SerializationBase64, encode_image) {
   auto source = File::read("validation/data/pngs/perimortem_icon.png"_view);
   auto base64 =
       File::read("validation/data/base64/perimortem_icon.base64"_view);

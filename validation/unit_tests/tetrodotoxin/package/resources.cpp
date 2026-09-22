@@ -1,7 +1,9 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/package/resources.hpp"
+
+#include "tetrodotoxin/source/documentation.hpp"
 
 #include "validation/unit_test.hpp"
 
@@ -20,15 +22,16 @@
 #include "tetrodotoxin/environment/workspace.hpp"
 #include "tetrodotoxin/package/dialect.hpp"
 #include "tetrodotoxin/package/language/monograph.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::System;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 using namespace Validation;
 
@@ -109,25 +112,6 @@ class TemporaryResources {
  private:
   Static::Bytes<temporary_path_capacity> root_path;
   Bool valid = False;
-};
-
-class ScopeMember : public Language::Monograph {
- public:
-  ScopeMember(
-      Allocator::Arena& arena,
-      Language::Dialect& dialect,
-      View::Bytes name)
-      : Monograph(arena, dialect, Documentation::get_empty(), dialect),
-        name(name) {}
-
-  auto get_name() const -> View::Bytes override { return name; }
-
-  auto resolve_context(View::Bytes) const -> const Abstract& override {
-    return Invalid::get_invalid();
-  }
-
- private:
-  View::Bytes name;
 };
 
 static auto contains(View::Bytes text, View::Bytes fragment) -> Bool {
@@ -219,13 +203,13 @@ PERIMORTEM_UNIT_TEST(PackageResources, identity_and_seal) {
   EXPECT(empty_resource.get_value().is_empty());
   EXPECT_TEXT(other_resource.get_value(), first_resource.get_value());
   EXPECT(&first != &other);
+  ASSERT_EQ(resources.get_values().get_size(), Count(3));
+  EXPECT(&resources.get_values().get_data()[0].get() == &first);
 
   resources.seal();
   EXPECT_NOT(resources.connect(*storage));
   EXPECT(&resources.resolve("resources/table.bin"_view) == &first);
-  EXPECT(
-      &resources.resolve("resources/later.bin"_view) ==
-      &Invalid::get_invalid());
+  EXPECT(&resources.resolve("resources/later.bin"_view) == &None::get_none());
 }
 
 PERIMORTEM_UNIT_TEST(PackageResources, error_identity) {
@@ -269,72 +253,43 @@ PERIMORTEM_UNIT_TEST(PackageResources, error_identity) {
 
   resources.seal();
   EXPECT(&resources.resolve("inside/.."_view) == &invalid);
-  EXPECT(
-      &resources.resolve("resources/new.bin"_view) == &Invalid::get_invalid());
+  EXPECT(&resources.resolve("resources/new.bin"_view) == &None::get_none());
 }
 
 PERIMORTEM_UNIT_TEST(PackageResources, monograph_dispatch) {
   static constexpr View::Bytes complete = "$[resources/table.bin]"_view;
   static constexpr View::Bytes partial = "$[resources/table.bin]tail"_view;
-  Package::Language::Source sources[] = {
-    Package::Language::Source("Member"_view, "member.ttx"_view),
-    Package::Language::Source(complete, "shadow.ttx"_view),
-    Package::Language::Source(partial, "partial.ttx"_view),
-    Package::Language::Source("Qualified::Member"_view, "qualified.ttx"_view),
-  };
   Allocator::Arena arena;
-  Package::Dialect dialect;
+  Library::Dialect library;
+  Package::Dialect dialect(library);
   Errors errors;
   Tokenizer tokenizer(arena, {}, "package-resources.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
-  auto root_result = Package::Language::Monograph::create_authored(
-      arena, dialect, Documentation::get_empty(), dialect, {}, sources);
-  ASSERT(root_result);
-  auto& root = *root_result;
-  auto& member =
-      arena.construct<ScopeMember>(arena, dialect, "Member value"_view);
-  auto& shadow =
-      arena.construct<ScopeMember>(arena, dialect, "Shadow value"_view);
-  auto& partial_member =
-      arena.construct<ScopeMember>(arena, dialect, "Partial value"_view);
-  auto& qualified =
-      arena.construct<ScopeMember>(arena, dialect, "Qualified value"_view);
-  ASSERT(root.bind_member("Member"_view, member));
-  ASSERT(root.bind_member(complete, shadow));
-  ASSERT(root.bind_member(partial, partial_member));
-  ASSERT(root.bind_member("Qualified::Member"_view, qualified));
-
-  const Abstract& member_edge = root.resolve_context("Member"_view);
-  const Abstract& partial_edge = root.resolve_context(partial);
-  const Abstract& qualified_scope = root.resolve_context("Qualified"_view);
-  const Abstract& qualified_edge =
-      qualified_scope.resolve_context("Member"_view);
-  EXPECT(&member_edge.resolve() == &member);
-  EXPECT(&partial_edge.resolve() == &partial_member);
-  EXPECT(&qualified_edge.resolve() == &qualified);
+  auto& root = Package::Language::Monograph::create_authored(
+      arena, dialect, Tetrodotoxin::Source::Documentation::get_empty(), Anchor::create(Span()),
+      "Validation.Resources"_view, Version(1, 0), dialect, library);
+  EXPECT(&root.resolve_concept(complete) == &Unknown::get_unknown());
+  EXPECT(&root.resolve_concept(partial) == &Unknown::get_unknown());
   EXPECT(
-      &root.resolve_context("Qualified::Member"_view) ==
-      &Invalid::get_invalid());
-  EXPECT(&root.resolve_context(complete) == &Invalid::get_invalid());
+      &root.resolve_concept("$[resources/table.bin"_view) ==
+      &Unknown::get_unknown());
   EXPECT(
-      &root.resolve_context("$[resources/table.bin"_view) ==
-      &Invalid::get_invalid());
-  EXPECT(
-      &root.resolve_context("resources/table.bin"_view) ==
-      &Invalid::get_invalid());
+      &root.resolve_concept("resources/table.bin"_view) ==
+      &Unknown::get_unknown());
   auto storage = Package::Storage::open(
       arena, "validation/data/ttx/package_resources"_view);
   ASSERT(storage);
   ASSERT(root.get_resources().connect(*storage));
-  const Abstract& resource = root.resolve_context(complete);
+  const Abstract& resource = root.resolve_concept(complete);
   ASSERT(resource.is<Tetrodotoxin::Language::Resource>());
   root.get_resources().seal();
   EXPECT_NOT(root.get_resources().connect(*storage));
-  EXPECT(&root.resolve_context(complete) == &resource);
+  EXPECT(&root.resolve_concept(complete) == &resource);
 
   auto& source_free = Package::Language::Monograph::create_synthetic(
-      arena, dialect, dialect, {});
+      arena, dialect, "Validation.Resources"_view, Version(1, 0), dialect,
+      library, {});
   EXPECT_NOT(source_free.get_resources().connect(*storage));
-  EXPECT(&source_free.resolve_context(complete) == &Invalid::get_invalid());
+  EXPECT(&source_free.resolve_concept(complete) == &None::get_none());
 }

@@ -1,17 +1,20 @@
-// Interface-only Object construction consumer.
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+// Contract only Object construction consumer.
 dialect : Library;
+
+public Provider : alias =
+    package(.name = "Validation.Provider", .version = "1.0");
 
 public Value : alias = Provider::Api::U64;
 
-@abi("C") @symbol("ttx_package_native_default")
 public default_value : func = [] -> Value {
   state config : Provider::Api::Config;
   return config -> sum();
 }
 
-@abi("C") @symbol("ttx_package_native_static")
 public static_value : func = [] -> Value : return Provider::Api.shared;
-@abi("C") @symbol("ttx_package_native_supplied")
 public supplied_value : func = [] -> Value {
   state config := new[Provider::Api::Config](.value = Provider::Api -> ten());
   return config -> sum();

@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/generics/fixed.hpp"
@@ -32,11 +32,11 @@ auto Generics::Fixed::create(Perimortem::Core::View::Vector<Argument> arguments)
   }
 
   auto access = get_context()
-                    .resolve_context("Access"_view)
+                    .resolve_concept("Access"_view)
                     .resolve()
                     .select<Language::Generic>();
   auto view = get_context()
-                  .resolve_context("View"_view)
+                  .resolve_concept("View"_view)
                   .resolve()
                   .select<Language::Generic>();
   if (!access || !view) {

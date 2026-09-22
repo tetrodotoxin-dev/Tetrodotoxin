@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -11,7 +11,7 @@ namespace Tetrodotoxin::Library::Language::Types {
 // retains the mandatory authored Definition through Structure while Composite
 // owns every member, lookup, Layout, and completion rule.
 class Object : public Structure {
- private:
+ protected:
   Object(
       Perimortem::Memory::Allocator::Arena& domain,
       Tetrodotoxin::Language::Definition& definition,
@@ -20,41 +20,33 @@ class Object : public Structure {
  public:
   TTX_CONTRACT(Object, Structure);
 
-  static auto interpret(
-      Ttx::Lexical::Cursor& cursor,
-      Tetrodotoxin::Language::Definition& definition)
-      -> Perimortem::Core::Option<Object&>;
+  static auto create_authored(
+      Perimortem::Memory::Allocator::Arena& domain,
+      Tetrodotoxin::Language::Definition& definition) -> Object&;
 
-  static auto restore(
-      Archive::Reader& reader,
-      Perimortem::Memory::Allocator::Arena& arena,
-      Ttx::Concept::Abstract& host,
-      Tetrodotoxin::Language::Persistence::Profile profile)
-      -> Perimortem::Core::Option<Object&>;
+  static auto create_synthetic(
+      Perimortem::Memory::Allocator::Arena& domain,
+      Tetrodotoxin::Language::Definition& definition) -> Object&;
+
+  static auto create_restored(
+      Perimortem::Memory::Allocator::Arena& domain,
+      Tetrodotoxin::Language::Definition& definition) -> Object&;
 
   auto create_default(Perimortem::Memory::Allocator::Arena& arena) const
       -> Perimortem::Core::Option<Model::Pack&> override;
 
   auto create_supplied(
-      Ttx::Lexical::Cursor& cursor,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
       Model::Pack& arguments,
-      Perimortem::Core::Option<const Ttx::Concept::Abstract&> access_scope,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor) const
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&> access_scope,
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor) const
       -> Perimortem::Core::Option<Model::Pack&> override;
 
   auto create_supplied_restored(
       Perimortem::Memory::Allocator::Arena& arena,
       Model::Pack& arguments,
-      Perimortem::Core::Option<const Ttx::Concept::Abstract&> access_scope)
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&> access_scope)
       const -> Perimortem::Core::Option<Model::Pack&> override;
-
-  auto persist(Archive::Writer& writer) const -> Bool override;
-
- protected:
-  auto reserve_carrier(Llvm::Program& program) const
-      -> Perimortem::Core::Option<Bool> override;
-
-  auto complete_carrier(Llvm::Program& program) const -> Bool override;
 };
 
 }  // namespace Tetrodotoxin::Library::Language::Types

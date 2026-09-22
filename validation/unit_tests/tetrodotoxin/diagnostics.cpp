@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "validation/unit_test.hpp"
@@ -61,7 +61,7 @@ PERIMORTEM_UNIT_TEST(TetrodotoxinDiagnostics, rejected_name) {
           .is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(TetrodotoxinDiagnostics, arbitrary_name_length) {
+PERIMORTEM_UNIT_TEST(TetrodotoxinDiagnostics, long_names) {
   Static::Bytes<300> expected;
   Static::Bytes<300> misspelled;
   for (Count i = 0; i < expected.get_size(); i++) {
@@ -85,7 +85,7 @@ PERIMORTEM_UNIT_TEST(TetrodotoxinDiagnostics, arbitrary_name_length) {
   EXPECT_TEXT(suggestion, expected_hint);
 }
 
-PERIMORTEM_UNIT_TEST(TetrodotoxinDiagnostics, transposition_costs_two) {
+PERIMORTEM_UNIT_TEST(TetrodotoxinDiagnostics, transposition) {
   constexpr View::Bytes candidates[] = {"first"_view};
   Allocator::Arena arena;
   View::Bytes suggestion =

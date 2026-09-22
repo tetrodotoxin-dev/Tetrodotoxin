@@ -1,16 +1,16 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/generic.hpp"
 
 #include "perimortem/memory/dynamic/vector.hpp"
 
+#include "tetrodotoxin/language/import.hpp"
 #include "tetrodotoxin/library/language/constants/signed.hpp"
 #include "tetrodotoxin/library/language/constants/unsigned.hpp"
 #include "tetrodotoxin/library/language/model/types/flag.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/lexical/cursor.hpp"
-#include "ttx/model/alias.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 using namespace Perimortem;
 using namespace Tetrodotoxin::Library;
@@ -21,6 +21,8 @@ static auto matches_parameter(
   switch (parameter) {
   case Language::Generic::Parameters::Type:
     return argument.is<const Language::Model::Type&>();
+  case Language::Generic::Parameters::SemanticType:
+    return argument.is<Language::Generic::SemanticType>();
   case Language::Generic::Parameters::U64:
     return argument.is<::U64>();
   case Language::Generic::Parameters::S64:
@@ -60,40 +62,51 @@ Language::Generic::Entry::Entry(
 
 auto Language::Generic::normalize_argument(
     Parameters parameter,
-    const Ttx::Concept::Abstract& argument) const -> Core::Option<Argument> {
+    const Tetrodotoxin::Source::Abstract& argument) const -> Core::Option<Argument> {
   switch (parameter) {
   case Parameters::Type: {
-    const Ttx::Concept::Abstract& selected = argument.visit<Ttx::Model::Alias>(
-        [](const Ttx::Model::Alias& alias) -> const Ttx::Concept::Abstract& {
-          return alias.resolve();
-        },
-        [](const Ttx::Concept::Abstract& direct)
-            -> const Ttx::Concept::Abstract& { return direct; });
+    const Tetrodotoxin::Source::Abstract& represented =
+        argument.is<Tetrodotoxin::Source::Type>() ? argument : argument.resolve();
+    const Tetrodotoxin::Source::Abstract& selected =
+        represented.is<Tetrodotoxin::Language::Import>()
+            ? represented.get_type()
+            : represented;
     auto type = selected.select<Language::Model::Type>();
     BAIL_IF(!type);
     return Argument(*type);
   }
+  case Parameters::SemanticType: {
+    const Tetrodotoxin::Source::Abstract& represented =
+        argument.is<Tetrodotoxin::Source::Type>() ? argument : argument.resolve();
+    const Tetrodotoxin::Source::Abstract& selected =
+        represented.is<Tetrodotoxin::Language::Import>()
+            ? represented.get_type()
+            : represented;
+    auto type = selected.select<Tetrodotoxin::Source::Type>();
+    BAIL_IF(!type);
+    return Argument(SemanticType::create(*type));
+  }
   case Parameters::U64: {
     auto constant = argument.select<Constants::Unsigned>();
     const auto expected =
-        context.resolve_context("U64"_view).select<Language::Model::Type>();
+        context.resolve_concept("U64"_view).select<Language::Model::Type>();
     BAIL_IF(!constant || !expected || &constant->get_type() != &*expected);
     return Argument(constant->get_value());
   }
   case Parameters::S64: {
     auto constant = argument.select<Constants::Signed>();
     const auto expected =
-        context.resolve_context("S64"_view).select<Language::Model::Type>();
+        context.resolve_concept("S64"_view).select<Language::Model::Type>();
     BAIL_IF(!constant || !expected || &constant->get_type() != &*expected);
     return Argument(constant->get_value());
   }
   case Parameters::Bool: {
-    auto value = argument.select<Language::Model::Pack>();
+    auto value = Language::Model::Pack::from(argument);
     BAIL_IF(!value);
     auto actual = value->get_value_type(0)
                       .resolve()
                       .select<Language::Model::Types::Flag>();
-    auto expected = context.resolve_context("Bool"_view)
+    auto expected = context.resolve_concept("Bool"_view)
                         .resolve()
                         .select<Language::Model::Types::Flag>();
     BAIL_IF(!actual || !expected || &actual->resolve() != &expected->resolve());
@@ -106,7 +119,7 @@ auto Language::Generic::normalize_argument(
   return {};
 }
 
-auto Language::Generic::materialize(const Ttx::Concept::Layout& layout) const
+auto Language::Generic::materialize(const Tetrodotoxin::Source::Layout& layout) const
     -> Materialization {
   auto parameters = get_parameterization();
   if (parameters.get_size() != layout.get_size()) {
@@ -133,7 +146,7 @@ auto Language::Generic::materialize(const Ttx::Concept::Layout& layout) const
 }
 
 auto Language::Generic::validate_materializations(
-    Ttx::Lexical::Cursor& cursor) const -> Bool {
+    Tetrodotoxin::Source::Lexical::Cursor& cursor) const -> Bool {
   Bool valid = True;
   for (Entry* entry : entries.get_view()) {
     valid &= entry->value.validate_layout(cursor);
@@ -160,8 +173,17 @@ auto Language::Generic::materialize(
     const Language::Model::Type* type =
         arguments.get_data()[i].find<const Language::Model::Type&>();
     if (type != nullptr) {
-      const Ttx::Concept::Abstract& resolved = type->resolve();
-      if (!resolved.is<Ttx::Concept::Invalid>() && &resolved != type) {
+      const Tetrodotoxin::Source::Abstract& resolved = type->resolve();
+      if (!resolved.is<Tetrodotoxin::Source::Unknown>() && &resolved != type) {
+        return Failure(Failure::Type::Parameter, i);
+      }
+    }
+    const SemanticType* semantic_type =
+        arguments.get_data()[i].find<SemanticType>();
+    if (semantic_type != nullptr) {
+      const Tetrodotoxin::Source::Abstract& resolved = semantic_type->get().resolve();
+      if (!resolved.is<Tetrodotoxin::Source::Unknown>() &&
+          &resolved != &semantic_type->get()) {
         return Failure(Failure::Type::Parameter, i);
       }
     }
@@ -208,9 +230,9 @@ auto Language::Generic::materialize(
   return entry.value;
 }
 
-auto Language::Generic::resolve_context(Core::View::Bytes) const
-    -> const Ttx::Concept::Abstract& {
+auto Language::Generic::resolve_concept(Core::View::Bytes) const
+    -> const Tetrodotoxin::Source::Abstract& {
   // Applying a Generic is explicit TypeReference syntax. Lending the creating
   // context here would make a selected Generic silently expose unrelated names.
-  return Ttx::Concept::Invalid::get_invalid();
+  return Tetrodotoxin::Source::Unknown::get_unknown();
 }

@@ -1,25 +1,49 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/constants/result.hpp"
 
-#include "tetrodotoxin/library/llvm/builder.hpp"
+#include "tetrodotoxin/library/language/expression.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library::Language;
 
-auto Constants::Result::persist(Archive::Writer& writer) const -> Bool {
-  auto record = writer.begin(Archive::Tag::ConstantResult);
-  BAIL_IF(
-      !writer.write(get_type().get_name()) ||
-      !writer.write(get_type().get_value_type().get_name()) ||
-      !writer.write(get_type().get_error_type().get_name()));
-  writer.write(U8(get_kind()));
-  BAIL_IF(
-      !Model::Pack::persist_folded(writer, get_payload()) ||
-      !writer.finish(record));
-  return True;
+static auto append_pack(Memory::Managed::Bytes& output, const Model::Pack& pack)
+    -> void {
+  output.append('[');
+  const Layout& layout = pack.get_layout();
+  for (Count index = 0; index < layout.get_size(); index++) {
+    if (index != 0) {
+      output.concat(", "_view);
+    }
+    auto name = layout.get_name(index);
+    if (name) {
+      output.append('.');
+      output.concat(*name);
+      output.concat(" = "_view);
+    }
+    layout.get_abstract(index).visit(
+        [&]() { output.concat("Unknown"_view); },
+        [&](const Abstract& value) { output.concat(value.get_name()); });
+  }
+  output.append(']');
+}
+
+Constants::Result::Result(
+    Memory::Allocator::Arena& domain,
+    const Types::Result& type,
+    Types::Result::Kind kind,
+    Model::Pack& payload,
+    Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor)
+    : Constant(anchor),
+      type(type),
+      kind(kind),
+      payload(payload),
+      name(
+          domain,
+          kind == Types::Result::Kind::Value ? "value"_view : "error"_view) {
+  append_pack(name, payload);
 }
 
 auto Constants::Result::create(
@@ -37,10 +61,9 @@ auto Constants::Result::create(
     BAIL_IF(!entry || !entry->is<Constant>());
   }
 
-  return Expression::create_synthetic<Result>(
-      domain, [&](auto source) -> Result {
-        return Result(type, kind, payload, source);
-      });
+  return Constant::create_synthetic<Result>(domain, [&](auto source) -> Result {
+    return Result(domain, type, kind, payload, source);
+  });
 }
 
 auto Constants::Result::create_value(
@@ -58,7 +81,7 @@ auto Constants::Result::create_error(
 }
 
 auto Constants::Result::select(Model::Pack& source) -> Core::Option<Result&> {
-  auto direct = source.select<Result>();
+  auto direct = source.select_identity<Result>();
   if (direct) {
     return *direct;
   }
@@ -68,8 +91,8 @@ auto Constants::Result::select(Model::Pack& source) -> Core::Option<Result&> {
   return layout.get_abstract(0).visit(
       []() -> Core::Option<Result&> { return {}; },
       [](const Abstract& selected) -> Core::Option<Result&> {
-        auto pack = const_cast<Abstract&>(selected).select<Model::Pack>();
-        return pack ? pack->select<Result>() : Core::Option<Result&>();
+        auto pack = Model::Pack::from(const_cast<Abstract&>(selected));
+        return pack ? pack->select_identity<Result>() : Core::Option<Result&>();
       });
 }
 
@@ -83,10 +106,9 @@ auto Constants::Result::create_fitted(
   }
 
   Model::Pack* payload = &source;
-  auto expression = source.select<Expression>();
-  if (expression) {
+  if (!source.select_identity<Constant>()) {
     Core::Option<Model::Pack&> folded;
-    expression->fold().visit(
+    Expression::fold(source).visit(
         [&](const Core::Option<Model::Pack&>& selected) { folded = selected; },
         [](const Expression::Error&) {});
     BAIL_IF(!folded);
@@ -111,9 +133,4 @@ auto Constants::Result::equals(const Constant& rhs) const -> Bool {
                  have_equal_values(payload.get(), selected->payload.get())
              ? True
              : False;
-}
-
-auto Constants::Result::lower(Llvm::Builder& body) const -> Bool {
-  Bool lowered = prepare_carrier(body) && payload.get().lower(body);
-  return lowered && body.result(get_type(), *this, payload.get());
 }

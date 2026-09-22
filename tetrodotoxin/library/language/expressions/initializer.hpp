@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -11,8 +11,8 @@
 #include "tetrodotoxin/library/language/model/pack.hpp"
 #include "tetrodotoxin/library/language/model/type.hpp"
 #include "tetrodotoxin/library/language/type_reference.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Language::Expressions {
 
@@ -25,22 +25,22 @@ class Initializer : public Expression {
  public:
   TTX_CONTRACT(Initializer, Expression);
 
-  static auto is_next(const Ttx::Lexical::Cursor& cursor) -> Bool;
-
-  static auto parse(
-      const Ttx::Concept::Abstract& context,
-      Ttx::Lexical::Cursor& cursor) -> Perimortem::Core::Option<Initializer&>;
+  static auto create_authored(
+      Perimortem::Memory::Allocator::Arena& domain,
+      TypeReference target_reference,
+      Model::Pack& arguments,
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> Initializer&;
 
   // Synthetic aggregate defaults retain their exact target Type and one real
   // child Pack per completed element or state Field.
   static auto create_synthetic(
       Perimortem::Memory::Allocator::Arena& domain,
       const Model::Type& type,
-      Perimortem::Core::View::Vector<Ttx::Concept::Reference<Model::Pack>>
+      Perimortem::Core::View::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>>
           values) -> Initializer&;
 
-  // An Interface-restored aggregate delegates construction to its provider's
-  // native Type operation. The Initializer remains the produced Pack identity;
+  // A restored Interface aggregate delegates construction to its provider's
+  // native Type operation. The Initializer remains the produced Pack identity.
   // no semantic Callable or copied Field model is introduced.
   static auto create_provider(
       Perimortem::Memory::Allocator::Arena& domain,
@@ -55,26 +55,30 @@ class Initializer : public Expression {
   TTX_NAME("Initializer"_view);
 
   auto get_documentation() const
-      -> const Ttx::Concept::Documentation& override {
-    return Ttx::Concept::Documentation::get_empty();
+      -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
 
-  auto get_type() const -> const Ttx::Concept::Abstract& override;
+  auto get_type() const -> const Tetrodotoxin::Source::Abstract& override;
 
-  auto fits(const Ttx::Model::Type& target) const -> Bool override;
+  auto fits(const Tetrodotoxin::Source::Type& target) const -> Bool override;
 
   auto link(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& lexical_context,
-      Perimortem::Core::Option<const Ttx::Concept::Abstract&> access_scope = {})
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& lexical_context,
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&> access_scope = {})
       -> Bool override;
 
-  auto finalize(Ttx::Lexical::Cursor& cursor) -> void override;
-
-  auto lower(Llvm::Builder& body) const -> Bool override;
+  auto finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> void override;
 
   auto get_completed_values() const
       -> Perimortem::Core::Option<const Model::Pack&>;
+
+  constexpr auto get_arguments() const -> const Model::Pack& {
+    return arguments;
+  }
+
+  constexpr auto uses_provider() const -> Bool { return provider; }
 
  protected:
   auto evaluate() -> Perimortem::Utility::Result<
@@ -85,13 +89,13 @@ class Initializer : public Expression {
   Initializer(
       Perimortem::Core::Option<TypeReference> target_reference,
       Model::Pack& arguments,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor);
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor);
 
   Perimortem::Core::Option<TypeReference> target_reference;
   Model::Pack& arguments;
-  Perimortem::Core::Option<Ttx::Concept::Reference<const Model::Type>>
+  Perimortem::Core::Option<Tetrodotoxin::Source::Reference<const Model::Type>>
       expected_type;
-  Perimortem::Core::Option<Ttx::Concept::Reference<Model::Pack>>
+  Perimortem::Core::Option<Tetrodotoxin::Source::PackReference<Model::Pack>>
       completed_values;
   Bool provider = False;
 };

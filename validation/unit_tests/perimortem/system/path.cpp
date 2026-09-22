@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/system/path.hpp"
@@ -42,7 +42,7 @@ PERIMORTEM_UNIT_TEST(SystemPath, normalize_in_arena) {
   EXPECT_TEXT(*rooted, "/usr/local/bin"_view);
 }
 
-PERIMORTEM_UNIT_TEST(SystemPath, normalize_in_arena_rejects_invalid) {
+PERIMORTEM_UNIT_TEST(SystemPath, normalize_invalid) {
   Allocator::Arena arena;
   Static::Bytes<3> embedded_nul = {{'a', '\0', 'b'}};
   Static::Bytes<Path::max_size + 1> oversized;

@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -13,12 +13,12 @@
 #include "tetrodotoxin/language/monograph.hpp"
 #include "tetrodotoxin/library/language/model/pack.hpp"
 #include "tetrodotoxin/library/language/model/type.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/concept/layout.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/model/layouts/fluid.hpp"
-#include "ttx/model/layouts/ranged.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/layout.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/layouts/fluid.hpp"
+#include "tetrodotoxin/source/layouts/ranged.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 namespace Tetrodotoxin::Library::Language {
 
@@ -34,12 +34,12 @@ namespace Tetrodotoxin::Library::Language {
 // Expressions retain no Anchor because there is no source fact to invent.
 // This distinction remains independent from folding and lowering.
 //
-// get_type() returns the one scalar Type produced by the expression or Invalid
+// get_type() returns the one scalar Type produced by the expression or Unknown
 // when the source owner cannot establish exactly one. Concrete owners retain
 // their real evaluation edges. Expression does not reconstruct those edges as
 // a second generic input Layout. Library owns parsing, operator legality,
 // executable bodies, and value fitting.
-class Expression : public Model::Pack {
+class Expression : public Tetrodotoxin::Source::Abstract, public Model::Pack {
  public:
   class Error {
    public:
@@ -53,40 +53,51 @@ class Expression : public Model::Pack {
       DivisionByZero,
     };
 
-    constexpr Error(Type type, const Expression& expression)
-        : type(type), expression(expression) {}
+    constexpr Error(Type type, const Tetrodotoxin::Source::Abstract& subject)
+        : type(type), subject(subject) {}
+    static auto from_pack(Type type, const Model::Pack& subject) -> Error;
 
     constexpr auto get_type() const -> Type { return type; }
-    constexpr auto get_expression() const -> const Expression& {
-      return expression;
+    constexpr auto get_subject() const -> const Tetrodotoxin::Source::Abstract& {
+      return subject;
     }
     auto get_name() const -> Perimortem::Core::View::Bytes;
 
    private:
     Type type;
-    const Expression& expression;
+    const Tetrodotoxin::Source::Abstract& subject;
   };
 
-  TTX_CONTRACT(Expression, Model::Pack);
+  TTX_CONTRACT(Expression, Tetrodotoxin::Source::Abstract);
 
-  // Access operators own receiver traversal. An Expression never lends its
-  // result or output Type as an implicit contextual lookup path.
-  constexpr auto resolve_context(Perimortem::Core::View::Bytes) const
-      -> const Ttx::Concept::Abstract& override {
-    return Ttx::Concept::Invalid::get_invalid();
-  }
+  auto bind_interface(Perimortem::System::Uuid requested) const
+      -> Perimortem::Utility::Result<
+          Ttx::Semantic::Negotiation::Binding,
+          Ttx::Semantic::Negotiation::Binding::Failure> override;
 
-  auto resolve_call(
-      const Ttx::Concept::Abstract& host,
-      Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract& override;
+  // The folded route reports available immutable evaluation. Access operators
+  // own receiver traversal and never use this as an implicit member lookup
+  // path.
+  auto resolve_concept(Perimortem::Core::View::Bytes name) const
+      -> const Tetrodotoxin::Source::Abstract& override;
+
+  // Expressions advertise the cached folded answer. The expression itself is
+  // already the receiver and contributes no separate concept edge.
+  auto visit_concepts(Tetrodotoxin::Source::Abstract::Visitor visitor) const
+      -> void override;
 
   // The result is the exact semantic object produced by this node. Ordinary
   // value Expressions produce themselves. Access nodes override this only
   // when evaluation selects an existing Type or Addressable identity. Keeping
   // result identity separate from get_type() lets Type valued expressions
   // remain available to later access without inventing a value output.
-  virtual constexpr auto get_result() const -> const Ttx::Concept::Abstract& {
+  virtual constexpr auto get_result() const
+      -> const Tetrodotoxin::Source::Abstract& override {
+    return *this;
+  }
+
+  auto get_identity() const
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&> override {
     return *this;
   }
 
@@ -98,36 +109,32 @@ class Expression : public Model::Pack {
       -> Perimortem::Core::Option<const Model::Type&>;
 
   virtual constexpr auto get_type() const
-      -> const Ttx::Concept::Abstract& override = 0;
+      -> const Tetrodotoxin::Source::Abstract& override = 0;
 
   auto get_value_type(Count index) const
-      -> const Ttx::Concept::Abstract& override;
-
-  auto get_produced(Count index) const
-      -> Perimortem::Core::Option<Ttx::Model::Pack::Produced> override;
+      -> const Tetrodotoxin::Source::Abstract& override;
 
   // Layout inspection is total. An ordinary value Expression exposes one
   // entry while a Type valued or incomplete Expression exposes an empty shape
-  // and still resolves Invalid. Owners such as Call, Swizzle, and Slice
+  // and still resolves Unknown. Owners such as Call, Swizzle, and Slice
   // override this query when they produce complete empty or multiple value
   // flow without inventing an aggregate Type.
-  auto get_layout() const -> const Ttx::Concept::Layout& override;
+  auto get_layout() const -> const Tetrodotoxin::Source::Layout& override;
 
   // A linked Expression is a completed Pack. Multiple result owners override
   // this when their completion is not represented by one scalar Type edge.
-  auto resolve() const -> const Ttx::Concept::Abstract& override;
+  auto resolve() const -> const Tetrodotoxin::Source::Abstract& override;
+
+  auto is_complete() const -> Bool override { return &resolve() == this; }
 
   // Expression finalization preserves this exact node and only computes its
   // optional Constant representation. Grouped Packs override the same Library
   // lifecycle by visiting their real child producers in source order.
-  auto finalize(Ttx::Lexical::Cursor& cursor) -> void override;
-
-  auto lower(Llvm::Builder& body) const -> Bool override;
+  auto finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> void override;
 
   // Write target lowering evaluates only the receiver and selector facts needed
   // to publish the destination. The write operation lowers its source and then
-  // performs the actual mutation through the Builder.
-  virtual auto lower_write_target(Llvm::Builder& body) const -> Bool;
+  // performs the actual mutation through its selected terminal producer.
 
   // Linking enriches this exact source node after every declaration identity
   // is available. Constants already carry complete Types, while Identifier
@@ -138,9 +145,9 @@ class Expression : public Model::Pack {
   // from becoming an implicit receiver. An absent scope represents an unhosted
   // query and grants no private access.
   auto link(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& lexical_context,
-      Perimortem::Core::Option<const Ttx::Concept::Abstract&> access_scope = {})
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& lexical_context,
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&> access_scope = {})
       -> Bool override;
 
   // Folding is a cached result of this exact Expression. The source node
@@ -149,18 +156,21 @@ class Expression : public Model::Pack {
   auto fold() -> Perimortem::Utility::
       Result<Perimortem::Core::Option<Model::Pack&>, Error>;
 
+  static auto fold(Model::Pack& pack) -> Perimortem::Utility::
+      Result<Perimortem::Core::Option<Model::Pack&>, Error>;
+
   auto get_folded() -> Perimortem::Core::Option<Model::Pack&>;
   auto get_folded() const -> Perimortem::Core::Option<const Model::Pack&>;
 
   constexpr auto get_anchor() const
-      -> const Perimortem::Core::Option<Ttx::Lexical::Anchor>& {
+      -> Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> override {
     return anchor;
   }
 
   // An empty inspection shape is not produced flow until resolve() proves this
   // exact Pack. Keeping the check here prevents direct fitting from admitting
   // a Type result through an empty target Layout.
-  auto fits(const Ttx::Concept::Layout& target) const -> Bool override {
+  auto fits(const Tetrodotoxin::Source::Layout& target) const -> Bool override {
     return &resolve() == this && Model::Pack::fits(target);
   }
 
@@ -168,7 +178,7 @@ class Expression : public Model::Pack {
   // Atomic Types retain their own exact identity as one terminal value while
   // structural Types expose their real shapes. Constant domains may extend
   // this rule when their value proves a contextual conversion safe.
-  auto fits(const Ttx::Model::Type& target) const -> Bool override {
+  auto fits(const Tetrodotoxin::Source::Type& target) const -> Bool override {
     if (&resolve() != this) {
       return False;
     }
@@ -191,13 +201,13 @@ class Expression : public Model::Pack {
   // whether it accepts the complete source Pack. Plain value linking remains a
   // distinct operation so reference only Expressions can reject ordinary reads.
   virtual auto link_write(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& lexical_context,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& lexical_context,
       const Model::Type& access_scope,
       Model::Pack& source) -> Bool;
 
   auto link_write_restored(
-      const Ttx::Concept::Abstract& lexical_context,
+      const Tetrodotoxin::Source::Abstract& lexical_context,
       const Model::Type& access_scope,
       Model::Pack& source) -> Bool;
 
@@ -205,8 +215,6 @@ class Expression : public Model::Pack {
   // A completed fold lowers its retained Pack once and aliases this authored
   // Expression to the resulting target values. Absence keeps lowering on the
   // concrete Expression owner.
-  auto lower_folded(Llvm::Builder& body) const
-      -> Perimortem::Core::Option<Bool>;
 
   // Concrete owners supply the builder because only their factory may use the
   // private constructor. The optional Anchor records whether source authored
@@ -214,10 +222,10 @@ class Expression : public Model::Pack {
   template <typename type, typename builder_type>
   static auto create_authored(
       Perimortem::Memory::Allocator::Arena& domain,
-      Ttx::Lexical::Anchor anchor,
+      Tetrodotoxin::Source::Lexical::Anchor anchor,
       builder_type&& builder) -> type& {
     static_assert(__is_base_of(Expression, type));
-    Perimortem::Core::Option<Ttx::Lexical::Anchor> source(anchor);
+    Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> source(anchor);
     return domain.construct_from<type>([&builder, source]() {
       return static_cast<builder_type&&>(builder)(source);
     });
@@ -228,14 +236,14 @@ class Expression : public Model::Pack {
       Perimortem::Memory::Allocator::Arena& domain,
       builder_type&& builder) -> type& {
     static_assert(__is_base_of(Expression, type));
-    Perimortem::Core::Option<Ttx::Lexical::Anchor> source;
+    Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> source;
     return domain.construct_from<type>([&builder, source]() {
       return static_cast<builder_type&&>(builder)(source);
     });
   }
 
   constexpr explicit Expression(
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor)
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor)
       : anchor(anchor), output_layout(*this, 1) {}
 
   Expression(const Expression&) = delete;
@@ -254,12 +262,12 @@ class Expression : public Model::Pack {
   // reference only owner such as Index overrides this hook to establish its
   // target facts without admitting an ordinary read.
   virtual auto link_write_target(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& lexical_context,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& lexical_context,
       const Model::Type& access_scope) -> Bool;
 
   virtual auto link_write_target_restored(
-      const Ttx::Concept::Abstract& lexical_context,
+      const Tetrodotoxin::Source::Abstract& lexical_context,
       const Model::Type& access_scope) -> Bool;
 
   // Complete Pack admission belongs to the receiving Expression. The default
@@ -270,8 +278,8 @@ class Expression : public Model::Pack {
       const Model::Type& access_scope) const -> Bool;
 
  private:
-  Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor;
-  Ttx::Model::Layouts::Ranged output_layout;
+  Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor;
+  Tetrodotoxin::Source::Layouts::Ranged output_layout;
   Perimortem::Core::Static::Union<Model::Pack&, Error> folded;
 };
 

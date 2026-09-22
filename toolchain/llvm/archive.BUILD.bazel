@@ -1,40 +1,148 @@
-"Build definitions applied to the pinned Arch LLVM packages."
+"Build definitions applied to the pinned LLVM and LLD packages."
 
-load("@rules_cc//cc:cc_import.bzl", "cc_import")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 package(default_visibility = ["@perimortem//toolchain/llvm:__pkg__"])
 
-cc_import(
-    name = "runtime",
-    shared_library = "runtime/usr/lib/libLLVM.so.22.1",
-    target_compatible_with = [
-        "@platforms//cpu:x86_64",
-        "@platforms//os:linux",
+_LLVM_COMPONENTS = [
+    "LLVMPasses",
+    "LLVMHipStdPar",
+    "LLVMCoroutines",
+    "LLVMipo",
+    "LLVMVectorize",
+    "LLVMSandboxIR",
+    "LLVMLinker",
+    "LLVMFrontendOpenMP",
+    "LLVMFrontendDirective",
+    "LLVMFrontendAtomic",
+    "LLVMFrontendOffloading",
+    "LLVMObjectYAML",
+    "LLVMX86CodeGen",
+    "LLVMX86Desc",
+    "LLVMX86Info",
+    "LLVMMCDisassembler",
+    "LLVMInstrumentation",
+    "LLVMIRPrinter",
+    "LLVMGlobalISel",
+    "LLVMSelectionDAG",
+    "LLVMCFGuard",
+    "LLVMAsmPrinter",
+    "LLVMCodeGen",
+    "LLVMTarget",
+    "LLVMScalarOpts",
+    "LLVMInstCombine",
+    "LLVMAggressiveInstCombine",
+    "LLVMObjCARCOpts",
+    "LLVMTransformUtils",
+    "LLVMCodeGenTypes",
+    "LLVMCGData",
+    "LLVMBitWriter",
+    "LLVMAnalysis",
+    "LLVMProfileData",
+    "LLVMSymbolize",
+    "LLVMDebugInfoBTF",
+    "LLVMDebugInfoPDB",
+    "LLVMDebugInfoMSF",
+    "LLVMDebugInfoCodeView",
+    "LLVMDebugInfoGSYM",
+    "LLVMDebugInfoDWARF",
+    "LLVMObject",
+    "LLVMTextAPI",
+    "LLVMMCParser",
+    "LLVMIRReader",
+    "LLVMAsmParser",
+    "LLVMMC",
+    "LLVMDebugInfoDWARFLowLevel",
+    "LLVMBitReader",
+    "LLVMFrontendHLSL",
+    "LLVMCore",
+    "LLVMRemarks",
+    "LLVMBitstreamReader",
+    "LLVMBinaryFormat",
+    "LLVMTargetParser",
+    "LLVMSupport",
+    "LLVMDemangle",
+]
+
+_LLVM_ARCHIVES = [
+    "llvm/usr/lib/llvm-22/lib/lib{}.a".format(component)
+    for component in _LLVM_COMPONENTS
+]
+
+_LLVM_LINKER_ARCHIVES = glob([
+    "llvm/usr/lib/llvm-22/lib/libLLVM*.a",
+    "polly/usr/lib/llvm-22/lib/*.a",
+])
+
+_LLD_ARCHIVES = [
+    "lld/usr/lib/llvm-22/lib/liblldELF.a",
+    "lld/usr/lib/llvm-22/lib/liblldCOFF.a",
+    "lld/usr/lib/llvm-22/lib/liblldCommon.a",
+]
+
+_SYSTEM_LINKOPTS = [
+    "-lrt",
+    "-ldl",
+    "-lm",
+    "-lz",
+    "-lzstd",
+    "-lxml2",
+]
+
+cc_library(
+    name = "headers",
+    hdrs = glob([
+        "llvm/usr/lib/llvm-22/include/llvm/**",
+        "llvm/usr/lib/llvm-22/include/llvm-c/**",
+        "lld_headers/usr/lib/llvm-22/include/lld/**",
+    ]),
+    includes = [
+        "lld_headers/usr/lib/llvm-22/include",
+        "llvm/usr/lib/llvm-22/include",
     ],
 )
 
 cc_library(
     name = "sdk",
-    hdrs = glob([
-        "headers/usr/include/llvm/**",
-        "headers/usr/include/llvm-c/**",
-    ]),
-    includes = ["headers/usr/include"],
+    additional_linker_inputs = _LLVM_ARCHIVES,
+    linkopts = (
+        ["-Wl,--start-group"] +
+        ["$(location :{})".format(archive) for archive in _LLVM_ARCHIVES] + [
+            "-Wl,--end-group",
+        ] + _SYSTEM_LINKOPTS
+    ),
     target_compatible_with = [
         "@platforms//cpu:x86_64",
         "@platforms//os:linux",
     ],
-    deps = [":runtime"],
+    deps = [":headers"],
+)
+
+cc_library(
+    name = "lld",
+    additional_linker_inputs = _LLD_ARCHIVES + _LLVM_LINKER_ARCHIVES,
+    linkopts = (
+        ["-Wl,--start-group"] +
+        [
+            "$(location :{})".format(archive)
+            for archive in _LLD_ARCHIVES + _LLVM_LINKER_ARCHIVES
+        ] + [
+            "-Wl,--end-group",
+        ] + _SYSTEM_LINKOPTS
+    ),
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    deps = [":headers"],
 )
 
 filegroup(
     name = "license",
-    srcs = glob(
-        [
-            "headers/usr/share/licenses/llvm/**",
-            "runtime/usr/share/licenses/llvm-libs/**",
-        ],
-        allow_empty = True,
-    ),
+    srcs = [
+        "lld/usr/share/doc/liblld-22/copyright",
+        "lld_headers/usr/share/doc/liblld-22-dev/copyright",
+        "llvm/usr/share/doc/llvm-22-dev/copyright",
+        "polly/usr/share/doc/libpolly-22-dev/copyright",
+    ],
 )

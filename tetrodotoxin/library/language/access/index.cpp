@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/access/index.hpp"
@@ -7,26 +7,14 @@
 #include "tetrodotoxin/library/language/constants/unsigned.hpp"
 #include "tetrodotoxin/library/language/model/types/signed.hpp"
 #include "tetrodotoxin/library/language/model/types/unsigned.hpp"
-#include "tetrodotoxin/library/language/parser/expression.hpp"
 #include "tetrodotoxin/library/language/types/access.hpp"
-#include "tetrodotoxin/library/llvm/builder.hpp"
-#include "ttx/concept/invalid.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
 using namespace Tetrodotoxin::Library;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
-
-static auto parse_index(const Abstract& context, Cursor& cursor)
-    -> Core::Option<Language::Expression&> {
-  auto pack = Language::Parser::Expression::parse(context, cursor);
-  return pack.visit(
-      []() -> Core::Option<Language::Expression&> { return {}; },
-      [](Language::Model::Pack& selected) {
-        return selected.select<Language::Expression>();
-      });
-}
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 
 static auto select_access(const Abstract& output)
     -> Core::Option<const Language::Types::Access&> {
@@ -38,8 +26,8 @@ static auto select_access(const Abstract& output)
   return output.resolve().select<Language::Types::Access>();
 }
 
-static auto is_integer(const Language::Expression& expression) -> Bool {
-  const Abstract& output = expression.get_type();
+static auto is_integer(const Language::Model::Pack& pack) -> Bool {
+  const Abstract& output = pack.get_type();
   auto direct = output.select<Language::Model::Type>();
   const Abstract& type =
       direct ? static_cast<const Abstract&>(*direct) : output.resolve();
@@ -47,18 +35,18 @@ static auto is_integer(const Language::Expression& expression) -> Bool {
          type.is<Tetrodotoxin::Library::Language::Model::Types::Unsigned>();
 }
 
-static auto get_range_count(Language::Expression& expression)
+static auto get_range_count(Language::Model::Pack& pack)
     -> Core::Option<Count> {
   Core::Option<Language::Model::Pack&> folded;
   Core::Option<Language::Expression::Error> fold_error;
-  expression.fold().visit(
+  Language::Expression::fold(pack).visit(
       [&](const Core::Option<Language::Model::Pack&>& selected) {
         folded = selected;
       },
       [&](const Language::Expression::Error& error) { fold_error = error; });
   BAIL_IF(fold_error || !folded);
 
-  auto scalar = folded->select<Language::Expression>();
+  auto scalar = folded->select_identity<Language::Constant>();
   BAIL_IF(!scalar);
   return scalar->visit<Language::Constants::Signed>(
       [](const Language::Constants::Signed& value) -> Core::Option<Count> {
@@ -74,73 +62,30 @@ static auto get_range_count(Language::Expression& expression)
       });
 }
 
-auto Language::Access::Index::parse(
-    const Abstract& context,
-    Cursor& cursor,
-    Expression& receiver) -> Core::Option<Expression&> {
-  Memory::Allocator::Arena& domain = cursor.get_arena();
-  Token opening = cursor.require(
-      Code::Type::BracketStart,
-      "Index reference access requires an opening `[`."_view);
-  BAIL_IF(!opening);
+auto Language::Access::Index::create_authored(
+    Memory::Allocator::Arena& domain,
+    Model::Pack& receiver,
+    Model::Pack& index,
+    Anchor anchor) -> Index& {
+  return Expression::create_authored<Index>(
+      domain, anchor,
+      [&](auto authored) -> Index { return Index(receiver, index, authored); });
+}
 
-  auto selected = parse_index(context, cursor);
-  if (!selected) {
-    cursor.create_expression_error(
-        Span(opening, cursor.current()),
-        "Index access requires one complete first Expression."_view,
-        "Use `[index]` or `[start, count]` with integer Expressions."_view);
-    return {};
-  }
-
-  Core::Option<Expression&> count;
-  if (cursor.matches(Code::Type::PackingOp)) {
-    cursor.consume();
-    count = parse_index(context, cursor);
-    if (!count) {
-      cursor.create_expression_error(
-          Span(opening, cursor.current()),
-          "Ranged Index access requires one complete count Expression."_view,
-          "Use `[start, count]` with an integer count."_view);
-      return {};
-    }
-  }
-
-  if (!cursor.matches(Code::Type::BracketEnd)) {
-    cursor.create_expression_error(
-        Span(opening, cursor.current()),
-        "Index access requires one closing `]`."_view,
-        "Use `[index]` or `[start, count]` with complete delimiters."_view);
-    return {};
-  }
-
-  Token closing = cursor.consume();
-  const auto& receiver_anchor = receiver.get_anchor();
-  const auto& index_anchor = selected->get_anchor();
-  if (!receiver_anchor || !index_anchor || (count && !count->get_anchor())) {
-    cursor.create_expression_error(
-        Span(opening, closing),
-        "Index access requires authored receiver and operand Anchors."_view);
-    return {};
-  }
-
-  Anchor anchor =
-      Anchor::create(opening, receiver_anchor->get_span(), Span(closing));
-  Index& result =
-      count ? Expression::create_authored<Index>(
-                  domain, anchor,
-                  [&](auto authored) -> Index {
-                    return Index(receiver, *selected, *count, authored);
-                  })
-            : Expression::create_authored<Index>(
-                  domain, anchor, [&](auto authored) -> Index {
-                    return Index(receiver, *selected, authored);
-                  });
-  return result;
+auto Language::Access::Index::create_authored(
+    Memory::Allocator::Arena& domain,
+    Model::Pack& receiver,
+    Model::Pack& start,
+    Model::Pack& count,
+    Anchor anchor) -> Index& {
+  return Expression::create_authored<Index>(
+      domain, anchor, [&](auto authored) -> Index {
+        return Index(receiver, start, count, authored);
+      });
 }
 
 auto Language::Access::Index::link_target(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& lexical_context,
     Core::Option<const Abstract&> access_scope) -> Bool {
   BAIL_IF(!receiver.link(cursor, lexical_context, access_scope));
@@ -195,7 +140,7 @@ auto Language::Access::Index::link_target(
 }
 
 auto Language::Access::Index::link(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& lexical_context,
     Core::Option<const Abstract&> access_scope) -> Bool {
   BAIL_IF(!link_target(cursor, lexical_context, access_scope));
@@ -217,13 +162,13 @@ auto Language::Access::Index::finalize(Cursor& cursor) -> void {
 
 auto Language::Access::Index::get_element_type() const -> const Abstract& {
   return element_type.visit(
-      []() -> const Abstract& { return Invalid::get_invalid(); },
+      []() -> const Abstract& { return Unknown::get_unknown(); },
       [](const Reference<const Language::Model::Type>& selected)
           -> const Abstract& { return selected.get(); });
 }
 
 auto Language::Access::Index::get_type() const -> const Abstract& {
-  return count ? static_cast<const Abstract&>(Invalid::get_invalid())
+  return count ? static_cast<const Abstract&>(Unknown::get_unknown())
                : get_element_type();
 }
 
@@ -239,7 +184,7 @@ auto Language::Access::Index::get_write_type(const Language::Model::Type&) const
 }
 
 auto Language::Access::Index::resolve() const -> const Abstract& {
-  return Invalid::get_invalid();
+  return Unknown::get_unknown();
 }
 
 auto Language::Access::Index::link_write_target(
@@ -263,39 +208,4 @@ auto Language::Access::Index::accepts_write(
     BAIL_IF(!source.fits_entry(element.get_layout(), index, 0));
   }
   return True;
-}
-
-auto Language::Access::Index::lower_write_target(Llvm::Builder& body) const
-    -> Bool {
-  auto element = get_element_type().resolve().select<Ttx::Model::Type>();
-  if (!element) {
-    return False;
-  }
-
-  Bool receiver_lowered = receiver.lower(body);
-  if (!receiver_lowered) {
-    return False;
-  }
-
-  Bool index_lowered = first.lower(body);
-  if (!index_lowered) {
-    return False;
-  }
-
-  auto selected_count = get_count();
-  if (!selected_count) {
-    return body.select_index(*element, *this, receiver, first);
-  }
-
-  Bool count_lowered = selected_count->lower(body);
-  if (!count_lowered) {
-    return False;
-  }
-
-  if (!range_count) {
-    return False;
-  }
-
-  return body.select_range(
-      *element, *this, receiver, first, *selected_count, *range_count);
 }

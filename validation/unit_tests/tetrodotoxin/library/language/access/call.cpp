@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/access/call.hpp"
@@ -27,12 +27,13 @@
 #include "tetrodotoxin/library/language/types/fixed.hpp"
 #include "tetrodotoxin/library/language/types/source.hpp"
 #include "tetrodotoxin/library/language/types/structure.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/lexical/errors.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 using Tetrodotoxin::Environment::Workspace;
 using namespace Validation;
@@ -67,7 +68,9 @@ static auto interpret(Workspace& workspace, Errors& errors, View::Bytes source)
 }
 
 static auto rejects_link(View::Bytes source) -> Bool {
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
@@ -75,11 +78,13 @@ static auto rejects_link(View::Bytes source) -> Bool {
     return False;
   }
 
-  return &workspace.resolve_context("CallTest"_view) == &Invalid::get_invalid();
+  return retains_library_source(workspace, "CallTest"_view);
 }
 
 static auto rejects_interpretation(View::Bytes source) -> Bool {
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
@@ -87,16 +92,21 @@ static auto rejects_interpretation(View::Bytes source) -> Bool {
     return False;
   }
 
-  return &workspace.resolve_context("CallTest"_view) == &Invalid::get_invalid();
+  return retains_library_source(workspace, "CallTest"_view);
 }
 
 static auto find_type_callable(
-    const Language::Model::Type& type,
+    const Abstract& answer,
     View::Bytes name,
     Tetrodotoxin::Language::Visibility visibility =
         Tetrodotoxin::Language::Visibility::Private)
     -> Option<const Language::Model::Callable&> {
-  for (const Reference<Abstract>& binding : type.get_callables(visibility)) {
+  auto type = answer.select<Language::Model::Type>();
+  if (!type) {
+    type = answer.resolve().select<Language::Model::Type>();
+  }
+  BAIL_IF(!type);
+  for (const Reference<Abstract>& binding : type->get_callables(visibility)) {
     auto callable = binding.get().resolve().select<Language::Model::Callable>();
     if (binding.get().get_name() == name && callable) {
       return *callable;
@@ -106,7 +116,7 @@ static auto find_type_callable(
   return {};
 }
 
-PERIMORTEM_UNIT_TEST(CallTests, contiguous_builtins_retain_real_callables) {
+PERIMORTEM_UNIT_TEST(CallTests, builtin_callables) {
   static constexpr View::Bytes source =
       "// Contiguous built-in identities.\n"
       "dialect : Library;\n"
@@ -123,7 +133,9 @@ PERIMORTEM_UNIT_TEST(CallTests, contiguous_builtins_retain_real_callables) {
       "  borrowed -> is_empty();\n"
       "  return borrowed -> get_size();\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
@@ -212,7 +224,7 @@ PERIMORTEM_UNIT_TEST(CallTests, contiguous_builtins_retain_real_callables) {
   ASSERT(access_empty_call.get_callable());
   EXPECT(&*access_empty_call.get_callable() == &*access_empty);
   ASSERT(borrowed.get_initializer());
-  ASSERT(borrowed.get_initializer()->is<Language::Access::Call>());
+  ASSERT(borrowed.get_initializer()->is_identity<Language::Access::Call>());
   const auto& get_access =
       static_cast<const Language::Access::Call&>(*borrowed.get_initializer());
   ASSERT(get_access.get_callable());
@@ -221,7 +233,7 @@ PERIMORTEM_UNIT_TEST(CallTests, contiguous_builtins_retain_real_callables) {
 
   const auto& returned = static_cast<const Language::Flow::Return&>(
       statements.get_data()[6].get_root());
-  ASSERT(returned.get_pack().is<Language::Access::Call>());
+  ASSERT(returned.get_pack().is_identity<Language::Access::Call>());
   const auto& get_size =
       static_cast<const Language::Access::Call&>(returned.get_pack());
   ASSERT(get_size.get_callable());
@@ -229,7 +241,7 @@ PERIMORTEM_UNIT_TEST(CallTests, contiguous_builtins_retain_real_callables) {
   EXPECT_TEXT(get_size.get_type().resolve().get_name(), "U64"_view);
 
   const Abstract& custom_identity =
-      monograph->get_source().resolve_context("Custom"_view);
+      monograph->get_source().resolve_concept("Custom"_view);
   auto custom = custom_identity.select<Language::Model::Type>();
   ASSERT(custom);
   auto custom_size = find_type_callable(
@@ -239,7 +251,7 @@ PERIMORTEM_UNIT_TEST(CallTests, contiguous_builtins_retain_real_callables) {
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(CallTests, contiguous_borrow_operations_link) {
+PERIMORTEM_UNIT_TEST(CallTests, borrow_operations) {
   static constexpr View::Bytes source =
       "// Contiguous borrowing operations.\n"
       "dialect : Library;\n"
@@ -257,7 +269,9 @@ PERIMORTEM_UNIT_TEST(CallTests, contiguous_borrow_operations_link) {
       "  return label -> get_size() + tail -> get_size() + "
       "write_tail -> get_size();\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
@@ -279,7 +293,8 @@ PERIMORTEM_UNIT_TEST(CallTests, contiguous_borrow_operations_link) {
   const auto& label = static_cast<const Language::Flow::Local&>(
       statements.get_data()[0].get_root());
   ASSERT(label.get_initializer());
-  auto get_view = label.get_initializer()->select<Language::Access::Call>();
+  auto get_view =
+      label.get_initializer()->select_identity<Language::Access::Call>();
   ASSERT(get_view && get_view->get_callable());
   EXPECT(get_view->get_receiver()
              .get_type()
@@ -287,7 +302,7 @@ PERIMORTEM_UNIT_TEST(CallTests, contiguous_borrow_operations_link) {
              .is<Language::Types::Fixed>());
   EXPECT(get_view->get_callable()->is<Builtin::Fixed::View>());
   auto folded = label.get_constant();
-  ASSERT(folded && folded->is<Language::Constants::Bytes>());
+  ASSERT(folded && folded->is_identity<Language::Constants::Bytes>());
   EXPECT_TEXT(
       static_cast<const Language::Constants::Bytes&>(*folded).get_value(),
       "Echo"_view);
@@ -295,14 +310,14 @@ PERIMORTEM_UNIT_TEST(CallTests, contiguous_borrow_operations_link) {
   const auto& label_tail = static_cast<const Language::Flow::Local&>(
       statements.get_data()[3].get_root());
   folded = label_tail.get_constant();
-  ASSERT(folded && folded->is<Language::Constants::Bytes>());
+  ASSERT(folded && folded->is_identity<Language::Constants::Bytes>());
   EXPECT_TEXT(
       static_cast<const Language::Constants::Bytes&>(*folded).get_value(),
       "cho"_view);
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(CallTests, fitted_bytes_borrow_folds) {
+PERIMORTEM_UNIT_TEST(CallTests, folded_bytes_borrow) {
   static constexpr View::Bytes source =
       "// Fitted bytes borrow.\n"
       "dialect : Library;\n"
@@ -312,7 +327,9 @@ PERIMORTEM_UNIT_TEST(CallTests, fitted_bytes_borrow_folds) {
       "  const view : View[U8] = repack -> get_view();\n"
       "  return;\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
@@ -334,7 +351,7 @@ PERIMORTEM_UNIT_TEST(CallTests, fitted_bytes_borrow_folds) {
   const auto& repack = static_cast<const Language::Flow::Local&>(
       statements.get_data()[0].get_root());
   auto folded = repack.get_constant();
-  ASSERT(folded && folded->is<Language::Constants::Bytes>());
+  ASSERT(folded && folded->is_identity<Language::Constants::Bytes>());
   EXPECT_TEXT(
       static_cast<const Language::Constants::Bytes&>(*folded).get_value(),
       "file: Per"_view);
@@ -342,14 +359,14 @@ PERIMORTEM_UNIT_TEST(CallTests, fitted_bytes_borrow_folds) {
   const auto& viewed = static_cast<const Language::Flow::Local&>(
       statements.get_data()[1].get_root());
   folded = viewed.get_constant();
-  ASSERT(folded && folded->is<Language::Constants::Bytes>());
+  ASSERT(folded && folded->is_identity<Language::Constants::Bytes>());
   EXPECT_TEXT(
       static_cast<const Language::Constants::Bytes&>(*folded).get_value(),
       "file: Per"_view);
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(CallTests, fixed_borrow_requires_writable_receiver) {
+PERIMORTEM_UNIT_TEST(CallTests, fixed_borrow_write) {
   static constexpr Static::Vector<View::Bytes, 2> sources = {{
     "// Const local cannot grant Access.\ndialect : Library; private invalid : func = [] -> [] { const dense : Fixed[U64, 2] = (1, 2); state borrowed : Access[U64] = dense -> get_access(); return; }"_view,
     "// View remains read only.\ndialect : Library; private invalid : func = [] -> [] { state viewed : View[U64]; state borrowed : Access[U64] = viewed -> get_access(); return; }"_view,
@@ -389,7 +406,7 @@ static auto find_function(
   return {};
 }
 
-PERIMORTEM_UNIT_TEST(CallTests, selection_fitting_and_signature_phase) {
+PERIMORTEM_UNIT_TEST(CallTests, call_selection) {
   static constexpr View::Bytes source =
       "// Call selection test.\n"
       "dialect : Library;\n"
@@ -415,14 +432,16 @@ PERIMORTEM_UNIT_TEST(CallTests, selection_fitting_and_signature_phase) {
       "  }\n"
       "}\n"
       "public Later : struct { public state value : Bool; }"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
   ASSERT(monograph);
 
   const Abstract& packet_identity =
-      monograph->get_source().resolve_context("Packet"_view);
+      monograph->get_source().resolve_concept("Packet"_view);
   ASSERT(packet_identity.is<Language::Types::Structure>());
   const auto& packet =
       static_cast<const Language::Types::Structure&>(packet_identity);
@@ -433,9 +452,9 @@ PERIMORTEM_UNIT_TEST(CallTests, selection_fitting_and_signature_phase) {
   ASSERT(named);
   ASSERT(invoke);
   ASSERT(positional->get_initializer());
-  ASSERT(positional->get_initializer()->is<Language::Access::Call>());
+  ASSERT(positional->get_initializer()->is_identity<Language::Access::Call>());
   ASSERT(named->get_initializer());
-  ASSERT(named->get_initializer()->is<Language::Access::Call>());
+  ASSERT(named->get_initializer()->is_identity<Language::Access::Call>());
   auto self_call = find_call(*invoke);
   ASSERT(self_call);
 
@@ -448,15 +467,19 @@ PERIMORTEM_UNIT_TEST(CallTests, selection_fitting_and_signature_phase) {
   ASSERT(self_call->get_callable());
   auto self_entry = invoke->get_parameters().get_abstract(0);
   ASSERT(self_entry);
-  auto self = self_entry->select<Language::Model::Addressable>();
+  auto self = self_entry->select<Tetrodotoxin::Source::Addressable>();
   ASSERT(self);
-  const Abstract& u64 = monograph->resolve_context("U64"_view);
-  const Abstract& boolean = monograph->resolve_context("Bool"_view);
-  EXPECT(&self->resolve_context("Packet"_view) == &Invalid::get_invalid());
-  EXPECT(&self->resolve_access(packet, "positional"_view) == &*positional);
+  const Abstract& u64 = monograph->resolve_concept("U64"_view);
+  const Abstract& boolean = monograph->resolve_concept("Bool"_view);
+  EXPECT(&self->resolve_concept("Packet"_view) == &None::get_none());
   EXPECT(
-      &self->resolve_call(packet, "choose"_view) ==
-      &*self_call->get_callable());
+      &self->get_type()
+           .resolve_concept("instance"_view)
+           .resolve_concept("positional"_view) == &*positional);
+  EXPECT(
+      &self->get_type()
+           .resolve_concept("instance"_view)
+           .resolve_concept("choose"_view) == &*self_call->get_callable());
   EXPECT_NOT(positional_call.get_callable()->is_type_bound());
   EXPECT(self_call->get_callable()->is_type_bound(packet));
   EXPECT(&positional->get_type() == &u64);
@@ -465,9 +488,9 @@ PERIMORTEM_UNIT_TEST(CallTests, selection_fitting_and_signature_phase) {
   EXPECT(&self_call->get_type() == &boolean);
 
   const Abstract& first_identity =
-      monograph->get_source().resolve_context("First"_view);
+      monograph->get_source().resolve_concept("First"_view);
   const Abstract& later_identity =
-      monograph->get_source().resolve_context("Later"_view);
+      monograph->get_source().resolve_concept("Later"_view);
   ASSERT(first_identity.is<Language::Types::Structure>());
   ASSERT(later_identity.is<Language::Types::Structure>());
   auto copy = find_field(
@@ -478,7 +501,7 @@ PERIMORTEM_UNIT_TEST(CallTests, selection_fitting_and_signature_phase) {
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(CallTests, invalid_invocation_is_transactional) {
+PERIMORTEM_UNIT_TEST(CallTests, invalid_invocation) {
   static constexpr Static::Vector<View::Bytes, 2> invalid_calls = {{
     "// Call mismatch test.\ndialect : Library;\n"
     "public Target : struct {\n"
@@ -497,7 +520,7 @@ PERIMORTEM_UNIT_TEST(CallTests, invalid_invocation_is_transactional) {
   }
 }
 
-PERIMORTEM_UNIT_TEST(CallTests, duplicate_role_is_rejected_at_registration) {
+PERIMORTEM_UNIT_TEST(CallTests, duplicate_role) {
   static constexpr Static::Vector<View::Bytes, 2> sources = {{
     "// Static Callable registration collision.\n"
     "dialect : Library;\n"
@@ -522,7 +545,7 @@ PERIMORTEM_UNIT_TEST(CallTests, duplicate_role_is_rejected_at_registration) {
   }
 }
 
-PERIMORTEM_UNIT_TEST(CallTests, argument_pack_requires_parentheses) {
+PERIMORTEM_UNIT_TEST(CallTests, argument_parentheses) {
   EXPECT(rejects_interpretation(
       "// Missing Call argument Pack.\n"
       "dialect : Library;\n"
@@ -532,7 +555,7 @@ PERIMORTEM_UNIT_TEST(CallTests, argument_pack_requires_parentheses) {
       "private invalid := Target -> use;"_view));
 }
 
-PERIMORTEM_UNIT_TEST(CallTests, definition_host_grants_private_authority) {
+PERIMORTEM_UNIT_TEST(CallTests, host_authority) {
   static constexpr View::Bytes accepted =
       "// Hosted private Call test.\n"
       "dialect : Library;\n"
@@ -545,18 +568,20 @@ PERIMORTEM_UNIT_TEST(CallTests, definition_host_grants_private_authority) {
       "}\n"
       "public VaultAlias : alias = Vault;\n"
       "private public_alias := VaultAlias -> open();"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, accepted);
   ASSERT(monograph);
 
   const Abstract& vault_identity =
-      monograph->get_source().resolve_context("Vault"_view);
+      monograph->get_source().resolve_concept("Vault"_view);
   ASSERT(vault_identity.is<Language::Types::Structure>());
   const auto& vault =
       static_cast<const Language::Types::Structure&>(vault_identity);
-  const Abstract& nested_identity = vault.resolve_context("Nested"_view);
+  const Abstract& nested_identity = vault.resolve_concept("Nested"_view);
   ASSERT(nested_identity.is<Language::Types::Structure>());
   const auto& nested =
       static_cast<const Language::Types::Structure&>(nested_identity);
@@ -564,7 +589,7 @@ PERIMORTEM_UNIT_TEST(CallTests, definition_host_grants_private_authority) {
   auto public_alias = find_field(monograph->get_source(), "public_alias"_view);
   ASSERT(observed);
   ASSERT(public_alias);
-  const Abstract& boolean = monograph->resolve_context("Bool"_view);
+  const Abstract& boolean = monograph->resolve_concept("Bool"_view);
   EXPECT(&observed->get_type() == &boolean);
   EXPECT(&public_alias->get_type() == &boolean);
   EXPECT(errors.is_empty());
@@ -578,7 +603,7 @@ PERIMORTEM_UNIT_TEST(CallTests, definition_host_grants_private_authority) {
       "private denied := VaultAlias -> secret();"_view));
 }
 
-PERIMORTEM_UNIT_TEST(CallTests, result_layout_and_addressable_access) {
+PERIMORTEM_UNIT_TEST(CallTests, call_result_access) {
   static constexpr View::Bytes source =
       "// Call result flow test.\n"
       "dialect : Library;\n"
@@ -606,7 +631,9 @@ PERIMORTEM_UNIT_TEST(CallTests, result_layout_and_addressable_access) {
       "  seed -> self_none();\n"
       "  seed -> self_one();\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
@@ -633,14 +660,14 @@ PERIMORTEM_UNIT_TEST(CallTests, result_layout_and_addressable_access) {
   const auto& self_one = static_cast<const Language::Access::Call&>(
       statements.get_data()[4].get_root());
   EXPECT(none.get_layout().is_empty());
-  EXPECT(&none.get_type() == &Invalid::get_invalid());
+  EXPECT(&none.get_type() == &Unknown::get_unknown());
   EXPECT_EQ(one.get_layout().get_size(), Count(1));
-  EXPECT(&one.get_type() == &monograph->resolve_context("Bool"_view));
+  EXPECT(&one.get_type() == &monograph->resolve_concept("Bool"_view));
   EXPECT_EQ(many.get_layout().get_size(), Count(2));
-  EXPECT(&many.get_type() == &Invalid::get_invalid());
-  EXPECT(&many.get_value_type(0) == &monograph->resolve_context("U64"_view));
-  EXPECT(&many.get_value_type(1) == &monograph->resolve_context("Bool"_view));
-  EXPECT(&many.get_value_type(2) == &Invalid::get_invalid());
+  EXPECT(&many.get_type() == &Unknown::get_unknown());
+  EXPECT(&many.get_value_type(0) == &monograph->resolve_concept("U64"_view));
+  EXPECT(&many.get_value_type(1) == &monograph->resolve_concept("Bool"_view));
+  EXPECT(&many.get_value_type(2) == &Unknown::get_unknown());
   EXPECT(self_none.get_layout().is_empty());
   EXPECT_EQ(self_one.get_layout().get_size(), Count(1));
   ASSERT(self_none.get_callable());
@@ -663,11 +690,11 @@ PERIMORTEM_UNIT_TEST(CallTests, result_layout_and_addressable_access) {
   auto selected = find_field(monograph->get_source(), "selected"_view);
   ASSERT(selected);
   ASSERT(selected->get_initializer());
-  ASSERT(selected->get_initializer()->is<Language::Access::Address>());
+  ASSERT(selected->get_initializer()->is_identity<Language::Access::Address>());
   const auto& address = static_cast<const Language::Access::Address&>(
       *selected->get_initializer());
-  EXPECT(address.get_receiver().get_result().is<Ttx::Model::Addressable>());
-  EXPECT(&selected->get_type() == &monograph->resolve_context("U64"_view));
+  EXPECT(address.get_receiver().get_result().is<Tetrodotoxin::Source::Addressable>());
+  EXPECT(&selected->get_type() == &monograph->resolve_concept("U64"_view));
   EXPECT(errors.is_empty());
 
   static constexpr View::Bytes invalid_source =
@@ -681,14 +708,14 @@ PERIMORTEM_UNIT_TEST(CallTests, result_layout_and_addressable_access) {
       "}\n"
       "private seed : Packet;\n"
       "private invalid := Results -> identity(seed).value;"_view;
-  auto invalid_workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect invalid_workspace_toolchain_library;
+  auto invalid_workspace_toolchain =
+      Validation::create_library_toolchain(invalid_workspace_toolchain_library);
   Workspace invalid_workspace(*invalid_workspace_toolchain);
   Errors invalid_errors;
   auto invalid_monograph =
       interpret(invalid_workspace, invalid_errors, invalid_source);
   EXPECT_NOT(invalid_monograph);
-  EXPECT(
-      &invalid_workspace.resolve_context("CallTest"_view) ==
-      &Invalid::get_invalid());
+  EXPECT(retains_library_source(invalid_workspace, "CallTest"_view));
   EXPECT(!invalid_errors.is_empty());
 }

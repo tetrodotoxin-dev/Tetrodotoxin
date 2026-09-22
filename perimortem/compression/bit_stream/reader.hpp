@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -13,7 +13,7 @@ namespace Perimortem::Compression::BitStream {
 // codes accumulate from the most significant bit to match canonical decode
 // order.
 //
-// Internally a 64-bit fill buffer is kept loaded from the stream so peek_code /
+// Internally a 64 bit fill buffer is kept loaded from the stream so peek_code /
 // advance_bits require no memory access in the common case. `fill()` is called
 // lazily when the buffer drops below the requested bit count.
 class Reader {

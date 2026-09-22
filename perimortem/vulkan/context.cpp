@@ -1,9 +1,10 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/vulkan/context.hpp"
 
 #include <vulkan/vulkan_wayland.h>
+#include <wayland-client.h>
 
 #include "perimortem/core/static/vector.hpp"
 #include "perimortem/core/diagnostics/log.hpp"
@@ -169,8 +170,14 @@ static auto find_graphics_queue_family(
   return UINT32_MAX;
 }
 
-auto Vulkan::Context::create(wl_display* display, wl_surface* surface)
+auto Vulkan::Context::create(System::Presentation presentation)
     -> Vulkan::Context {
+  if (!presentation.is_valid() ||
+      presentation.get_kind() != System::Presentation::Kind::Wayland) {
+    Diagnostics::Log::fatal(
+        "Vulkan: The selected presentation kind is not supported."_view);
+  }
+
   Vulkan::Context ctx;
 
   VkApplicationInfo app_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
@@ -196,8 +203,8 @@ auto Vulkan::Context::create(wl_display* display, wl_surface* surface)
 
   VkWaylandSurfaceCreateInfoKHR surface_info = {
     VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR};
-  surface_info.display = display;
-  surface_info.surface = surface;
+  surface_info.display = static_cast<wl_display*>(presentation.get_host());
+  surface_info.surface = static_cast<wl_surface*>(presentation.get_surface());
   require_success(
       vkCreateWaylandSurfaceKHR(
           ctx.instance, &surface_info, nullptr, &ctx.surface),
@@ -234,12 +241,19 @@ auto Vulkan::Context::create(wl_display* display, wl_surface* surface)
   sync2.synchronization2 = VK_TRUE;
   sync2.pNext = &dynamic_rendering;
 
+  VkPhysicalDeviceFeatures available_features = {};
+  vkGetPhysicalDeviceFeatures(ctx.physical_device, &available_features);
+  VkPhysicalDeviceFeatures enabled_features = {};
+  enabled_features.shaderFloat64 = available_features.shaderFloat64;
+  ctx.float64 = Bool(available_features.shaderFloat64);
+
   VkDeviceCreateInfo device_info = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
   device_info.pNext = &sync2;
   device_info.queueCreateInfoCount = 1;
   device_info.pQueueCreateInfos = &queue_info;
   device_info.enabledExtensionCount = U32(device_extensions.get_size());
   device_info.ppEnabledExtensionNames = device_extensions.get_data();
+  device_info.pEnabledFeatures = &enabled_features;
 
   require_success(
       vkCreateDevice(ctx.physical_device, &device_info, nullptr, &ctx.device),
@@ -275,7 +289,8 @@ Vulkan::Context::Context(Vulkan::Context&& other) noexcept
       device(other.device),
       graphics_queue(other.graphics_queue),
       graphics_queue_family(other.graphics_queue_family),
-      command_pool(other.command_pool) {
+      command_pool(other.command_pool),
+      float64(other.float64) {
   other.instance = VK_NULL_HANDLE;
   other.surface = VK_NULL_HANDLE;
   other.physical_device = VK_NULL_HANDLE;
@@ -283,6 +298,7 @@ Vulkan::Context::Context(Vulkan::Context&& other) noexcept
   other.graphics_queue = VK_NULL_HANDLE;
   other.graphics_queue_family = 0;
   other.command_pool = VK_NULL_HANDLE;
+  other.float64 = False;
 }
 
 auto Vulkan::Context::operator=(Vulkan::Context&& other) noexcept
@@ -296,6 +312,7 @@ auto Vulkan::Context::operator=(Vulkan::Context&& other) noexcept
     graphics_queue = other.graphics_queue;
     graphics_queue_family = other.graphics_queue_family;
     command_pool = other.command_pool;
+    float64 = other.float64;
     other.instance = VK_NULL_HANDLE;
     other.surface = VK_NULL_HANDLE;
     other.physical_device = VK_NULL_HANDLE;
@@ -303,6 +320,7 @@ auto Vulkan::Context::operator=(Vulkan::Context&& other) noexcept
     other.graphics_queue = VK_NULL_HANDLE;
     other.graphics_queue_family = 0;
     other.command_pool = VK_NULL_HANDLE;
+    other.float64 = False;
   }
 
   return *this;
@@ -334,6 +352,10 @@ auto Vulkan::Context::get_graphics_queue_family() const -> U32 {
 
 auto Vulkan::Context::get_command_pool() const -> VkCommandPool {
   return command_pool;
+}
+
+auto Vulkan::Context::supports_float64() const -> Bool {
+  return float64;
 }
 
 auto Vulkan::Context::begin_immediate_commands() const -> VkCommandBuffer {

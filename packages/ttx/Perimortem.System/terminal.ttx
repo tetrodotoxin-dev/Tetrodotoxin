@@ -1,18 +1,23 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
 // Terminal input and output backed by the Perimortem runtime ABI.
 dialect : Library;
 
-using Memory;
+public Memory : alias = package(.name = "Perimortem.Memory", .version = "1.0");
+
+using Memory::Dynamic;
 
 foreign "C" {
-  public func perimortem_system_terminal_read_line[] -> Option[Dynamic::Bytes];
-  public func perimortem_system_terminal_write_line[.line : Dynamic::Bytes] -> Bool;
+  public func perimortem_system_terminal_read_line[] -> Option[Bytes];
+  public func perimortem_system_terminal_write_line[.line : Bytes] -> Bool;
 }
 
 public Terminal : struct {
   public read_line : func = [] -> Option[
-    Dynamic::Bytes,
+    Bytes,
   ] : return foreign -> perimortem_system_terminal_read_line();
   public write_line : func = [
-    .line : Dynamic::Bytes,
+    .line : Bytes,
   ] -> Bool : return foreign -> perimortem_system_terminal_write_line(line);
 }

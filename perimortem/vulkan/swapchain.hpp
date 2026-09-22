@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -13,7 +13,7 @@
 namespace Perimortem::Vulkan {
 
 // Owns the swapchain, its images, and image views. Supports recreation
-// in-place when the window is resized or the buffer scale changes.
+// in place when the window is resized or the buffer scale changes.
 class Swapchain {
  public:
   static auto create(const Context& ctx, U32 width, U32 height) -> Swapchain;

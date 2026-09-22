@@ -1,5 +1,0 @@
-// Rejects a repeated authored semantic identity.
-dialect : Package;
-
-source Member from "first.ttx";
-source Member from "second.ttx";

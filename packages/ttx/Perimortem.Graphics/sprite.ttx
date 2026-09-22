@@ -1,0 +1,30 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+// A placed textured quad with one selected Shader implementation.
+//
+dialect : Library;
+
+private Texture2DSource : alias = source("texture2d.ttx");
+public Pipeline : alias = source("pipelines/textured_2d.ttx");
+private Size2DSource : alias = source("size2d.ttx");
+private Transform2DSource : alias = source("transform2d.ttx");
+
+public Size2D      : alias = Size2DSource::Size2D;
+public Texture2D   : alias = Texture2DSource::Texture2D;
+public Transform2D : alias = Transform2DSource::Transform2D;
+
+// DrawableUI is the explicit state collected by the ordered UI pass.
+public DrawableUI : interface {
+  public state material  : Implementation[Pipeline];
+  public state transform : Transform2D;
+  public state visible   : Bool = true;
+  public state z_index   : S64;
+}
+
+// Sprite supplies the fixed textured-quad geometry and its host-owned inputs.
+// Implementing DrawableUI materializes the shared pass state exactly once.
+public Sprite : implementation DrawableUI {
+  public state texture : Texture2D;
+  public state size    : Size2D;
+}

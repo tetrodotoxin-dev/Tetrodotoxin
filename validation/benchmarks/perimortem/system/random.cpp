@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/system/random.hpp"
@@ -19,7 +19,7 @@ static Harness SystemRandom = {
 };
 
 PERIMORTEM_BENCHMARK(SystemRandom, generate_1024) {
-  // Throughput benchmark: 1024 Philox-derived 64-bit values.
+  // Throughput benchmark: 1024 Philox derived 64 bit values.
   U64 accumulator = 0;
   for (Count batch_index = 0; batch_index < random_batch; batch_index++) {
     accumulator ^= Random::generate();

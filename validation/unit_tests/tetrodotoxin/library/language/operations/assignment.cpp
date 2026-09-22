@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/operations/assignment.hpp"
@@ -18,14 +18,14 @@
 #include "tetrodotoxin/library/language/operations/subtract.hpp"
 #include "tetrodotoxin/library/language/operations/subtract_assignment.hpp"
 #include "tetrodotoxin/library/language/types/composite.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Tetrodotoxin::Library;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using Tetrodotoxin::Environment::Workspace;
 using namespace Validation;
 
@@ -58,17 +58,16 @@ static auto find_function(
 }
 
 static auto rejects_source(View::Bytes source) -> Bool {
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   return !interpret(workspace, errors, source) && !errors.is_empty() &&
-         &workspace.resolve_context("AssignmentTest"_view) ==
-             &Invalid::get_invalid();
+         retains_library_source(workspace, "AssignmentTest"_view);
 }
 
-PERIMORTEM_UNIT_TEST(
-    AssignmentTests,
-    operators_are_lowest_precedence_expressions) {
+PERIMORTEM_UNIT_TEST(AssignmentTests, lowest_precedence) {
   static constexpr View::Bytes source =
       "// Assignment graph.\n"
       "dialect : Library;\n"
@@ -91,7 +90,9 @@ PERIMORTEM_UNIT_TEST(
       "  access[0] = local;\n"
       "  return;\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
@@ -106,7 +107,7 @@ PERIMORTEM_UNIT_TEST(
     const Abstract& semantic = statements.get_data()[index + 2].get_root();
     ASSERT(semantic.is<Language::Expression>());
     const auto& expression = static_cast<const Language::Expression&>(semantic);
-    EXPECT(expression.resolve().is<Language::Model::Pack>());
+    EXPECT(expression.is_complete());
     EXPECT(expression.get_layout().is_empty());
   }
 
@@ -122,8 +123,8 @@ PERIMORTEM_UNIT_TEST(
   const auto& precedence = static_cast<const Language::Operations::Assignment&>(
       statements.get_data()[2].get_root());
   EXPECT(precedence.get_target().resolve().is<Language::Expression>());
-  EXPECT(precedence.get_source().resolve().is<Language::Model::Pack>());
-  EXPECT(precedence.get_source().is<Language::Operations::Add>());
+  EXPECT(precedence.get_source().is_complete());
+  EXPECT(precedence.get_source().is_identity<Language::Operations::Add>());
   ASSERT(precedence.get_anchor());
   EXPECT_TEXT(
       precedence.get_anchor()->get_span().caculate_text(source),
@@ -143,8 +144,9 @@ PERIMORTEM_UNIT_TEST(
           statements.get_data()[5].get_root());
   EXPECT(addition.get_target().resolve().is<Language::Expression>());
   EXPECT(subtraction.get_target().resolve().is<Language::Expression>());
-  EXPECT_NOT(addition.get_right().is<Language::Operations::Add>());
-  EXPECT_NOT(subtraction.get_right().is<Language::Operations::Subtract>());
+  EXPECT_NOT(addition.get_right().is_identity<Language::Operations::Add>());
+  EXPECT_NOT(
+      subtraction.get_right().is_identity<Language::Operations::Subtract>());
   ASSERT(addition.get_right().get_anchor());
   ASSERT(subtraction.get_right().get_anchor());
   EXPECT_TEXT(
@@ -157,7 +159,7 @@ PERIMORTEM_UNIT_TEST(
   const Abstract& retained = statements.get_data()[2].get_root();
   Perimortem::Memory::Allocator::Arena transaction;
   Tokenizer tokenizer(transaction, source, "assignment.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   ASSERT(monograph->link(cursor));
   ASSERT(monograph->finalize(cursor));
@@ -166,7 +168,7 @@ PERIMORTEM_UNIT_TEST(
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(AssignmentTests, complete_pack_fits_target) {
+PERIMORTEM_UNIT_TEST(AssignmentTests, pack_fitting) {
   static constexpr View::Bytes source =
       "// Assignment Pack.\n"
       "dialect : Library;\n"
@@ -179,21 +181,25 @@ PERIMORTEM_UNIT_TEST(AssignmentTests, complete_pack_fits_target) {
       "  pair = (1, true);\n"
       "  return pair;\n"
       "}"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   ASSERT(interpret(workspace, errors, source));
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(AssignmentTests, immutable_targets_are_rejected) {
+PERIMORTEM_UNIT_TEST(AssignmentTests, immutable_targets) {
   static constexpr View::Bytes writable =
       "// Public state write.\n"
       "dialect : Library;\n"
       "public Data : struct { public state value : U64; }\n"
       "private data : Data;\n"
       "private write : func = [] -> [] { data.value = 1; return; }"_view;
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
   Errors errors;
   ASSERT(interpret(workspace, errors, writable));
@@ -211,7 +217,7 @@ PERIMORTEM_UNIT_TEST(AssignmentTests, immutable_targets_are_rejected) {
   }
 }
 
-PERIMORTEM_UNIT_TEST(AssignmentTests, invalid_values_and_targets_are_rejected) {
+PERIMORTEM_UNIT_TEST(AssignmentTests, invalid_assignment) {
   static constexpr Static::Vector<View::Bytes, 7> sources = {{
     "// Plain mismatch.\ndialect : Library; private invalid : func = [] -> [] { state value : Bool = false; value = 1; return; }"_view,
     "// Compound mismatch.\ndialect : Library; private invalid : func = [] -> [] { state value : U64 = 0; value += -1; return; }"_view,

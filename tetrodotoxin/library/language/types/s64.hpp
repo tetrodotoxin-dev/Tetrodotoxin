@@ -1,10 +1,10 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
 
 #include "tetrodotoxin/library/language/model/types/signed.hpp"
-#include "ttx/model/documentations/comment.hpp"
+#include "tetrodotoxin/source/documentations/comment.hpp"
 
 namespace Tetrodotoxin::Library::Language::Types {
 
@@ -24,7 +24,7 @@ class S64 : public Model::Types::Signed {
   }
 
  private:
-  static constexpr Ttx::Model::Documentations::Comment documentation{
+  static constexpr Tetrodotoxin::Source::Documentations::Comment documentation{
     "S64 is stored as an 8 byte two's-complement integer."_view,
   };
 };

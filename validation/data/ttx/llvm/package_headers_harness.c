@@ -1,3 +1,6 @@
+// # Tetrodotoxin
+// Copyright (c) 2023-present Matt Kaes and contributors
+//
 #include <stddef.h>
 
 #include "Perimortem.System/1.0/c_abi.h"

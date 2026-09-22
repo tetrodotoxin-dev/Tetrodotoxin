@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/core/reader/textual.hpp"
@@ -30,7 +30,7 @@ PERIMORTEM_UNIT_TEST(CoreTextualReader, integers) {
   EXPECT_EQ(reader.get_location(), reader.get_size());
 }
 
-PERIMORTEM_UNIT_TEST(CoreTextualReader, integer_limits_and_radix) {
+PERIMORTEM_UNIT_TEST(CoreTextualReader, integer_radix_limits) {
   Reader::Textual unsigned_maximum("18446744073709551615"_view);
   EXPECT_EQ(unsigned_maximum.read_unsigned(), U64(-1));
   EXPECT(unsigned_maximum.is_valid());

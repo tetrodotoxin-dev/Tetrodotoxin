@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/serialization/base64.hpp"
@@ -103,98 +103,30 @@ auto vectorized_decode(U8* text, View::Bytes source) -> Count {
   auto output_stream = text + output_vectorized_bytes;
   source_data = source_data + source_vectorized_bytes;
 
-  // Use AVX2 for vectorization as it's generally more available than AVX512
-  // and has less throttling concerns, and this decision single handedly
-  // complicates everything.
+  // AVX2 offers broad host support with less throttling than AVX512, so this
+  // path accepts its smaller shuffle lanes in exchange for predictable use.
+  // Each lane has sixteen lookup entries for the five Base64 character groups.
+  // Uppercase letters subtract 65, lowercase letters subtract 71, digits add
+  // 4, plus adds 19, and slash adds 16.
   //
-  // For base 64 we really only have 5 ranges we care about, each of which can
-  // be mapped to it's actual byte value with a simple offset:
-  // A-Z: 65 -> -65
-  // a-z: 97 -> -71
-  // 0-9: 48 -> +4
-  // +:   43 -> +19
-  // /:   47 -> +16
+  // Inverting the high nibble and masking its top bit gives every group a
+  // useful four bit shuffle index. The final nibble clears the shuffle control
+  // bit at the same time, which saves an instruction and leaves enough room for
+  // another unrolled round while the data dependency settles.
   //
-  // Great so all we have to do is map a character to an offset. There is most
-  // likely a known way to do this mapping, but since I have "not invented
-  // here" syndrome and insist on doing things the hard way, let's see if we
-  // can pigeon hole each interesting range by shifting out a range.
-  //
-  // With AVX2 _mm256_shuffle_epi8 ONLY shuffles using 128-bit lanes meaning
-  // we only get 16 values we can work with per lane. That means if we can
-  // limit each look up by identifying a useful 4 bit range then we can do
-  // look ups in a single shift. This is the problem with our early decision
-  // to use AVX2 since if we had AVX512, not only would we get to use 256-bit
-  // lanes, but it actually upgrades all the way the full 512-bit lane
-  // offering us a 6 bit look up range.
-  //
-  // Given we expect valid ASCII, which is only a 7 bit format, we only
-  // need to shave off 3-4 bits. Looking at the bits something interesting
-  // stands out: If we shift off the 4 lower bits we get almost perfect bit
-  // sets:
-  //
-  // '0' -> 0b_011____; -> 3
-  // '9' -> 0b_011____; -> 3
-  // 'A' -> 0b_100____; -> 4
-  // 'Z' -> 0b_101____; -> 5
-  // 'a' -> 0b_110____; -> 6
-  // 'z' -> 0b_111____; -> 7
-  // '+' -> 0b_010____; -> 2
-  // '/' -> 0b_010____; -> 2
-  //
-  // Exactly 1 value conflicts so 3 bits just aren't enough to differentiate all
-  // of the value ranges. It turns out Base64URL also doesn't help despite using
-  // '_' and '-'. Instead we can take advantage of base64 only using ASCII chars
-  // which leaves the MSB always 0.
-  //
-  // We can use the MSB by setting it _IF_ the lower 4 bits are exactly 0xF:
-  //
-  // '0' -> 0b_011____ -> 3
-  // '9' -> 0b_011____ -> 3
-  // 'A' -> 0b_100____ -> 4
-  // 'O' -> 0b1100____ -> 12 now
-  // 'Z' -> 0b_101____ -> 5
-  // 'a' -> 0b_110____ -> 6
-  // 'o' -> 0b1110____ -> 14 now
-  // 'z' -> 0b_111____ -> 7
-  // '+' -> 0b_010____ -> 2
-  // '/' -> 0b1010____ -> 10
-  //
-  // This almost works but we can do slightly better. Rather than adding the
-  // MSB we can instead negate all the bits and remove it with an AND mask:
-  //
-  // '0' -> 0b1100____ -> 12
-  // '9' -> 0b1100____ -> 12
-  // 'A' -> 0b1011____ -> 11
-  // 'O' -> 0b0011____ -> 3 (top bit masked from 0xF invert mask)
-  // 'Z' -> 0b1010____ -> 10
-  // 'a' -> 0b1001____ -> 9
-  // 'o' -> 0b0001____ -> 1 (top bit masked from 0xF invert mask)
-  // 'z' -> 0b1000____ -> 8
-  // '+' -> 0b1101____ -> 13
-  // '/' -> 0b0101____ -> 5 (top bit masked from 0xF invert mask)
-  //
-  // The benefit of this is that 0xF is also clamped to a 16 byte range still
-  // but we also ensure the control bit is also always disabled by the AND
-  // mask with the same and manipulation, saving an entire "Or" instruction
-  // which frees just enough resources to sneak in an additional round of
-  // unrolling while we are blocked on latency for the data dependency.
-  //
-  // Now this is a bit of a code crime because unlike other vectorization
-  // methods I haven't figured out a good way to to validate bad inputs.
-  // For now it's undefined behavior, so it's on the caller to validate inputs
-  // from untrusted sources if they aren't going to validate the output.
+  // This vector path expects validated Base64 input. Callers handling untrusted
+  // text validate it before relying on the decoded bytes.
   const auto adjustment_values = _mm256_setr_epi8(
       // Lane 1
       /* 0 */ _,
       /* 'o' */ -71, _,
       /* 'O' */ -65, _,
       /* '/' */ +16, _, _,
-      /* 'p' - 'z' */ -71,
-      /* 'a' - 'n' */ -71,
-      /* 'P' - 'Z' */ -65,
-      /* 'A' - 'N' */ -65,
-      /* 0 - 9 */ +4,
+      /* lowercase p through z */ -71,
+      /* lowercase a through n */ -71,
+      /* uppercase P through Z */ -65,
+      /* uppercase A through N */ -65,
+      /* digits */ +4,
       /* + */ +19, _, _,
 
       // Lane 2 (same as Lane 1)
@@ -202,15 +134,15 @@ auto vectorized_decode(U8* text, View::Bytes source) -> Count {
       /* 'o' */ -71, 0,
       /* 'O' */ -65, 0,
       /* '/' */ +16, _, 0,
-      /* 'p' - 'z' */ -71,
-      /* 'a' - 'n' */ -71,
-      /* 'P' - 'Z' */ -65,
-      /* 'A' - 'N' */ -65,
-      /* 0 - 9 */ +4,
+      /* lowercase p through z */ -71,
+      /* lowercase a through n */ -71,
+      /* uppercase P through Z */ -65,
+      /* uppercase A through N */ -65,
+      /* digits */ +4,
       /* + */ +19, _, _);
 
   const auto invert_mask = _mm256_setr_epi8(
-      // Lane 1 - Note the 0xF case removes an extra bit.
+      // Lane 1 uses the final entry to remove the extra control bit.
       0b1111, 0b1111, 0b1111, 0b1111, 0b1111, 0b1111, 0b1111, 0b1111, 0b1111,
       0b1111, 0b1111, 0b1111, 0b1111, 0b1111, 0b1111, 0b0111,
 
@@ -360,51 +292,11 @@ auto vectorize_encode(Access::Bytes output, View::Bytes source) -> void {
     }
   }
 
-  // Alrignt now that we have our 6 bit values we need to pigeon hole them since
-  // we only have 4 bits worth of lookup.
-  //
-  // For base 64 we really only have 5 ranges we care about and all the offsets
-  // are just the inverse of the decode version:
-  // A-Z: 65 -> +65
-  // a-z: 97 -> +71
-  // 0-9: 48 -> -4
-  // +:   43 -> -19
-  // /:   47 -> -16
-  //
-  // The bit ranges we have to deal with however are a bit more annoying:
-  // 000000 -> +65
-  // 011001 -> +65
-  // 011010 -> +71
-  // 110011 -> +71
-  // 110100 -> -4
-  // 111101 -> -4
-  // 111110 -> -19
-  // 111111 -> -16
-  //
-  // Since we have the benefit of continous ranges this time we can look at
-  // compressing the alpha range into two checks to save a majority of values.
-  //
-  // If we subtract 51 then we can compress the alphas into a single value as
-  // long as we saturate the result to 0:
-  // __0000 -> "Alpha" -> +71
-  // __0001 -> '0' -> -4
-  // __0010 -> '1' -> -4
-  // __0011 -> '2' -> -4
-  // __0100 -> '3' -> -4
-  // __0101 -> '4' -> -4
-  // __0110 -> '5' -> -4
-  // __0111 -> '6' -> -4
-  // __1000 -> '7' -> -4
-  // __1001 -> '8' -> -4
-  // __1010 -> '9' -> -4
-  // __1011 -> '+' -> -19
-  // __1100 -> '/' -> -16
-  // __1101 -> ???
-  // __1110 -> ???
-  // __1111 -> ???
-  //
-  // A CMPGT can let us compute an additional offset for the lower alpha values.
-  // With that we can conditionally sub 6;
+  // Encoding applies the inverse offsets to each six bit value. A saturating
+  // subtraction by 51 folds the contiguous letter ranges into one shuffle
+  // entry, while the comparison adds the smaller correction needed by the
+  // lower letter range. Digits and the two punctuation values retain their
+  // direct table entries.
   const auto adjustment_values = _mm256_setr_epi8(
       // Lane 1
       /* Alphas */ 71,
@@ -489,15 +381,12 @@ auto vectorize_encode(Access::Bytes output, View::Bytes source) -> void {
       const auto d_and_b = _mm256_and_si256(
           chunk_data, _mm256_set1_epi32(0b00000000'00111111'00000011'11110000));
 
-      // We don't have a good way to do variable length "shift right", so we can
-      // "shift left" using mul and then just take the high 16 bytes.
-      // Shift C right 6  -> (C << 10) >> 16
-      // Shift A right 10 -> (A <<  6) >> 16
+      // Unsigned high multiplication moves C right by six bits and A right by
+      // ten bits without requiring a variable shift instruction.
       const auto low_bytes = _mm256_mulhi_epu16(
           c_and_a, _mm256_set1_epi32(0b0000010000000000'0000000001000000));
-      // For D and B we can just do a variable length "shift left" in place.
-      // Shift B left 4 -> (B << 4) >> 0
-      // Shift A left 8 -> (D << 8) >> 0
+      // Low multiplication moves B left by four bits and D left by eight bits
+      // directly into their output positions.
       const auto high_bytes = _mm256_mullo_epi16(
           d_and_b, _mm256_set1_epi32(0b0000000100000000'0000000000010000));
 
@@ -526,7 +415,7 @@ auto vectorize_encode(Access::Bytes output, View::Bytes source) -> void {
     output_stream += output_bytes_per_iteration;
   }
 
-  // Scalar fallback: >= rather than > so the final complete 3-byte group is
+  // The inclusive comparison keeps the final complete three byte group from
   // not skipped when source size is an exact multiple of 3.
   while (source_bytes >= source_stride) {
     output_stream[0] = encode_lookup[(source_data[0] >> 2)];
@@ -595,7 +484,7 @@ auto Base64::decode(Allocator::Arena& arena, View::Bytes source)
 
   Count size = (source.get_size() / 4) * 3;
 
-  // Pre-pad by decode_underwrite_bytes so the vectorized loop can underwrite.
+  // Prefix padding gives the vectorized loop its documented underwrite region.
   auto storage =
       arena.allocate(decode_underwrite_bytes + size + decode_extra_bytes);
   U8* text = storage.get_data() + decode_underwrite_bytes;

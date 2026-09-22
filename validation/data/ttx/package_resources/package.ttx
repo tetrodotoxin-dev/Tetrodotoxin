@@ -1,5 +1,12 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
 // Exercises ordered package member resource loading.
 dialect : Package;
+package(.name = "Validation.Resources", .version = "1.0");
 
-source SharedA from "shared_a.ttx";
-source SharedB from "shared_b.ttx";
+private SharedA : alias = source("./shared_a.ttx");
+public SharedAgain : alias = source("nested/../shared_a.ttx");
+public SharedB : alias = source("shared_b.ttx");
+public SharedC : alias = source("nested/shared_c.ttx");
+public Deep : alias = source("shared_a.ttx")::Outer::Inner;

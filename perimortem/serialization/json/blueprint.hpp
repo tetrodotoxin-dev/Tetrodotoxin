@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -14,7 +14,7 @@ namespace Perimortem::Serialization::Json {
 // Describes a temporary JSON tree which materializes its values as managed
 // Nodes in an Arena with a single owning lifetime.
 //
-// Stack-provided scalars, objects, arrays, and existing Nodes are supported.
+// Stack provided scalars, objects, arrays, and existing Nodes are supported.
 // The value Union keeps each payload paired with its type without exposing a
 // parallel tag or inactive fields.
 class Blueprint {

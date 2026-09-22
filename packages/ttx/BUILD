@@ -1,43 +1,33 @@
+# # Tetrodotoxin
+# Copyright (c) 2023-present Matt Kaes and contributors
+
 """Canonical source Packages distributed with Tetrodotoxin."""
 
-load(
-    "//toolchain:tetrodotoxin.bzl",
-    "ttx_native_provider",
-    "ttx_package",
-)
+load("//toolchain:tetrodotoxin.bzl", "ttx_source")
 
-package(default_visibility = ["//visibility:private"])
+package(default_visibility = ["//visibility:public"])
 
-ttx_package(
+ttx_source(
     name = "perimortem_memory",
-    package_name = "Perimortem.Memory",
-    manifest = "Perimortem.Memory/package.ttx",
-    version = [
-        1,
-        0,
-    ],
-    visibility = ["//visibility:public"],
+    src = "Perimortem.Memory/package.ttx",
 )
 
-ttx_native_provider(
-    name = "perimortem_system_native",
-    dep = "//perimortem:abi_system",
-    functions = [
-        "perimortem_system_terminal_read_line",
-        "perimortem_system_terminal_write_line",
-    ],
-    provider_name = "Perimortem.System.Host",
+ttx_source(
+    name = "perimortem_math",
+    src = "Perimortem.Math/package.ttx",
 )
 
-ttx_package(
+ttx_source(
+    name = "perimortem_graphics",
+    src = "Perimortem.Graphics/package.ttx",
+    deps = [":perimortem_math"],
+)
+
+ttx_source(
     name = "perimortem_system",
-    package_name = "Perimortem.System",
-    manifest = "Perimortem.System/package.ttx",
-    native_deps = [":perimortem_system_native"],
-    version = [
-        1,
-        0,
+    src = "Perimortem.System/package.ttx",
+    deps = [
+        ":perimortem_math",
+        ":perimortem_memory",
     ],
-    visibility = ["//visibility:public"],
-    deps = [":perimortem_memory"],
 )

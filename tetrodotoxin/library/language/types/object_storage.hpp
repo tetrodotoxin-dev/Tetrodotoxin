@@ -1,16 +1,17 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
 
 #include "tetrodotoxin/library/language/model/type.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/model/documentations/comment.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/documentations/comment.hpp"
 
 namespace Tetrodotoxin::Library::Language::Types {
 
-// ObjectStorage is the generated Object[T] value. It owns one empty-capable
-// managed buffer while its Generic retains the canonical element identity.
+// ObjectStorage is the generated Object[T] value. It owns one carrier that can
+// be empty managed buffer while its Generic retains the canonical element
+// identity.
 class ObjectStorage : public Model::Type {
  public:
   TTX_CONTRACT(ObjectStorage, Model::Type);
@@ -26,14 +27,9 @@ class ObjectStorage : public Model::Type {
 
   TTX_NAME(name);
   TTX_DOCUMENTATION(documentation);
-  TTX_CONSTEXPR_INVALID_CONTEXT;
 
   auto create_default(Perimortem::Memory::Allocator::Arena& arena) const
       -> Perimortem::Core::Option<Model::Pack&> override;
-
-  auto reserve(Llvm::Program& program) const -> Bool override;
-
-  auto complete(Llvm::Program& program) const -> Bool override;
 
   constexpr auto get_element_type() const -> const Model::Type& {
     return element;
@@ -42,7 +38,7 @@ class ObjectStorage : public Model::Type {
  private:
   Perimortem::Core::View::Bytes name;
   const Model::Type& element;
-  static constexpr Ttx::Model::Documentations::Comment documentation{
+  static constexpr Tetrodotoxin::Source::Documentations::Comment documentation{
     "Owns an empty-capable managed buffer of one exact element Type."_view,
   };
 };

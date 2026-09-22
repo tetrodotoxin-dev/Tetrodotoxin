@@ -1,0 +1,8 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+// Resolves the shared resource from a nested source-relative route.
+dialect : Library;
+
+public const shared_header_c : Fixed[U8, 64] =
+    $[../resources/./table.bin]:[0, 64];

@@ -1,0 +1,26 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+// Builds the Echo application with explicit providers from the installed SDK.
+dialect : Build;
+
+// Locates the package Environment opens in its child Workspace.
+private Product : alias = source("package.ttx");
+
+// Keeps host-dependent roots and providers outside the package.
+environment = Environment {
+  .output_root = "build",
+  .reachable_roots = [".", sdk],
+  .repositories = [sdk_repository("standard")],
+  .plugins = [
+    sdk("Tetrodotoxin.Library"),
+    sdk("Tetrodotoxin.App"),
+    sdk("Tetrodotoxin.LLVM"),
+    sdk("Perimortem.System"),
+  ],
+}
+
+// Publishes one executable from the package's exported App identity.
+public Application : product = Product::App {
+  .terminal = sdk("Tetrodotoxin.LLVM")::NativeExecutable,
+};

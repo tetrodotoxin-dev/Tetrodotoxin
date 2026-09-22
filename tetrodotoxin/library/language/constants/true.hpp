@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -16,8 +16,8 @@ class True : public Flag {
   static auto create_authored(
       Perimortem::Memory::Allocator::Arena& domain,
       const Tetrodotoxin::Library::Language::Model::Types::Flag& type,
-      Ttx::Lexical::Anchor anchor) -> True& {
-    return Expression::create_authored<True>(
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> True& {
+    return Constant::create_authored<True>(
         domain, anchor,
         [&](auto source) -> True { return True(type, source); });
   }
@@ -26,14 +26,14 @@ class True : public Flag {
       Perimortem::Memory::Allocator::Arena& domain,
       const Tetrodotoxin::Library::Language::Model::Types::Flag& type)
       -> True& {
-    return Expression::create_synthetic<True>(
+    return Constant::create_synthetic<True>(
         domain, [&](auto source) -> True { return True(type, source); });
   }
 
  private:
   constexpr True(
       const Tetrodotoxin::Library::Language::Model::Types::Flag& type,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor)
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor)
       : Flag(type, ::True, anchor) {}
 };
 

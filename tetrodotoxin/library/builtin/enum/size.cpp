@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/builtin/enum/size.hpp"
@@ -9,7 +9,7 @@ using namespace Perimortem;
 using namespace Tetrodotoxin::Library;
 
 auto Builtin::Enum::Size::create(
-    Memory::Allocator::Arena& domain,
+    Perimortem::Memory::Allocator::Arena& domain,
     const Language::Model::Types::Unsigned& type,
     Count count) -> Size& {
   Language::Constants::Unsigned& constant =

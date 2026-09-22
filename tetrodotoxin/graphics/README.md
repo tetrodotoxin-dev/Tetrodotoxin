@@ -1,71 +1,89 @@
 # Graphics
 
-Graphics connects completed Scene state to a renderer. Scene owns the objects
-that make up the scene. Graphics reads those objects and creates one stable
-frame submission without teaching Scene about Vulkan, windows, or GPU commands.
+Graphics turns completed Scene Objects into immutable frame draws without
+making Scene understand Vulkan or making the backend understand authored TTX
+Objects. It is a runtime and Terminal boundary, not another Dialect or a second
+scene graph.
 
-Graphics is not a Dialect. It is a runtime contract shared by Scene, App,
-Render, Shader, and rendering backends. It does not add a generic scene-node
-Type or copy the program into another semantic graph.
+## Drawable interfaces
 
-## Hosted graphics state
-
-A Library Object can be hosted when its Type supports the Graphics contract.
-The standard `Perimortem.Graphics` Package provides Types such as `Image` and
-`Sprite` that support it.
-
-Scene hosts one of these objects through a private `state` Field initialized
-with `new[ObjectType]`:
+The ordinary `Perimortem.Graphics` Package publishes a real Library Interface:
 
 ```ttx
-private state icon : Graphics::Sprite = new[Graphics::Sprite];
+public DrawableUI : interface {
+  public state material  : Implementation[Pipeline];
+  public state transform : Transform2D;
+  public state visible   : Bool = true;
+  public state z_index   : S64;
+}
 ```
 
-The Field remains an ordinary Library Field. Scene changes the Sprite through
-normal field access, and Graphics reads the same Object when it prepares a
-frame. There is no separate node declaration or copied field table.
+`Implementation[Pipeline]` is explicit Object-backed erasure for one exact
+higher-order Interface relation. It retains the concrete Shader Material and
+its immutable ABI projection. It does not copy declarations or rely on a
+structural naming convention.
 
-Hosted Objects may contain more private state Fields that follow the same rule.
-Graphics walks those real Fields in authored order. If Scene assigns a new
-Object to a hosted Field, the next frame sees the replacement through the same
-Field identity.
+A concrete Type names the Interface it implements:
 
-## Frame submission
+```ttx
+public Sprite : implementation DrawableUI {
+  public state texture : Texture2D;
+  public state size    : Size2D;
+}
+```
 
-After `update` finishes, Graphics walks the hosted tree and records the data a
-renderer needs. This can include images, transforms, sizes, tones, visibility,
-draw order, and the selected Render and Shader contracts.
+The implementation materializes the Interface state once, before Sprite's own
+Fields. Sprite therefore does not redeclare `material`, `transform`, `visible`,
+or `z_index`, while ordinary access continues to select them on the Sprite.
+The generated ABI layout preserves that exact prefix for Interface projection.
 
-Visibility and transforms flow from a host to its children. An invisible host
-removes its whole subtree from the frame. Higher `z_index` values are drawn in
-front of lower values. When two values have the same index, the Field authored
-later is drawn in front.
+## Sprite owns the quad draw
 
-The completed submission is a runtime value, not a collection of Scene objects.
-The backend presents it before Scene publishes the frame's signals and before
-App changes the active Scene. Scene replacement therefore cannot change a frame
-while the renderer is reading it.
+`Image` is the shared decoded CPU identity. `Sampler2D` is independent
+addressing and filtering policy, and inline `Texture2D` pairs the two without
+another allocation. A Sprite contributes that sampled value, size, Material,
+and its fixed draw policy: unit-quad geometry, triangle-list topology, alpha
+blending, and six vertices.
 
-## Rendering backends
+Those fixed facts do not belong to the Pipeline or Shader. A frame Batch carries
+them beside the selected Program, resources, parameter bytes, transform, size,
+and z index. Vulkan caches a native realization by Program plus fixed draw
+state, so another drawable can select another compatible state without
+hard-coding that policy into the Shader generator.
 
-A backend turns the submission into images, buffers, bindings, draw batches,
-and commands. Perimortem Graphics owns reusable image decoding and
-backend-independent draw data. Vulkan owns device resources, command recording,
-synchronization, and presentation.
+The concrete Material remains the owner of authored uniforms and additional
+resources. Frame collection copies its current parameter bytes and follows the
+generated resource projection in declaration order. For example, Scene
+Lifetime's Blend Material owns its noise Texture2D while Sprite still supplies
+the primary texture required by the textured-quad Pipeline.
 
-Render and Shader describe what the backend must produce. Vulkan handles and
-target offsets remain backend details. They never enter Scene state, Package
-Archives, or the live TTX graph.
+## Passes
 
-## Archives
+`PassUI` gathers Objects that implement `DrawableUI`, rejects invalid cycles,
+freezes their current draw values, and sorts accepted Batches in ascending z
+order. Authored traversal order breaks equal-z ties. Visibility removes a
+complete hosted subtree, and transforms compose through that traversal.
 
-Graphics has no source language and therefore no Archive data of its own.
-Library and Scene Archives store the Types, Fields, resources, and relationships
-needed to rebuild hosted state. Frame submissions and backend objects are live
-runtime data and are never restored from an Archive.
+A 3D pass is a separate capability because depth-tested geometry has a
+different collection and ordering contract. It can share Material and Pipeline
+machinery without making `DrawableUI` or Sprite imply a camera or depth buffer.
+Pass ownership also leaves room for a Camera or Viewport to select which passes
+participate in a frame without moving those concerns into Shader.
 
-See [Scene](../scene/README.md) for hosted state and lifecycle,
-[Render](../render/README.md) for rendering interfaces, and
-[Shader](../shader/README.md) for GPU programs. The
-[standard packages](../../packages/ttx/README.md) define the Graphics Types used
-by the repository examples.
+## Stable frame and backend boundary
+
+Each Batch is an immutable backend-neutral draw transaction. Sampled resources
+retain their Image Objects and copy their Sampler2D values for the frame;
+parameters and host inputs are copied. Later Scene mutations therefore affect
+the next frame, never one already being presented.
+
+The generated application product maps exact Types that satisfy `DrawableUI`
+to their runtime draw providers. Graphics follows that exact semantic proof;
+it does not match a Type by a list of familiar Field spellings. Vulkan then
+consumes ordered Batches and generated Program descriptions, realizes textures
+and pipelines, records commands, synchronizes the device, and presents.
+
+See [Scene](../scene/README.md) for application state,
+[Pipeline](../render/README.md) for material contracts,
+[Shader](../shader/README.md) for GPU implementations, and the
+[standard Packages](../../packages/ttx/README.md) for the authored surface.

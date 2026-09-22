@@ -1,64 +1,69 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/app/language/runtime.hpp"
 
-#include "ttx/concept/invalid.hpp"
+#include "tetrodotoxin/source/documentation.hpp"
+
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Perimortem::Memory;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::App;
 
-static auto require_text(
-    Cursor& cursor,
-    Code::Type code,
-    View::Bytes text,
-    View::Bytes message) -> Token {
-  if (!cursor.matches(code) || cursor.get_text() != text) {
-    cursor.create_token_error(cursor.current(), message);
-    return {};
-  }
-
-  return cursor.consume();
+auto Language::Runtime::create_authored(
+    Allocator::Arena& arena,
+    const Tetrodotoxin::Source::Documentation& documentation,
+    Profile profile,
+    Tetrodotoxin::Source::Lexical::Anchor anchor) -> Runtime& {
+  return arena.construct_from<Runtime>(
+      [&]() { return Runtime(documentation, profile, anchor, {}); });
 }
 
-auto Language::Runtime::parse(
-    Cursor& cursor,
-    const Documentation& documentation) -> Option<Runtime&> {
-  Token opening = require_text(
-      cursor, Code::Type::Addressable, "runtime"_view,
-      "App runtime declaration requires `runtime`."_view);
-  BAIL_IF(!opening);
-  BAIL_IF(!cursor.require(
-      Code::Type::Assign,
-      "App runtime declaration requires `=` before its profile."_view));
-  BAIL_IF(!require_text(
-      cursor, Code::Type::Type, "Terminal"_view,
-      "This App slice accepts only the Terminal runtime profile."_view));
-  BAIL_IF(!cursor.require(
-      Code::Type::ScopeStart,
-      "Terminal runtime profile requires an empty `{}` body."_view));
-  Token closing = cursor.require(
-      Code::Type::ScopeEnd,
-      "Terminal runtime profile does not accept settings."_view);
-  BAIL_IF(!closing);
+auto Language::Runtime::create_windowed(
+    Allocator::Arena& arena,
+    const Tetrodotoxin::Source::Documentation& documentation,
+    Tetrodotoxin::Source::Lexical::Anchor anchor,
+    Option<View::Bytes> title,
+    Option<View::Bytes> icon_route,
+    Option<const Tetrodotoxin::Language::Resource&> icon,
+    Option<U32> width,
+    Option<U32> height,
+    Option<Bool> resizable) -> Runtime& {
+  Option<Reference<const Tetrodotoxin::Language::Resource>> icon_reference;
+  if (icon) {
+    icon_reference = Reference<const Tetrodotoxin::Language::Resource>(*icon);
+  }
 
-  Runtime& runtime = cursor.get_arena().construct_from<Runtime>([&]() {
-    return Runtime(
-        documentation, Anchor::create(opening, Span(opening, closing)));
+  auto& settings = arena.construct<Windowed>(
+      title, icon_route, icon_reference, width, height, resizable);
+  return arena.construct_from<Runtime>([&]() {
+    return Runtime(documentation, Profile::Windowed, anchor, settings);
   });
-  cursor.get_associations().create(runtime.get_anchor(), runtime);
-  return runtime;
 }
 
 auto Language::Runtime::create_synthetic(
-    Perimortem::Memory::Allocator::Arena& arena,
-    const Documentation& documentation) -> Runtime& {
-  return arena.construct_from<Runtime>(
-      [&]() { return Runtime(documentation, Anchor::create({})); });
+    Allocator::Arena& arena,
+    const Tetrodotoxin::Source::Documentation& documentation) -> Runtime& {
+  return create_authored(
+      arena, documentation, Profile::Terminal,
+      Tetrodotoxin::Source::Lexical::Anchor::create({}));
 }
 
-auto Language::Runtime::resolve_context(View::Bytes) const -> const Abstract& {
-  return Invalid::get_invalid();
+auto Language::Runtime::get_name() const -> View::Bytes {
+  switch (profile) {
+  case Profile::Terminal:
+    return "Terminal"_view;
+  case Profile::Headless:
+    return "Headless"_view;
+  case Profile::Windowed:
+    return "Windowed"_view;
+  }
+  return "Runtime"_view;
+}
+
+auto Language::Runtime::resolve_concept(View::Bytes route) const
+    -> const Abstract& {
+  return Abstract::resolve_concept(route);
 }

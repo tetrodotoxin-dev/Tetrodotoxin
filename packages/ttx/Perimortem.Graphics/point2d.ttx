@@ -1,0 +1,13 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
+// A position in the two dimensional graphics domain.
+//
+dialect : Library;
+
+// Point2D remains distinct from a general Math vector even though both carry
+// two real values.
+public Point2D : struct {
+  public state x : R64 = 0.0;
+  public state y : R64 = 0.0;
+}

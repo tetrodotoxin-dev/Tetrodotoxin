@@ -1,12 +1,22 @@
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
 // System ABI Package consumer.
 dialect : Library;
 
+private Helper : alias = source("helper.ttx");
+private DirectBytes : alias = package(.name = "Perimortem.Memory", .version = "1.0")::Dynamic::Bytes;
+public Memory : alias = package(.name = "Perimortem.Memory", .version = "1.0");
+public Math : alias = package(.name = "Perimortem.Math", .version = "1.0");
+public System : alias = package(.name = "Perimortem.System", .version = "1.0");
 using Helper;
 using Memory;
 
 public run : func = [] -> [] {
   state line_prefix := Helper -> prefix();
+  state scale       : Math::Vec4D;
   state line        := System::Terminal -> read_line()?;
+  state direct      : DirectBytes = line;
   state view        := line -> get_view();
   System::Terminal -> write_line(Dynamic::Bytes -> concat(line_prefix, view))?;
 }

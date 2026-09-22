@@ -1,11 +1,21 @@
-// Tetrodotoxin
-// Copyright (c) 2023-present Matt Kaes and contributors
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
 dialect : Shader;
 
-shader TestShader : Formats::Simple {
-  func Fragment[.color : Math::Vec4D] -> [.color : Math::Vec4D] {
-    state divisor : Math::Vec4D = (.x = 1.0, .y = 1.0, .z = 1.0, .w = 1.0);
-    state copied  : Math::Vec4D = color / divisor;
-    return (.color = copied);
-  }
+public Math : alias = package(.name = "Perimortem.Math", .version = "1.0");
+implements source("render.ttx");
+
+public phase_milliseconds : uniform U32 = new[U32];
+
+Shader fragment[.color : Math::Vec4D] -> [.color : Math::Vec4D] {
+  state phase_milliseconds := new[R32](parameters.phase_milliseconds);
+  state phase := phase_milliseconds / new[R32](1000.0);
+  state copied : Math::Vec4D = (
+    .x = color.x + color.y + phase,
+    .y = color.y + color.z,
+    .z = color.z + color.w,
+    .w = color.w + color.x,
+  );
+  return (copied.[x, y, z], phase);
 }

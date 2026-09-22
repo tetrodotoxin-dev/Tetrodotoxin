@@ -1,3 +1,6 @@
+# # Tetrodotoxin
+# Copyright (c) 2023-present Matt Kaes and contributors
+
 """
 Perimortem::Core - Home to all common utilities and classes
 """
@@ -14,6 +17,7 @@ cc_library(
         ":compression",
         ":core",
         ":graphics",
+        ":math",
         ":memory",
         ":platform",
         ":serialization",
@@ -23,77 +27,34 @@ cc_library(
 )
 
 cc_library(
-    name = "abi_core",
-    srcs = glob(["abi/core/*.cpp"]) + ["abi/log.cpp"],
-    hdrs = glob(["abi/core/*.hpp"]),
-    copts = ["-Wreturn-type-c-linkage"],
-    includes = ["."],
+    name = "headless",
     deps = [
-        ":core",
+        ":abi",
+        ":serialization",
     ],
 )
 
 cc_library(
-    name = "abi_memory",
-    hdrs = glob(["abi/memory/**/*.hpp"]),
-    includes = ["."],
-    deps = [
-        ":core",
-        ":memory",
-    ],
-)
-
-cc_library(
-    name = "abi_system",
-    srcs = glob(["abi/system/*.cpp"]),
-    hdrs = glob(["abi/system/*.hpp"]),
+    name = "abi",
+    srcs = glob(["abi/**/*.cpp"]),
+    hdrs = glob(["abi/**/*.hpp"]),
     copts = ["-Wreturn-type-c-linkage"],
     includes = ["."],
     deps = [
-        ":abi_core",
-        ":abi_memory",
         ":core",
+        ":graphics",
+        ":math",
         ":memory",
         ":system",
     ],
 )
 
 cc_library(
-    name = "abi",
-    deps = [
-        ":abi_core",
-        ":abi_memory",
-        ":abi_system",
-    ],
-)
-
-cc_library(
     name = "core",
-    srcs = [
-        "core/algorithm/search.cpp",
-        "core/bibliotheca.cpp",
-        "core/diagnostics/log.cpp",
-        "core/diagnostics/source.cpp",
-        "core/object.cpp",
-        "core/reader/binary.cpp",
-        "core/reader/serial.cpp",
-        "core/reader/textual.cpp",
-        "core/thread/worker.cpp",
-        "core/time.cpp",
-        "core/writer/binary.cpp",
-        "core/writer/serial.cpp",
-        "core/writer/textual.cpp",
-    ],
+    srcs = glob(["core/**/*.cpp"]),
     hdrs = glob([
-        "core/access/*.hpp",
-        "core/static/*.hpp",
-        "core/view/*.hpp",
-        "core/algorithm/*.hpp",
-        "core/reader/*.hpp",
-        "core/writer/*.hpp",
-        "core/diagnostics/*.hpp",
-        "core/thread/*.hpp",
-        "core/*.hpp",
+        "core/**/*.hpp",
+        "core/**/*.h",
     ]),
     includes = ["."],
 )
@@ -111,16 +72,22 @@ cc_library(
 )
 
 cc_library(
+    name = "math",
+    hdrs = glob(["math/**/*.hpp"]),
+    includes = ["."],
+    deps = [":core"],
+)
+
+cc_library(
     name = "memory",
-    srcs = glob([
-        "memory/allocator/*.cpp",
-        "memory/dynamic/*.cpp",
-        "memory/managed/*.cpp",
-    ]),
+    srcs = glob(
+        [
+            "memory/**/*.cpp",
+        ],
+        allow_empty = True,
+    ),
     hdrs = glob([
-        "memory/allocator/*.hpp",
-        "memory/dynamic/*.hpp",
-        "memory/managed/*.hpp",
+        "memory/**/*.hpp",
     ]),
     includes = ["."],
     deps = [
@@ -132,12 +99,10 @@ cc_library(
 cc_library(
     name = "compression",
     srcs = glob([
-        "compression/*.cpp",
-        "compression/bit_stream/*.cpp",
+        "compression/**/*.cpp",
     ]),
     hdrs = glob([
-        "compression/*.hpp",
-        "compression/bit_stream/*.hpp",
+        "compression/**/*.hpp",
     ]),
     includes = ["."],
     deps = [
@@ -149,16 +114,12 @@ cc_library(
 cc_library(
     name = "system",
     srcs = glob([
-        "system/*.cpp",
+        "system/**/*.cpp",
     ]),
-    hdrs = glob(
-        [
-            "system/*.hpp",
-        ],
-        exclude = [
-            "system/window.hpp",
-        ],
-    ),
+    hdrs = glob([
+        "system/**/*.hpp",
+        "system/**/*.h",
+    ]),
     includes = ["."],
     linkopts = ["-lpthread"],
     deps = [
@@ -186,44 +147,31 @@ cc_library(
 
 cc_library(
     name = "vulkan",
-    srcs = glob([
-        "vulkan/*.cpp",
-    ]),
-    hdrs = glob([
-        "vulkan/*.hpp",
-    ]),
+    srcs = glob(["vulkan/**/*.cpp"]),
+    hdrs = glob(["vulkan/**/*.hpp"]),
     includes = ["."],
     linkopts = ["-lvulkan"],
     deps = [
         ":core",
         ":graphics",
         ":memory",
+        ":system",
     ],
-)
-
-cc_library(
-    name = "wayland",
-    srcs = glob([
-        "system/platform/wayland/*.cpp",
-    ]),
-    hdrs = glob([
-        "system/platform/wayland/*.hpp",
-    ]),
-    includes = ["."],
-    linkopts = ["-lwayland-client"],
-    deps = [":core"],
 )
 
 cc_library(
     name = "platform",
-    srcs = [],
-    hdrs = [
-        "system/window.hpp",
-    ],
+    srcs = glob([
+        "platform/**/*.cpp",
+    ]),
+    hdrs = glob([
+        "platform/**/*.hpp",
+    ]),
     includes = ["."],
+    linkopts = ["-lwayland-client"],
     deps = [
         ":core",
-        ":wayland",
+        ":system",
     ],
 )
 

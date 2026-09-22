@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
@@ -10,12 +10,12 @@
 
 namespace Perimortem::Core {
 
-// Object<void> is the erased one-word carrier shared by C++ and generated
-// code. It deliberately performs no automatic lifetime work because compiler
-// output places retain and release at its semantic value boundaries.
 template <typename value_type = void>
 class Object;
 
+// Object<void> is the erased one word carrier shared by C++ and generated
+// code. It deliberately performs no automatic lifetime work because compiler
+// output places retain and release at its semantic value boundaries.
 template <>
 class Object<void> {
  public:
@@ -163,9 +163,9 @@ class Object {
     Count capacity = get_capacity();
     for (Count index = 0; index < capacity; index++) {
       if (index < source_size) {
-        new (values + index) value_type(source[index]);
+        new (values + index, Placement::Construct) value_type(source[index]);
       } else {
-        new (values + index) value_type();
+        new (values + index, Placement::Construct) value_type();
       }
     }
   }

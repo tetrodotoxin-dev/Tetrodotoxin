@@ -1,23 +1,24 @@
-// Tetrodotoxin
-// Copyright (c) 2023-present Matt Kaes and contributors
+/// Tetrodotoxin
+/// Copyright (c) 2023-present Matt Kaes and contributors
+//
 dialect : App;
 
-// Selects the App owned startup profile used to produce the final process.
-// The profile chooses linked support libraries, generated platform entry code,
-// and package configuration. It is not a resolved Runtime Package.
+private Main : alias = source("main.ttx");
+
+// Selects the App owned startup profile used to produce the final process. The profile
+// chooses linked support libraries, generated platform entry code, and package
+// configuration. It is not a resolved Runtime Package.
 //
 // Profiles:
-//   1. `Windowed`: Native window startup with System::Window and Vulkan
-//      support.
+//   1. `Windowed`: Native window startup with Platform::Window and Vulkan support.
 //   2. `Terminal`: Native terminal startup with standard input and output.
 //   3. `Headless`: Background startup without a presentation surface.
 runtime = Terminal {}
 
-// Program lifecycle retains one exact Static entry Callable. It may have any
-// authored name, but it takes no arguments and returns `Void`. Generated
-// platform entry code invokes that Callable once.
-// Command line arguments remain queryable System state rather than becoming
-// implicit parameters of the selected Callable.
+// Program lifecycle retains one exact Static entry Callable. It may have any authored
+// name, but it takes no arguments and returns `Void`. Generated platform entry code
+// invokes that Callable once. Command line arguments remain queryable System state
+// rather than becoming implicit parameters of the selected Callable.
 lifecycle = Program {
   start Main -> run,
 }

@@ -1,20 +1,21 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/access/call.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "perimortem/memory/managed/vector.hpp"
 
 #include "tetrodotoxin/library/language/diagnostics.hpp"
-#include "tetrodotoxin/library/language/model/parser/pack.hpp"
+#include "tetrodotoxin/library/language/function.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
-#include "tetrodotoxin/library/llvm/builder.hpp"
-#include "ttx/concept/invalid.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
 static auto select_type(const Abstract& candidate)
@@ -29,7 +30,7 @@ static auto select_type(const Abstract& candidate)
 
 auto Language::Access::Call::create_synthetic(
     Memory::Allocator::Arena& arena,
-    Expression& receiver,
+    Model::Pack& receiver,
     Core::View::Bytes name,
     Language::Model::Pack& arguments) -> Call& {
   return Expression::create_synthetic<Call>(arena, [&](auto source) -> Call {
@@ -37,9 +38,22 @@ auto Language::Access::Call::create_synthetic(
   });
 }
 
+auto Language::Access::Call::create_authored(
+    Memory::Allocator::Arena& domain,
+    Model::Pack& receiver,
+    Token name_token,
+    Core::View::Bytes name,
+    Language::Model::Pack& arguments,
+    Anchor anchor) -> Call& {
+  return Expression::create_authored<Call>(
+      domain, anchor, [&](Core::Option<Anchor> source) -> Call {
+        return Call(domain, receiver, name_token, name, arguments, source);
+      });
+}
+
 static auto select_result_type(const Abstract& result)
     -> Core::Option<const Language::Model::Type&> {
-  auto addressable = result.select<Language::Model::Addressable>();
+  auto addressable = result.select<Tetrodotoxin::Source::Addressable>();
   if (addressable) {
     return select_type(addressable->get_type());
   }
@@ -50,7 +64,7 @@ static auto select_result_type(const Abstract& result)
   }
 
   const Abstract& resolved = result.resolve();
-  addressable = resolved.select<Language::Model::Addressable>();
+  addressable = resolved.select<Tetrodotoxin::Source::Addressable>();
   return addressable ? select_type(addressable->get_type())
                      : select_type(resolved);
 }
@@ -62,8 +76,8 @@ static auto select_result_type(const Abstract& result)
 static auto create_layout(
     Memory::Allocator::Arena& domain,
     const Language::Access::Call& call,
-    const Language::Model::Callable& callable) -> const Ttx::Concept::Layout& {
-  class Layout final : public Ttx::Concept::Layout {
+    const Language::Model::Callable& callable) -> const Tetrodotoxin::Source::Layout& {
+  class Layout final : public Tetrodotoxin::Source::Layout {
    public:
     constexpr Layout(
         const Language::Access::Call& call,
@@ -86,20 +100,20 @@ static auto create_layout(
     }
 
     auto fits_entry(
-        const Ttx::Concept::Layout& target,
+        const Tetrodotoxin::Source::Layout& target,
         Count source_index,
         Count target_index) const -> Bool override {
       return callable.get_results().fits_entry(
           target, source_index, target_index);
     }
 
-    auto fits_at(const Ttx::Concept::Layout& target, Count target_offset) const
+    auto fits_at(const Tetrodotoxin::Source::Layout& target, Count target_offset) const
         -> Bool override {
       return callable.get_results().fits_at(target, target_offset);
     }
 
     auto get_fitted_at(
-        const Ttx::Concept::Layout& target,
+        const Tetrodotoxin::Source::Layout& target,
         Count target_offset,
         Count target_index) const
         -> Utility::Result<const Abstract&, Errors> override {
@@ -130,12 +144,12 @@ static auto create_layout(
 // context, so its runtime input is already the argument Pack itself.
 static auto create_inputs(
     Memory::Allocator::Arena& domain,
-    const Language::Expression& receiver,
-    const Language::Model::Pack& arguments) -> const Ttx::Concept::Layout& {
-  class Inputs final : public Ttx::Concept::Layout {
+    const Language::Model::Pack& receiver,
+    const Language::Model::Pack& arguments) -> const Tetrodotoxin::Source::Layout& {
+  class Inputs final : public Tetrodotoxin::Source::Layout {
    public:
     constexpr Inputs(
-        const Language::Expression& receiver,
+        const Language::Model::Pack& receiver,
         const Language::Model::Pack& arguments)
         : receiver(receiver), arguments(arguments) {}
 
@@ -146,7 +160,7 @@ static auto create_inputs(
     auto get_abstract(Count index) const
         -> Core::Option<const Abstract&> override {
       if (index == 0) {
-        return receiver;
+        return receiver.get_layout().get_abstract(0);
       }
       return arguments.get_layout().get_abstract(index - 1);
     }
@@ -158,7 +172,7 @@ static auto create_inputs(
     }
 
     auto fits_entry(
-        const Ttx::Concept::Layout& target,
+        const Tetrodotoxin::Source::Layout& target,
         Count source,
         Count target_index) const -> Bool override {
       BAIL_IF(source >= get_size() || target_index >= target.get_size());
@@ -176,7 +190,7 @@ static auto create_inputs(
               });
     }
 
-    auto fits_at(const Ttx::Concept::Layout& target, Count target_offset) const
+    auto fits_at(const Tetrodotoxin::Source::Layout& target, Count target_offset) const
         -> Bool override {
       BAIL_IF(
           target_offset > target.get_size() ||
@@ -186,7 +200,7 @@ static auto create_inputs(
     }
 
     auto get_fitted_at(
-        const Ttx::Concept::Layout& target,
+        const Tetrodotoxin::Source::Layout& target,
         Count target_offset,
         Count target_index) const
         -> Utility::Result<const Abstract&, Errors> override {
@@ -202,63 +216,26 @@ static auto create_inputs(
       if (!fits_at(target, target_offset)) {
         return Errors::IncompatibleFit;
       }
-      return target_index == 0
-                 ? Utility::Result<const Abstract&, Errors>(receiver)
-                 : arguments.get_fitted_at(
-                       target, target_offset + 1, target_index - 1);
+      if (target_index == 0) {
+        auto identity = receiver.get_layout().get_abstract(0);
+        return identity ? Utility::Result<const Abstract&, Errors>(*identity)
+                        : Utility::Result<const Abstract&, Errors>(
+                              Errors::IncompatibleFit);
+      }
+      return arguments.get_fitted_at(
+          target, target_offset + 1, target_index - 1);
     }
 
    private:
-    const Language::Expression& receiver;
+    const Language::Model::Pack& receiver;
     const Language::Model::Pack& arguments;
   };
 
   return domain.construct<Inputs>(receiver, arguments);
 }
 
-auto Language::Access::Call::parse(
-    const Abstract& context,
-    Cursor& cursor,
-    Expression& receiver) -> Core::Option<Expression&> {
-  Memory::Allocator::Arena& domain = cursor.get_arena();
-  Token operation = cursor.require(
-      Code::Type::CallOp,
-      "Library invocation requires `->` before its Callable name."_view);
-  BAIL_IF(!operation);
-
-  Token name_token = cursor.require(
-      Code::Type::Addressable,
-      "Library invocation requires one Callable name after `->`."_view);
-  BAIL_IF(!name_token);
-
-  Token arguments_opening = cursor.current();
-  auto arguments = Language::Model::Parser::Pack::parse(context, cursor, True);
-  BAIL_IF(!arguments);
-  Token closing = cursor.peek(-1);
-
-  auto receiver_anchor = receiver.get_anchor();
-  if (!receiver_anchor) {
-    cursor.create_expression_error(
-        Anchor::create(name_token, Span(operation, closing)),
-        "Library invocation requires an authored receiver Anchor."_view);
-    return {};
-  }
-
-  // The Token and its spelling share the source transaction lifetime. Delayed
-  // lookup can borrow those authored bytes until linking selects the Callable.
-  Core::View::Bytes name = name_token.caculate_text(cursor.get_source_text());
-  Anchor anchor = Anchor::create(
-      name_token, receiver_anchor->get_span(),
-      Span(arguments_opening, closing));
-  Call& call = Expression::create_authored<Call>(
-      domain, anchor, [&](Core::Option<Anchor> source) -> Call {
-        return Call(domain, receiver, name_token, name, *arguments, source);
-      });
-  return call;
-}
-
 auto Language::Access::Call::link(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& lexical_context,
     Core::Option<const Abstract&> access_scope) -> Bool {
   if (!get_anchor() && callable && output) {
@@ -273,7 +250,7 @@ auto Language::Access::Call::link(
   // Static lookup uses the Type as context, while argument positions still
   // describe value flow. Keeping that split here gives fitting the exact Pack
   // Layout it expects.
-  if (&arguments.resolve() != &arguments) {
+  if (!arguments.is_complete()) {
     cursor.create_expression_error(
         get_anchor(),
         "Library invocation arguments did not produce value flow."_view,
@@ -287,11 +264,22 @@ auto Language::Access::Call::link(
       [](const Abstract& selected) -> const Abstract& { return selected; });
   const Abstract& candidate = receiver_result.visit<Language::Model::Type>(
       [&](const Language::Model::Type& type) -> const Abstract& {
-        return type.resolve_type_call(
-            host, name, Language::Model::Type::Access::Static);
+        return type.resolve_concept("static"_view).resolve_concept(name);
       },
       [&](const Abstract& receiver) -> const Abstract& {
-        return receiver.resolve_call(host, name);
+        auto addressable = receiver.resolve().select<Tetrodotoxin::Source::Addressable>();
+        if (addressable) {
+          return addressable->get_type()
+              .resolve()
+              .resolve_concept("instance"_view)
+              .resolve_concept(name);
+        }
+        auto value_type =
+            this->receiver.get_type().resolve().select<Language::Model::Type>();
+        return value_type ? value_type->resolve_concept("instance"_view)
+                                .resolve_concept(name)
+                          : receiver.resolve_concept("static"_view)
+                                .resolve_concept(name);
       });
   auto selected = candidate.resolve().select<Language::Model::Callable>();
   if (!selected) {
@@ -307,6 +295,19 @@ auto Language::Access::Call::link(
     return False;
   }
 
+  auto function = selected->select<Language::Function>();
+  if (function && function->get_definition().get_visibility() ==
+                      Tetrodotoxin::Language::Visibility::Private) {
+    auto caller_type = host.select<Language::Model::Type>();
+    if (!caller_type ||
+        !caller_type->has_private_access_to(function->get_host())) {
+      cursor.create_expression_error(
+          get_anchor(), "Callable is private to its declaring Type."_view,
+          "Invoke it only from code hosted by that Type."_view);
+      return False;
+    }
+  }
+
   if (!selected->accepts_receiver(receiver_result, host)) {
     auto report = cursor.create_report(get_anchor());
     report
@@ -319,7 +320,7 @@ auto Language::Access::Call::link(
     return False;
   }
 
-  const Ttx::Concept::Layout& parameters = selected->get_parameters();
+  const Tetrodotoxin::Source::Layout& parameters = selected->get_parameters();
   Bool arguments_fit = arguments.fits(parameters);
   if (selected->is_type_bound()) {
     if (!input_layout) {
@@ -371,10 +372,14 @@ auto Language::Access::Call::link(
     return False;
   }
 
-  const Ttx::Concept::Layout& retained_output =
+  const Tetrodotoxin::Source::Layout& retained_output =
       create_layout(domain, *this, *selected);
   callable = Reference<const Language::Model::Callable>(*selected);
   output = retained_output;
+  auto source_anchor = get_anchor();
+  if (source_anchor) {
+    cursor.get_associations().create(*source_anchor, *selected);
+  }
 
   // Invocation completion follows the complete result Layout rather than the
   // scalar Type shortcut in Expression. Empty and multiple results can then
@@ -388,7 +393,7 @@ auto Language::Access::Call::link_restored(
   BAIL_IF(
       !receiver.link_restored(lexical_context, access_scope) ||
       !arguments.link_restored(lexical_context, access_scope) ||
-      &arguments.resolve() != &arguments);
+      !arguments.is_complete());
 
   const Abstract& receiver_result = receiver.get_result();
   const Abstract& host = access_scope.visit(
@@ -396,14 +401,33 @@ auto Language::Access::Call::link_restored(
       [](const Abstract& selected) -> const Abstract& { return selected; });
   const Abstract& candidate = receiver_result.visit<Language::Model::Type>(
       [&](const Language::Model::Type& type) -> const Abstract& {
-        return type.resolve_type_call(
-            host, name, Language::Model::Type::Access::Static);
+        return type.resolve_concept("static"_view).resolve_concept(name);
       },
       [&](const Abstract& selected) -> const Abstract& {
-        return selected.resolve_call(host, name);
+        auto addressable = selected.resolve().select<Tetrodotoxin::Source::Addressable>();
+        if (addressable) {
+          return addressable->get_type()
+              .resolve()
+              .resolve_concept("instance"_view)
+              .resolve_concept(name);
+        }
+        auto value_type =
+            this->receiver.get_type().resolve().select<Language::Model::Type>();
+        return value_type ? value_type->resolve_concept("instance"_view)
+                                .resolve_concept(name)
+                          : selected.resolve_concept("static"_view)
+                                .resolve_concept(name);
       });
   auto selected = candidate.resolve().select<Language::Model::Callable>();
   BAIL_IF(!selected || !selected->accepts_receiver(receiver_result, host));
+  auto function = selected->select<Language::Function>();
+  if (function && function->get_definition().get_visibility() ==
+                      Tetrodotoxin::Language::Visibility::Private) {
+    auto caller_type = host.select<Language::Model::Type>();
+    BAIL_IF(
+        !caller_type ||
+        !caller_type->has_private_access_to(function->get_host()));
+  }
 
   const Layout& parameters = selected->get_parameters();
   Bool fits = arguments.fits(parameters);
@@ -418,11 +442,11 @@ auto Language::Access::Call::link_restored(
   return True;
 }
 
-auto Language::Access::Call::get_documentation() const -> const Documentation& {
+auto Language::Access::Call::get_documentation() const -> const Tetrodotoxin::Source::Documentation& {
   return callable.visit(
-      []() -> const Documentation& { return Documentation::get_empty(); },
+      []() -> const Tetrodotoxin::Source::Documentation& { return Tetrodotoxin::Source::Documentation::get_empty(); },
       [](const Reference<const Language::Model::Callable>& selected)
-          -> const Documentation& {
+          -> const Tetrodotoxin::Source::Documentation& {
         return selected.get().get_documentation();
       });
 }
@@ -440,18 +464,18 @@ auto Language::Access::Call::get_result() const -> const Abstract& {
 
 auto Language::Access::Call::get_type() const -> const Abstract& {
   if (!callable) {
-    return Invalid::get_invalid();
+    return Unknown::get_unknown();
   }
-  const Ttx::Concept::Layout& results = callable->get().get_results();
+  const Tetrodotoxin::Source::Layout& results = callable->get().get_results();
   if (results.get_size() != 1) {
-    return Invalid::get_invalid();
+    return Unknown::get_unknown();
   }
 
   return results.get_abstract(0).visit(
-      []() -> const Abstract& { return Invalid::get_invalid(); },
+      []() -> const Abstract& { return Unknown::get_unknown(); },
       [](const Abstract& result) -> const Abstract& {
         return select_result_type(result).visit(
-            []() -> const Abstract& { return Invalid::get_invalid(); },
+            []() -> const Abstract& { return Unknown::get_unknown(); },
             [](const Language::Model::Type& type) -> const Abstract& {
               return type;
             });
@@ -461,41 +485,30 @@ auto Language::Access::Call::get_type() const -> const Abstract& {
 auto Language::Access::Call::get_value_type(Count index) const
     -> const Abstract& {
   if (!callable) {
-    return Invalid::get_invalid();
+    return Unknown::get_unknown();
   }
-  const Ttx::Concept::Layout& results = callable->get().get_results();
+  const Tetrodotoxin::Source::Layout& results = callable->get().get_results();
   auto result = results.get_abstract(index);
   if (!result) {
-    return Invalid::get_invalid();
+    return Unknown::get_unknown();
   }
   return select_result_type(*result).visit(
-      []() -> const Abstract& { return Invalid::get_invalid(); },
+      []() -> const Abstract& { return Unknown::get_unknown(); },
       [](const Language::Model::Type& type) -> const Abstract& {
         return type;
       });
 }
 
-auto Language::Access::Call::get_produced(Count index) const
-    -> Core::Option<Ttx::Model::Pack::Produced> {
-  if (!output || index >= output->get_size() || &resolve() != this) {
-    return {};
-  }
-
-  // The immutable signature supplies each descriptor, while the Call remains
-  // the producer that owns this invocation's results.
-  return Ttx::Model::Pack::Produced{*this, index};
-}
-
-auto Language::Access::Call::get_layout() const -> const Ttx::Concept::Layout& {
+auto Language::Access::Call::get_layout() const -> const Tetrodotoxin::Source::Layout& {
   return *output;
 }
 
 auto Language::Access::Call::resolve() const -> const Abstract& {
   if (!callable || !output) {
-    return Invalid::get_invalid();
+    return Unknown::get_unknown();
   }
 
-  return static_cast<const Language::Model::Pack&>(*this);
+  return *this;
 }
 
 auto Language::Access::Call::finalize(Cursor& cursor) -> void {
@@ -508,20 +521,20 @@ auto Language::Access::Call::finalize(Cursor& cursor) -> void {
 
 static auto select_parameter(
     const Language::Model::Callable& callable,
-    Count index) -> Core::Option<const Ttx::Model::Addressable&> {
+    Count index) -> Core::Option<const Tetrodotoxin::Source::Addressable&> {
   auto entry = callable.get_parameters().get_abstract(index);
-  return entry ? entry->select<Ttx::Model::Addressable>()
-               : Core::Option<const Ttx::Model::Addressable&>();
+  return entry ? entry->select<Tetrodotoxin::Source::Addressable>()
+               : Core::Option<const Tetrodotoxin::Source::Addressable&>();
 }
 
 auto Language::Access::Call::fit_inputs(
     const Language::Model::Callable& callable,
-    Core::Option<const Ttx::Concept::Layout&> input_layout) -> Bool {
-  const Ttx::Concept::Layout& parameters = callable.get_parameters();
+    Core::Option<const Tetrodotoxin::Source::Layout&> input_layout) -> Bool {
+  const Tetrodotoxin::Source::Layout& parameters = callable.get_parameters();
   Count receiver_offset = callable.declares_self() ? 1 : 0;
   Count source_size = receiver_offset + arguments.get_layout().get_size();
   if (source_size == parameters.get_size()) {
-    const Ttx::Concept::Layout& source =
+    const Tetrodotoxin::Source::Layout& source =
         input_layout ? *input_layout : arguments.get_layout();
     for (Count target_index = 0; target_index < parameters.get_size();
          target_index++) {
@@ -544,12 +557,10 @@ auto Language::Access::Call::fit_inputs(
 
       auto parameter = select_parameter(callable, target_index);
       BAIL_IF(matches != 1 || !parameter);
-      auto produced = selected < receiver_offset
-                          ? receiver.get_produced(0)
-                          : arguments.get_produced(selected - receiver_offset);
-      BAIL_IF(!produced);
       fitted_inputs.insert(
-          Input(*parameter, produced->producer, produced->local_index, 1));
+          selected < receiver_offset
+              ? Input(*parameter, receiver, 0, 1)
+              : Input(*parameter, arguments, selected - receiver_offset, 1));
     }
 
     return True;
@@ -558,10 +569,8 @@ auto Language::Access::Call::fit_inputs(
   BAIL_IF(parameters.get_size() != receiver_offset + 1);
   if (receiver_offset != 0) {
     auto parameter = select_parameter(callable, 0);
-    auto produced = receiver.get_produced(0);
-    BAIL_IF(!parameter || !produced);
-    fitted_inputs.insert(
-        Input(*parameter, produced->producer, produced->local_index, 1));
+    BAIL_IF(!parameter);
+    fitted_inputs.insert(Input(*parameter, receiver, 0, 1));
   }
 
   auto parameter = select_parameter(callable, receiver_offset);
@@ -569,54 +578,6 @@ auto Language::Access::Call::fit_inputs(
   fitted_inputs.insert(
       Input(*parameter, arguments, 0, arguments.get_layout().get_size()));
   return True;
-}
-
-auto Language::Access::Call::lower(Llvm::Builder& body) const -> Bool {
-  auto selected = get_callable();
-  if (!selected) {
-    return False;
-  }
-
-  Llvm::Program& program = body.get_program();
-  if (!selected->reserve_declaration(program) ||
-      !selected->complete_declaration(program)) {
-    return False;
-  }
-
-  if (selected->declares_self()) {
-    Bool receiver_lowered = receiver.lower(body);
-    if (!receiver_lowered) {
-      return False;
-    }
-  }
-
-  Bool arguments_lowered = arguments.lower(body);
-  if (!arguments_lowered) {
-    return False;
-  }
-
-  Memory::Managed::Vector<LLVMValueRef> native_inputs(domain);
-  for (const Input& input : fitted_inputs.get_view()) {
-    auto value = body.fit_input(
-        input.get_parameter(), input.get_source(), input.get_offset(),
-        input.get_size());
-    if (!value) {
-      return False;
-    }
-
-    native_inputs.insert(*value);
-  }
-
-  Core::Option<const Ttx::Model::Pack&> receiver_source;
-  if (selected->declares_self() && !fitted_inputs.is_empty()) {
-    const Input& input = fitted_inputs.at(0);
-    if (input.get_offset() == 0 && input.get_size() == 1) {
-      receiver_source = input.get_source();
-    }
-  }
-
-  return selected->lower_call(
-      body, *this, native_inputs.get_view(), receiver_source);
 }
 
 auto Language::Access::Call::evaluate()
@@ -631,7 +592,7 @@ auto Language::Access::Call::evaluate()
     return selected->fold_call(domain, folded_receiver, arguments);
   }
 
-  return receiver.fold().visit(
+  return Expression::fold(receiver).visit(
       [&](const Core::Option<Language::Model::Pack&>& value)
           -> Utility::Result<Core::Option<Language::Model::Pack&>, Error> {
         if (!value) {
@@ -658,30 +619,18 @@ auto Language::Access::Call::get_callable() const
 }
 
 auto Language::Access::Call::get_argument_parameter(Count index) const
-    -> Core::Option<const Ttx::Model::Addressable&> {
-  const Ttx::Concept::Layout& layout = arguments.get_layout();
+    -> Core::Option<const Tetrodotoxin::Source::Addressable&> {
+  const Tetrodotoxin::Source::Layout& layout = arguments.get_layout();
   BAIL_IF(index >= layout.get_size() || layout.get_name(index));
-  auto produced = arguments.get_produced(index);
-  BAIL_IF(!produced);
-
   for (const Input& input : fitted_inputs.get_view()) {
-    if (&input.get_source() == &arguments) {
-      if (index >= input.get_offset() &&
-          index < input.get_offset() + input.get_size()) {
-        return index == input.get_offset()
-                   ? Core::Option<const Ttx::Model::Addressable&>(
-                         input.get_parameter())
-                   : Core::Option<const Ttx::Model::Addressable&>();
-      }
+    if (&input.get_source() != &arguments || index < input.get_offset() ||
+        index >= input.get_offset() + input.get_size()) {
       continue;
     }
-
-    if (&input.get_source() != &produced->producer ||
-        produced->producer.get_layout().get_size() != 1 ||
-        produced->local_index != input.get_offset() || input.get_size() != 1) {
-      continue;
-    }
-    return input.get_parameter();
+    return index == input.get_offset()
+               ? Core::Option<const Tetrodotoxin::Source::Addressable&>(
+                     input.get_parameter())
+               : Core::Option<const Tetrodotoxin::Source::Addressable&>();
   }
   return {};
 }

@@ -1,43 +1,34 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #pragma once
 
 #include "perimortem/core/option.hpp"
 
-#include "tetrodotoxin/library/llvm/program.hpp"
-#include "ttx/concept/abstract.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/lexical/cursor.hpp"
-#include "ttx/model/callable.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/callable.hpp"
 
 namespace Tetrodotoxin::App::Language {
 
 // Program retains one authored Package route and the exact Static Callable
 // selected from that completed Package graph during linking.
-class Program : public Ttx::Concept::Abstract {
+class Program : public Tetrodotoxin::Source::Abstract {
  public:
-  TTX_CONTRACT(Program, Ttx::Concept::Abstract);
+  TTX_CONTRACT(Program, Tetrodotoxin::Source::Abstract);
 
-  static auto parse(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Documentation& documentation)
-      -> Perimortem::Core::Option<Program&>;
-
-  static auto create_synthetic(
+  static auto create_authored(
       Perimortem::Memory::Allocator::Arena& arena,
-      const Ttx::Concept::Documentation& documentation,
+      const Tetrodotoxin::Source::Documentation& documentation,
       Perimortem::Core::View::Bytes route,
-      Perimortem::Core::View::Bytes callable_name) -> Program&;
+      Perimortem::Core::View::Bytes callable_name,
+      Tetrodotoxin::Source::Lexical::Anchor anchor,
+      Tetrodotoxin::Source::Lexical::Anchor selection_anchor) -> Program&;
 
-  auto link(Ttx::Lexical::Cursor& cursor, Ttx::Concept::Abstract& context)
+  auto link(Tetrodotoxin::Source::Lexical::Cursor& cursor, Tetrodotoxin::Source::Abstract& context)
       -> Bool;
-  auto link_restored(Ttx::Concept::Abstract& context) -> Bool;
-
-  auto lower(
-      Tetrodotoxin::Library::Llvm::Program& target,
-      Perimortem::Core::View::Bytes entry_symbol) const -> Bool;
 
   TTX_NAME("Program"_view);
   TTX_DOCUMENTATION(documentation);
@@ -50,37 +41,37 @@ class Program : public Ttx::Concept::Abstract {
     return callable_name;
   }
 
-  constexpr auto get_anchor() const -> Ttx::Lexical::Anchor { return anchor; }
+  constexpr auto get_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor { return anchor; }
 
   constexpr auto get_entry() const
-      -> Perimortem::Core::Option<const Ttx::Model::Callable&> {
-    return entry ? Perimortem::Core::Option<const Ttx::Model::Callable&>(
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Callable&> {
+    return entry ? Perimortem::Core::Option<const Tetrodotoxin::Source::Callable&>(
                        entry->get())
-                 : Perimortem::Core::Option<const Ttx::Model::Callable&>();
+                 : Perimortem::Core::Option<const Tetrodotoxin::Source::Callable&>();
   }
 
-  auto resolve_context(Perimortem::Core::View::Bytes) const
-      -> const Ttx::Concept::Abstract& override;
+  auto resolve_concept(Perimortem::Core::View::Bytes) const
+      -> const Tetrodotoxin::Source::Abstract& override;
 
  private:
   constexpr Program(
-      const Ttx::Concept::Documentation& documentation,
+      const Tetrodotoxin::Source::Documentation& documentation,
       Perimortem::Core::View::Bytes route,
       Perimortem::Core::View::Bytes callable_name,
-      Ttx::Lexical::Anchor anchor,
-      Ttx::Lexical::Anchor selection_anchor)
+      Tetrodotoxin::Source::Lexical::Anchor anchor,
+      Tetrodotoxin::Source::Lexical::Anchor selection_anchor)
       : documentation(documentation),
         route(route),
         callable_name(callable_name),
         anchor(anchor),
         selection_anchor(selection_anchor) {}
 
-  const Ttx::Concept::Documentation& documentation;
+  const Tetrodotoxin::Source::Documentation& documentation;
   Perimortem::Core::View::Bytes route;
   Perimortem::Core::View::Bytes callable_name;
-  Ttx::Lexical::Anchor anchor;
-  Ttx::Lexical::Anchor selection_anchor;
-  Perimortem::Core::Option<Ttx::Concept::Reference<const Ttx::Model::Callable>>
+  Tetrodotoxin::Source::Lexical::Anchor anchor;
+  Tetrodotoxin::Source::Lexical::Anchor selection_anchor;
+  Perimortem::Core::Option<Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Callable>>
       entry;
 };
 

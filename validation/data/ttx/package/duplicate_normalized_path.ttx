@@ -1,5 +1,0 @@
-// Rejects distinct semantic identities for one normalized logical path.
-dialect : Package;
-
-source First from "./member.ttx";
-source Second from "member.ttx";

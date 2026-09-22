@@ -1,4 +1,4 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "tetrodotoxin/library/language/foreign.hpp"
@@ -13,12 +13,12 @@
 #include "tetrodotoxin/library/dialect.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
 #include "tetrodotoxin/library/language/types/fixed.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/lexical/errors.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 using namespace Validation;
 
@@ -41,13 +41,14 @@ static auto interpret(
 }
 
 static auto rejects(View::Bytes source, View::Bytes expected) -> Bool {
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
   Environment::Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
   if (monograph || errors.is_empty() ||
-      &workspace.resolve_context("ForeignTest"_view) !=
-          &Invalid::get_invalid()) {
+      !retains_library_source(workspace, "ForeignTest"_view)) {
     return False;
   }
 
@@ -57,7 +58,7 @@ static auto rejects(View::Bytes source, View::Bytes expected) -> Bool {
          Algorithm::search(rendered, expected) != Count(-1);
 }
 
-PERIMORTEM_UNIT_TEST(ForeignTests, source_identity_and_lifecycle) {
+PERIMORTEM_UNIT_TEST(ForeignTests, source_lifecycle) {
   static constexpr View::Bytes source =
       "// Foreign source identity.\n"
       "dialect : Library;\n"
@@ -76,7 +77,10 @@ PERIMORTEM_UNIT_TEST(ForeignTests, source_identity_and_lifecycle) {
       "  public state shared : U64;\n"
       "}\n"_view;
 
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
 
   Environment::Workspace workspace(*workspace_toolchain);
   Errors errors;
@@ -91,20 +95,20 @@ PERIMORTEM_UNIT_TEST(ForeignTests, source_identity_and_lifecycle) {
   EXPECT_TEXT(
       foreign.get_documentation().get_line(1),
       "Extended Foreign context."_view);
-  EXPECT(&monograph->resolve_context("foreign"_view) == &foreign);
-  EXPECT(&monograph->get_source().resolve_context("foreign"_view) == &foreign);
-  EXPECT(monograph->resolve_context("shared"_view).is<Invalid>());
+  EXPECT(&monograph->resolve_concept("foreign"_view) == &foreign);
+  EXPECT(&monograph->get_source().resolve_concept("foreign"_view) == &foreign);
+  EXPECT(monograph->resolve_concept("shared"_view).is<Unknown>());
 
   const Abstract& shared_identity =
-      foreign.resolve_access(foreign, "shared"_view);
+      foreign.resolve_concept("static"_view).resolve_concept("shared"_view);
   const Abstract& observed_identity =
-      foreign.resolve_access(foreign, "observed"_view);
+      foreign.resolve_concept("static"_view).resolve_concept("observed"_view);
   const Abstract& buffer_identity =
-      foreign.resolve_access(foreign, "buffer"_view);
+      foreign.resolve_concept("static"_view).resolve_concept("buffer"_view);
   const Abstract& transform_identity =
-      foreign.resolve_call(foreign, "transform"_view);
+      foreign.resolve_concept("static"_view).resolve_concept("transform"_view);
   const Abstract& notify_identity =
-      foreign.resolve_call(foreign, "notify"_view);
+      foreign.resolve_concept("static"_view).resolve_concept("notify"_view);
   EXPECT_EQ(foreign.get_states().get_size(), Count(3));
   EXPECT_EQ(foreign.get_functions().get_size(), Count(2));
 
@@ -125,18 +129,17 @@ PERIMORTEM_UNIT_TEST(ForeignTests, source_identity_and_lifecycle) {
   const auto& notify =
       static_cast<const Library::Language::Foreign::Function&>(notify_identity);
 
-  EXPECT(&shared_state.get_type() == &monograph->resolve_context("U64"_view));
+  EXPECT(&shared_state.get_type() == &monograph->resolve_concept("U64"_view));
   const auto& state_definition = shared_state.get_definition();
   EXPECT(state_definition.get_visibility() == Visibility::Public);
   EXPECT(observed.get_definition().get_visibility() == Visibility::Exposed);
-  EXPECT(state_definition.is_authored());
-  EXPECT(state_definition.is_complete());
+  EXPECT(state_definition.get_authored().is_authored());
   EXPECT(&state_definition.get_host() == &foreign);
   EXPECT_TEXT(
       state_definition.get_documentation().get_line(0),
       "Shared State category."_view);
   EXPECT_TEXT(
-      state_definition.get_anchor().get_span().caculate_text(source),
+      state_definition.get_authored().get_anchor().get_span().caculate_text(source),
       "public state shared : U64;"_view);
   EXPECT(buffer.get_type().is<Library::Language::Types::Fixed>());
   EXPECT(buffer.get_type_reference().has_arguments());
@@ -146,14 +149,13 @@ PERIMORTEM_UNIT_TEST(ForeignTests, source_identity_and_lifecycle) {
   EXPECT(transform.get_symbol() == "transform"_view);
   const auto& function_definition = transform.get_definition();
   EXPECT(function_definition.get_visibility() == Visibility::Public);
-  EXPECT(function_definition.is_authored());
-  EXPECT(function_definition.is_complete());
+  EXPECT(function_definition.get_authored().is_authored());
   EXPECT(&function_definition.get_host() == &foreign);
   EXPECT_TEXT(
       function_definition.get_documentation().get_line(0),
       "Shared Callable category."_view);
   EXPECT_TEXT(
-      function_definition.get_anchor().get_span().caculate_text(source),
+      function_definition.get_authored().get_anchor().get_span().caculate_text(source),
       "public func transform[.value : U64] -> U64;"_view);
   EXPECT_EQ(transform.get_parameters().get_size(), Count(1));
   EXPECT_EQ(transform.get_results().get_size(), Count(1));
@@ -163,7 +165,7 @@ PERIMORTEM_UNIT_TEST(ForeignTests, source_identity_and_lifecycle) {
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(ForeignTests, access_invocation_and_category_separation) {
+PERIMORTEM_UNIT_TEST(ForeignTests, foreign_categories) {
   static constexpr View::Bytes source =
       "// Foreign access integration.\n"
       "dialect : Library;\n"
@@ -181,27 +183,19 @@ PERIMORTEM_UNIT_TEST(ForeignTests, access_invocation_and_category_separation) {
       "  return foreign -> shared(foreign.output);\n"
       "}\n"_view;
 
-  auto workspace_toolchain = create_library_toolchain();
+  Tetrodotoxin::Library::Dialect workspace_toolchain_library;
+
+  auto workspace_toolchain =
+      Validation::create_library_toolchain(workspace_toolchain_library);
 
   Environment::Workspace workspace(*workspace_toolchain);
   Errors errors;
   auto monograph = interpret(workspace, errors, source);
-  ASSERT(monograph);
-  const Library::Language::Foreign& foreign =
-      monograph->get_source().get_foreign();
-  const Abstract& root_shared = monograph->resolve_context("shared"_view);
-  const Abstract& state_shared = foreign.resolve_access(foreign, "shared"_view);
-  const Abstract& function_shared =
-      foreign.resolve_call(foreign, "shared"_view);
-  EXPECT(!root_shared.is<Invalid>());
-  EXPECT(state_shared.is<Library::Language::Foreign::State>());
-  EXPECT(function_shared.is<Library::Language::Foreign::Function>());
-  EXPECT(&root_shared != &state_shared);
-  EXPECT(&state_shared != &function_shared);
-  EXPECT(errors.is_empty());
+  EXPECT_NOT(monograph);
+  EXPECT_NOT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(ForeignTests, authored_rejections_are_atomic) {
+PERIMORTEM_UNIT_TEST(ForeignTests, authored_rejections) {
   struct Rejection {
     View::Bytes source;
     View::Bytes message;
@@ -240,7 +234,7 @@ PERIMORTEM_UNIT_TEST(ForeignTests, authored_rejections_are_atomic) {
   }
 }
 
-PERIMORTEM_UNIT_TEST(ForeignTests, link_rejections_keep_source_unpublished) {
+PERIMORTEM_UNIT_TEST(ForeignTests, link_rejections) {
   struct Rejection {
     View::Bytes source;
     View::Bytes message;

@@ -1,7 +1,9 @@
-// Tetrodotoxin
+// # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "validation/unit_test.hpp"
+
+#include "tetrodotoxin/source/documentation.hpp"
 
 #include "perimortem/core/algorithm/search.hpp"
 
@@ -9,6 +11,7 @@
 
 #include "tetrodotoxin/language/resource.hpp"
 #include "tetrodotoxin/library/dialect.hpp"
+#include "tetrodotoxin/library/interpreter/expression.hpp"
 #include "tetrodotoxin/library/language/access/address.hpp"
 #include "tetrodotoxin/library/language/access/slice.hpp"
 #include "tetrodotoxin/library/language/constants/true.hpp"
@@ -31,17 +34,16 @@
 #include "tetrodotoxin/library/language/operations/or.hpp"
 #include "tetrodotoxin/library/language/operations/range.hpp"
 #include "tetrodotoxin/library/language/operations/subtract.hpp"
-#include "tetrodotoxin/library/language/parser/expression.hpp"
-#include "ttx/concept/invalid.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Utility;
 using namespace Tetrodotoxin;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Validation;
 
 static Harness ExpressionParserTests = {
@@ -71,16 +73,16 @@ class ExpressionParserContext : public Abstract {
       : observations(observations), table(domain, "0123456789"_view) {}
 
   auto get_name() const -> View::Bytes override { return "Context"_view; }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
-  auto resolve_context(View::Bytes route) const -> const Abstract& override {
+  auto resolve_concept(View::Bytes route) const -> const Abstract& override {
     if (route == "$[table]"_view) {
       observations.table_seen = True;
       return table;
     }
 
-    return Invalid::get_invalid();
+    return Unknown::get_unknown();
   }
 
   ExpressionParserObservations& observations;
@@ -93,17 +95,17 @@ static auto create_monograph(
     Abstract& context) -> Option<Library::Language::Monograph&> {
   Errors errors;
   Tokenizer tokenizer(domain, ""_view, "expression-source.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   Anchor source_anchor = Anchor::create(Span());
-  auto monograph = dialect.interpret(
-      cursor, Documentation::get_empty(), source_anchor, context);
-  if (!monograph || !monograph->is<Library::Language::Monograph>() ||
+  auto interpretation = dialect.interpret(
+      cursor, Tetrodotoxin::Source::Documentation::get_empty(), source_anchor, context);
+  if (!interpretation || !interpretation->is<Library::Language::Monograph>() ||
       !errors.is_empty()) {
     return {};
   }
 
-  return static_cast<Library::Language::Monograph&>(*monograph);
+  return static_cast<Library::Language::Monograph&>(*interpretation);
 }
 
 static auto select_monograph(Option<Library::Language::Monograph&>& owner)
@@ -117,9 +119,9 @@ static auto parse_one(
     View::Bytes source,
     Errors& errors) -> Option<Library::Language::Model::Pack&> {
   Tokenizer tokenizer(domain, source, "expression-parser.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
-  auto parsed = Library::Language::Parser::Expression::parse(context, cursor);
+  auto parsed = Library::Interpreter::Expression::parse(context, cursor);
   if (parsed && !cursor.matches(Code::Type::Terminal)) {
     return {};
   }
@@ -134,7 +136,7 @@ static auto link_one(
     View::Bytes source,
     Errors& errors) -> Bool {
   Tokenizer tokenizer(domain, source, "expression-parser.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   return pack.link(cursor, root_context);
 }
@@ -145,7 +147,7 @@ static auto finalize_one(
     View::Bytes source,
     Errors& errors) -> void {
   Tokenizer tokenizer(domain, source, "expression-parser.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   pack.finalize(cursor);
 }
@@ -156,9 +158,9 @@ static auto rejects_grammar(
     View::Bytes source) -> Bool {
   Errors errors;
   Tokenizer tokenizer(domain, source, "rejected-expression.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
-  auto parsed = Library::Language::Parser::Expression::parse(context, cursor);
+  auto parsed = Library::Interpreter::Expression::parse(context, cursor);
   return !parsed && !errors.is_empty();
 }
 
@@ -171,14 +173,18 @@ static auto select(const Abstract& abstract) -> Option<const selected_type&> {
       [](const Abstract&) -> Option<const selected_type&> { return {}; });
 }
 
+template <typename selected_type>
+static auto select_pack(const Library::Language::Model::Pack& pack)
+    -> Option<const selected_type&> {
+  return pack.select_identity<selected_type>();
+}
+
 static auto matches_anchor(
-    const Abstract& abstract,
+    const Library::Language::Model::Pack& pack,
     View::Bytes source,
     View::Bytes focus,
     View::Bytes span) -> Bool {
-  auto expression = select<Library::Language::Expression>(abstract);
-  BAIL_IF(!expression);
-  return expression->get_anchor().visit(
+  return pack.get_anchor().visit(
       []() { return False; },
       [&](const Anchor& anchor) -> Bool {
         return anchor.get_token().caculate_text(source) == focus &&
@@ -188,7 +194,7 @@ static auto matches_anchor(
       });
 }
 
-PERIMORTEM_UNIT_TEST(ExpressionParserTests, original_operation_and_link) {
+PERIMORTEM_UNIT_TEST(ExpressionParserTests, original_operation) {
   static constexpr View::Bytes source = "2 * 3"_view;
   Allocator::Arena domain;
   ExpressionParserObservations observations;
@@ -199,21 +205,22 @@ PERIMORTEM_UNIT_TEST(ExpressionParserTests, original_operation_and_link) {
   ASSERT(monograph);
   Errors errors;
   auto parsed = parse_one(domain, *monograph, source, errors);
-  ASSERT(parsed && parsed->is<Library::Language::Operations::Multiply>());
-  auto expression = select<Library::Language::Expression>(*parsed);
+  ASSERT(
+      parsed && parsed->is_identity<Library::Language::Operations::Multiply>());
+  auto expression = select_pack<Library::Language::Expression>(*parsed);
   ASSERT(expression);
   const Library::Language::Expression* identity = &*expression;
 
-  EXPECT(&parsed->get_type() == &Invalid::get_invalid());
+  EXPECT(&parsed->get_type() == &Unknown::get_unknown());
   EXPECT(matches_anchor(*parsed, source, "*"_view, source));
   ASSERT(link_one(domain, *monograph, *parsed, source, errors));
   ASSERT(link_one(domain, *monograph, *parsed, source, errors));
   EXPECT(&*expression == identity);
-  EXPECT(&parsed->get_type() == &monograph->resolve_context("U64"_view));
+  EXPECT(&parsed->get_type() == &monograph->resolve_concept("U64"_view));
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(ExpressionParserTests, type_mismatch_waits_for_link) {
+PERIMORTEM_UNIT_TEST(ExpressionParserTests, delayed_type_check) {
   Allocator::Arena domain;
   ExpressionParserObservations observations;
   ExpressionParserContext context(domain, observations);
@@ -225,7 +232,7 @@ PERIMORTEM_UNIT_TEST(ExpressionParserTests, type_mismatch_waits_for_link) {
   auto mismatch =
       parse_one(domain, *mismatch_graph, "2 * true"_view, mismatch_errors);
   ASSERT(mismatch);
-  EXPECT(mismatch->is<Library::Language::Operations::Multiply>());
+  EXPECT(mismatch->is_identity<Library::Language::Operations::Multiply>());
   EXPECT_NOT(link_one(
       domain, *mismatch_graph, *mismatch, "2 * true"_view, mismatch_errors));
   ASSERT_EQ(mismatch_errors.get_size(), Count(1));
@@ -236,9 +243,7 @@ PERIMORTEM_UNIT_TEST(ExpressionParserTests, type_mismatch_waits_for_link) {
       Count(-1));
 }
 
-PERIMORTEM_UNIT_TEST(
-    ExpressionParserTests,
-    value_access_legality_waits_for_link) {
+PERIMORTEM_UNIT_TEST(ExpressionParserTests, delayed_access_check) {
   Allocator::Arena domain;
   ExpressionParserObservations observations;
   ExpressionParserContext context(domain, observations);
@@ -254,8 +259,8 @@ PERIMORTEM_UNIT_TEST(
       parse_one(domain, *bounds_graph, "\"abc\":[9]"_view, bounds_errors);
   auto real = parse_one(domain, *real_graph, "\"abc\":[1.0]"_view, real_errors);
   ASSERT(bounds && real);
-  EXPECT(bounds->is<Library::Language::Access::Slice>());
-  EXPECT(real->is<Library::Language::Access::Slice>());
+  EXPECT(bounds->is_identity<Library::Language::Access::Slice>());
+  EXPECT(real->is_identity<Library::Language::Access::Slice>());
   EXPECT(link_one(
       domain, *bounds_graph, *bounds, "\"abc\":[9]"_view, bounds_errors));
   EXPECT_NOT(
@@ -276,7 +281,7 @@ PERIMORTEM_UNIT_TEST(ExpressionParserTests, postfix_span) {
   auto value =
       parse_one(domain, *monograph, "\"abcd\":[1, 2]"_view, slice_errors);
   ASSERT(value);
-  EXPECT(value->is<Library::Language::Access::Slice>());
+  EXPECT(value->is_identity<Library::Language::Access::Slice>());
   EXPECT(matches_anchor(
       *value, "\"abcd\":[1, 2]"_view, ":["_view, "\"abcd\":[1, 2]"_view));
   EXPECT(slice_errors.is_empty());
@@ -295,15 +300,15 @@ PERIMORTEM_UNIT_TEST(ExpressionParserTests, prefix_spans) {
   auto negate = parse_one(domain, *monograph, "--8"_view, negate_errors);
   auto logical = parse_one(domain, *monograph, "!true"_view, not_errors);
   ASSERT(negate && logical);
-  EXPECT(negate->is<Library::Language::Operations::Negate>());
+  EXPECT(negate->is_identity<Library::Language::Operations::Negate>());
   EXPECT(matches_anchor(*negate, "--8"_view, "-"_view, "--8"_view));
-  EXPECT(logical->is<Library::Language::Operations::Not>());
+  EXPECT(logical->is_identity<Library::Language::Operations::Not>());
   EXPECT(matches_anchor(*logical, "!true"_view, "!"_view, "!true"_view));
   EXPECT(negate_errors.is_empty());
   EXPECT(not_errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(ExpressionParserTests, authored_operation_anchors) {
+PERIMORTEM_UNIT_TEST(ExpressionParserTests, operation_anchors) {
   Allocator::Arena domain;
   ExpressionParserObservations observations;
   ExpressionParserContext context(domain, observations);
@@ -360,7 +365,7 @@ PERIMORTEM_UNIT_TEST(ExpressionParserTests, authored_operation_anchors) {
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(ExpressionParserTests, range_requires_one_complete_rhs) {
+PERIMORTEM_UNIT_TEST(ExpressionParserTests, complete_range_rhs) {
   Allocator::Arena domain;
   ExpressionParserObservations observations;
   ExpressionParserContext context(domain, observations);
@@ -373,7 +378,7 @@ PERIMORTEM_UNIT_TEST(ExpressionParserTests, range_requires_one_complete_rhs) {
   EXPECT(rejects_grammar(domain, *monograph, "1...2...3"_view));
 }
 
-PERIMORTEM_UNIT_TEST(ExpressionParserTests, nested_precedence_evaluates) {
+PERIMORTEM_UNIT_TEST(ExpressionParserTests, nested_precedence) {
   static constexpr View::Bytes source = "2 * 3 - 4 == 2"_view;
   Allocator::Arena domain;
   ExpressionParserObservations observations;
@@ -385,18 +390,18 @@ PERIMORTEM_UNIT_TEST(ExpressionParserTests, nested_precedence_evaluates) {
   Errors errors;
   auto parsed = parse_one(domain, *monograph, source, errors);
   ASSERT(parsed);
-  auto equal = select<Library::Language::Operations::Equal>(*parsed);
+  auto equal = select_pack<Library::Language::Operations::Equal>(*parsed);
   ASSERT(equal);
   EXPECT(matches_anchor(*equal, source, "=="_view, source));
   ASSERT(link_one(domain, *monograph, *parsed, source, errors));
   finalize_one(domain, *parsed, source, errors);
   auto folded = equal->get_folded();
   ASSERT(folded);
-  EXPECT(folded->is<Library::Language::Constants::True>());
+  EXPECT(folded->is_identity<Library::Language::Constants::True>());
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(ExpressionParserTests, ordered_chain_links_after_grammar) {
+PERIMORTEM_UNIT_TEST(ExpressionParserTests, ordered_chain) {
   Allocator::Arena domain;
   ExpressionParserObservations observations;
   ExpressionParserContext context(domain, observations);
@@ -408,14 +413,15 @@ PERIMORTEM_UNIT_TEST(ExpressionParserTests, ordered_chain_links_after_grammar) {
   auto comparison_chain =
       parse_one(domain, *invalid_chain_graph, "1 < 2 <= 3"_view, errors);
   ASSERT(comparison_chain);
-  EXPECT(comparison_chain->is<Library::Language::Operations::LessEqual>());
+  EXPECT(comparison_chain
+             ->is_identity<Library::Language::Operations::LessEqual>());
   EXPECT_NOT(link_one(
       domain, *invalid_chain_graph, *comparison_chain, "1 < 2 <= 3"_view,
       errors));
   EXPECT_NOT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(ExpressionParserTests, embedded_source_stays_slice) {
+PERIMORTEM_UNIT_TEST(ExpressionParserTests, embedded_slice) {
   Allocator::Arena domain;
   ExpressionParserObservations observations;
   ExpressionParserContext context(domain, observations);
@@ -425,7 +431,7 @@ PERIMORTEM_UNIT_TEST(ExpressionParserTests, embedded_source_stays_slice) {
   ASSERT(monograph);
   Errors errors;
   auto parsed = parse_one(domain, *monograph, "$[table]:[2, 4]"_view, errors);
-  ASSERT(parsed && parsed->is<Library::Language::Access::Slice>());
+  ASSERT(parsed && parsed->is_identity<Library::Language::Access::Slice>());
   EXPECT(observations.table_seen);
   EXPECT(matches_anchor(
       *parsed, "$[table]:[2, 4]"_view, ":["_view, "$[table]:[2, 4]"_view));
@@ -433,7 +439,7 @@ PERIMORTEM_UNIT_TEST(ExpressionParserTests, embedded_source_stays_slice) {
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(ExpressionParserTests, address_chain_and_anchor) {
+PERIMORTEM_UNIT_TEST(ExpressionParserTests, address_chain) {
   static constexpr View::Bytes source = "receiver.member.tail"_view;
   Allocator::Arena domain;
   ExpressionParserObservations observations;
@@ -445,24 +451,22 @@ PERIMORTEM_UNIT_TEST(ExpressionParserTests, address_chain_and_anchor) {
   Errors errors;
   auto parsed = parse_one(domain, *monograph, source, errors);
   ASSERT(parsed);
-  auto outer = select<Library::Language::Access::Address>(*parsed);
+  auto outer = select_pack<Library::Language::Access::Address>(*parsed);
   ASSERT(outer);
-  auto inner =
-      select<Library::Language::Access::Address>(outer->get_receiver());
+  auto inner = outer->get_receiver()
+                   .select_identity<Library::Language::Access::Address>();
   ASSERT(inner);
 
   EXPECT_TEXT(outer->get_name(), "tail"_view);
   EXPECT_TEXT(inner->get_name(), "member"_view);
   EXPECT(matches_anchor(*outer, source, "tail"_view, source));
   EXPECT(matches_anchor(*inner, source, "member"_view, "receiver.member"_view));
-  EXPECT(
-      inner->get_receiver().is<Library::Language::Expressions::Identifier>());
+  EXPECT(inner->get_receiver()
+             .is_identity<Library::Language::Expressions::Identifier>());
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(
-    ExpressionParserTests,
-    parenthesized_pack_preserves_real_value_flow) {
+PERIMORTEM_UNIT_TEST(ExpressionParserTests, parenthesized_pack) {
   Allocator::Arena domain;
   ExpressionParserObservations observations;
   ExpressionParserContext context(domain, observations);
@@ -480,38 +484,38 @@ PERIMORTEM_UNIT_TEST(
   ASSERT(scalar && empty && positional && named);
 
   // Parentheses do not manufacture a carrier around one positional value.
-  // Empty, multiple, and named values remain complete Pack owners instead
+  // Empty, multiple, and named values remain complete Pack flows instead
   // of being laundered through an eager aggregate Type.
-  EXPECT(scalar->is<Library::Language::Expression>());
-  EXPECT_NOT(empty->is<Library::Language::Expression>());
-  EXPECT_NOT(positional->is<Library::Language::Expression>());
-  EXPECT_NOT(named->is<Library::Language::Expression>());
-  EXPECT(empty->resolve().is<Invalid>());
-  EXPECT(positional->resolve().is<Invalid>());
-  EXPECT(named->resolve().is<Invalid>());
+  EXPECT(scalar->is_identity<Library::Language::Constant>());
+  EXPECT_NOT(empty->is_identity<Library::Language::Expression>());
+  EXPECT_NOT(positional->is_identity<Library::Language::Expression>());
+  EXPECT_NOT(named->is_identity<Library::Language::Expression>());
+  EXPECT_NOT(empty->is_complete());
+  EXPECT_NOT(positional->is_complete());
+  EXPECT_NOT(named->is_complete());
 
   ASSERT(link_one(domain, *monograph, *scalar, "(2)"_view, errors));
   ASSERT(link_one(domain, *monograph, *empty, "()"_view, errors));
   ASSERT(link_one(domain, *monograph, *positional, "(1, true)"_view, errors));
   ASSERT(link_one(
       domain, *monograph, *named, "(.right = true, .left = 1)"_view, errors));
-  EXPECT(&empty->resolve() == &*empty);
-  EXPECT(&positional->resolve() == &*positional);
-  EXPECT(&named->resolve() == &*named);
+  EXPECT(empty->is_complete());
+  EXPECT(positional->is_complete());
+  EXPECT(named->is_complete());
   EXPECT_EQ(empty->get_layout().get_size(), Count(0));
   EXPECT_EQ(positional->get_layout().get_size(), Count(2));
   EXPECT_EQ(named->get_layout().get_size(), Count(2));
-  EXPECT(named->get_type().is<Invalid>());
+  EXPECT(named->get_type().is<Unknown>());
 
   auto positional_first = positional->get_layout().get_abstract(0);
   auto positional_second = positional->get_layout().get_abstract(1);
   auto named_first = named->get_layout().get_abstract(0);
   auto named_second = named->get_layout().get_abstract(1);
   ASSERT(positional_first && positional_second && named_first && named_second);
-  EXPECT(positional_first->is<Library::Language::Expression>());
-  EXPECT(positional_second->is<Library::Language::Expression>());
-  EXPECT(named_first->is<Library::Language::Expression>());
-  EXPECT(named_second->is<Library::Language::Expression>());
+  EXPECT(positional_first->is<Library::Language::Constant>());
+  EXPECT(positional_second->is<Library::Language::Constant>());
+  EXPECT(named_first->is<Library::Language::Constant>());
+  EXPECT(named_second->is<Library::Language::Constant>());
   auto positional_name = positional->get_layout().get_name(0);
   auto named_first_name = named->get_layout().get_name(0);
   auto named_second_name = named->get_layout().get_name(1);
@@ -523,9 +527,7 @@ PERIMORTEM_UNIT_TEST(
   EXPECT(errors.is_empty());
 }
 
-PERIMORTEM_UNIT_TEST(
-    ExpressionParserTests,
-    scalar_operations_accept_only_expression_packs) {
+PERIMORTEM_UNIT_TEST(ExpressionParserTests, expression_packs) {
   static constexpr View::Bytes source = "(2) * (3)"_view;
   Allocator::Arena domain;
   ExpressionParserObservations observations;
@@ -537,7 +539,8 @@ PERIMORTEM_UNIT_TEST(
   Errors errors;
 
   auto parsed = parse_one(domain, *monograph, source, errors);
-  ASSERT(parsed && parsed->is<Library::Language::Operations::Multiply>());
+  ASSERT(
+      parsed && parsed->is_identity<Library::Language::Operations::Multiply>());
   EXPECT(matches_anchor(*parsed, source, "*"_view, source));
   EXPECT(link_one(domain, *monograph, *parsed, source, errors));
   EXPECT(errors.is_empty());
@@ -549,7 +552,7 @@ PERIMORTEM_UNIT_TEST(
   EXPECT(rejects_grammar(domain, *monograph, "(1, 2):[0]"_view));
 }
 
-PERIMORTEM_UNIT_TEST(ExpressionParserTests, malformed_grammar_reports) {
+PERIMORTEM_UNIT_TEST(ExpressionParserTests, grammar_errors) {
   Allocator::Arena domain;
   ExpressionParserObservations observations;
   ExpressionParserContext context(domain, observations);
@@ -584,7 +587,7 @@ PERIMORTEM_UNIT_TEST(ExpressionParserTests, malformed_grammar_reports) {
           "requires one operand"_view) != Count(-1));
 }
 
-PERIMORTEM_UNIT_TEST(ExpressionParserTests, bitwise_symbols_are_not_logical) {
+PERIMORTEM_UNIT_TEST(ExpressionParserTests, rejects_bitwise) {
   Allocator::Arena domain;
   ExpressionParserObservations observations;
   ExpressionParserContext context(domain, observations);

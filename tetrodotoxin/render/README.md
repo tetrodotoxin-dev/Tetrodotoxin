@@ -1,120 +1,103 @@
-# Render
+# Pipeline
 
-Render is Tetrodotoxin's language for describing the shared interface between a
-program and its GPU stages. A Render source names the values, resources, and
-stages that make up a rendering format. A Shader then provides one implementation
-of that format.
+Pipeline is the target-neutral interface between a draw provider and a Shader.
+It names the resources, host inputs, and ordered Stage layouts that both sides
+must satisfy. It does not render, own executable code, or choose Vulkan state.
 
-The contract is checked before Tetrodotoxin chooses a GPU representation. This
-lets CPU code, Shader code, and different graphics backends agree on the same
-meaning without treating one backend's reflection data as the source of truth.
-
-Canonical grammar reference: [Render.g4](grammar/Render.g4).
+One Pipeline source owns one interface. There is no nested contract Type:
 
 ```ttx
-// Rendering interface.
-dialect : Render;
-```
+// One textured quad interface.
+dialect : Pipeline;
 
-## Render contracts
+public Math : alias = package(.name = "Perimortem.Math", .version = "1.0");
+private Image : alias = source("../image.ttx")::Image;
 
-A Render contract can declare:
+public image : resource read Image;
+public inputs : push Inputs;
 
-- ordinary values
-- constant and push data
-- resources and their binding Attributes
-- required Shader Stages
-- parameter and result Layouts for each Stage
-- built-in values, locations, sets, slots, and access capabilities
-
-Each declaration stays independently inspectable. For example, a resource
-binding that needs both a set and a slot uses two Attributes instead of hiding
-them inside one backend-specific record.
-
-Render defines these Attribute keys:
-
-- `@set(number)`, `@slot(number)`, and `@location(number)` carry unsigned
-  indices.
-- `@builtin("name")`, `@address_space("name")`, and
-  `@capability("name")` carry names interpreted by Render.
-- `@read` and `@write` state independent resource capabilities.
-
-Each Attribute has at most one scalar value. Duplicate keys on one declaration
-are invalid. Shader uses the same keys when it implements the corresponding
-Render fact. Other Dialects do not acquire these meanings merely because they
-share TTX Attribute storage.
-
-Placement is part of each Attribute's meaning:
-
-- `@set` and `@slot` apply only to a resource. When either is present, the
-  resource supplies both parts of its logical binding.
-- `@location` and `@builtin` apply only to a named Stage parameter or result
-  entry. One entry cannot declare both.
-- `@address_space` applies to a resource or push value whose storage domain is
-  part of the Render contract.
-- `@capability` applies to a Stage or to the enclosing Render Structure when
-  the requirement covers all of its nested Stages.
-- `@read` and `@write` apply only to resources. They are independent, so a
-  contract can require either direction or both.
-
-Render rejects an Attribute on the wrong kind of declaration, a value of the
-wrong kind, a duplicate key, or a combination that cannot be used together.
-Shader must satisfy the declared contract. It cannot hide a mismatch by choosing
-a convenient target binding later.
-
-Stage entry Attributes precede the named Layout entry:
-
-```ttx
-public stage Fragment[
-  @location(0) .color : Math::Vec4D,
+public vertex : stage [
+  .position : Math::Vec2D,
+  .texture_uv : Math::Vec2D,
 ] -> [
-  @location(0) .color : Math::Vec4D,
+  .position : Math::Vec4D,
+  .texture_uv : Math::Vec2D,
 ];
+
+public fragment : stage [
+  .texture_uv : Math::Vec2D,
+] -> [
+  .color : Math::Vec4D,
+];
+
+public Inputs : struct {
+  public transform_x : Math::Vec4D;
+  public transform_y : Math::Vec4D;
+}
 ```
 
-## Layout and representation
+Canonical grammar reference: [Render.g4](grammar/Render.g4). The implementation
+directory retains its historical `render` spelling, while the authored Dialect
+and public concept are Pipeline.
 
-Stage parameters and results use TTX Layouts. A matching shape is necessary,
-but shape alone does not say whether a value is a vector, resource, address, or
-part of a particular ABI. Render Types and Attributes describe those additional
-requirements.
+## Ordered interface meaning
 
-Fields, Types, and Stage Callables use their corresponding access domains:
+Pipeline declarations are semantic facts rather than a second backend IR:
 
-- named values are selected with `.`
-- nested Types are selected with `::`
-- Stage Callables are selected and invoked with `->` where the consuming
-  language permits invocation.
+* `resource read T` requires one readable resource with the exact sampling Type
+  `T`. Other access spellings can describe write or read/write resources when a
+  target supports them.
+* `push T` names host-supplied values available to Stage code.
+* `stage` names one required entry and its complete input and output Layouts.
+* `struct` groups related Pipeline values without manufacturing a Library Type.
+
+Stage Layouts are ordered. Non-builtin entries receive locations in that order,
+so authors do not repeat location numbers. The exact names `position` and
+`vertex_index` select their standard GPU builtin roles in the output and input
+domains respectively. Host fields likewise retain their authored names through
+generation; a draw provider and generated target glue agree on those names
+without an authored `@host` mapping.
+
+Resource declaration order supplies stable descriptor order. A Shader can
+implement a Pipeline resource directly or pair a CPU-visible material carrier
+with the required GPU sampling Type. Sets, slots, storage classes, offsets, and
+SPIR-V decorations are generated target facts, not authored Pipeline facts.
+
+## What Pipeline deliberately does not own
+
+Topology, blending, geometry, vertex count, cameras, depth behavior, and draw
+ordering belong to the Object or pass that contributes a draw. The same Shader
+can therefore be attached to compatible draw providers without its interface
+silently selecting one engine policy. A frame carries the selected fixed state
+beside the Program, and a backend realizes the corresponding native pipeline.
+
+Pipeline also owns no Shader expression or runtime material state. It remains a
+declarative interface that editors, Archives, Shader validation, and different
+GPU targets can inspect before a representation is selected.
 
 ## Shader relationship
 
-Render owns the interface. [Shader](../shader/README.md) selects one Render
-contract, organizes its stages, and supplies the implementation. Each Shader
-contains one Render layer built by the Render language already installed in the
-Workspace. That layer holds the GPU Types, resources, Layouts, expressions, and
-stage bodies used by the Shader.
+A Shader selects one Pipeline source explicitly:
 
-Tools can inspect either a top-level Render source or the Render layer inside a
-Shader. Both use the same installed Render language, so generic Types and other
-shared identities remain consistent. There is no copied Shader model or second
-Render language hidden inside Shader.
+```ttx
+implements source("../pipelines/textured_2d.ttx");
+```
 
-Render does not know about Shader or Vulkan. Shader builds on Render, and a
-graphics backend later turns the completed facts into target-specific bindings
-and resources.
+The expression may instead end at a Package export and can use any number of
+`::` segments. The selected Pipeline Monograph is the requirement. Shader
+retains that exact edge, authors explicit Stage bodies, and proves each body
+signature against the matching ordered Pipeline Stage.
 
-Runtime graphics submission is a separate consumer of completed render facts.
-It does not redefine Render grammar or Shader identity.
+Pipeline knows nothing about Shader or Vulkan. Shader builds executable meaning
+against the interface, while a Vulkan or another backend later generates CPU
+and GPU glue from the completed graph.
 
 ## Persistence
 
-Render can be stored in a Package Archive and reconstructed without its source
-file. A Complete payload keeps its public and private render contracts, while
-an Interface payload keeps the public Attributes, Layouts, bridge facts, and
-artifact locations needed by other code. Expressions and stage bodies remain
-source or live Workspace facts.
+Pipeline members can be stored in a Package product and reconstructed without
+their source file. The complete graph retains public and private declarations
+but no generated locations, descriptor coordinates, SPIR-V, native handles, or
+frame state.
 
-When Render belongs to a Shader, it uses the same Complete or Interface profile
-as its parent. Render does not store chosen GPU storage classes, target bindings,
-SPIR-V words, live backend handles, or source-level debugging data in either
-profile.
+See [Shader](../shader/README.md) for implementations and
+[Graphics](../graphics/README.md) for draw and pass ownership.
