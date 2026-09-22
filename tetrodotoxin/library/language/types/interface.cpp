@@ -8,7 +8,7 @@
 using namespace Perimortem::Memory;
 using namespace Tetrodotoxin::Library::Language;
 
-static constexpr Ttx::Model::Layouts::Named interface_layout;
+static constexpr Tetrodotoxin::Source::Layouts::Named interface_layout;
 
 auto Types::Interface::create_authored(
     Allocator::Arena& domain,
@@ -33,20 +33,20 @@ auto Types::Interface::create_fitted(Allocator::Arena&, Model::Pack&) const
   return {};
 }
 
-auto Types::Interface::get_layout() const -> const Ttx::Model::Layouts::Named& {
+auto Types::Interface::get_layout() const -> const Tetrodotoxin::Source::Layouts::Named& {
   return interface_layout;
 }
 
 auto Types::Interface::get_state_layout() const
-    -> const Ttx::Model::Layouts::Named& {
+    -> const Tetrodotoxin::Source::Layouts::Named& {
   return Structure::get_layout();
 }
 
 auto Types::Interface::retain_binding(
-    Ttx::Concept::Abstract& binding,
+    Tetrodotoxin::Source::Abstract& binding,
     Tetrodotoxin::Language::Definition& definition,
     Category category,
-    Ttx::Lexical::Cursor& cursor) -> Bool {
+    Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool {
   auto field = binding.select<Field>();
   if (category != Category::Addressable || !field ||
       field->get_writability() != Writability::Internal ||
@@ -54,7 +54,7 @@ auto Types::Interface::retain_binding(
           Tetrodotoxin::Language::Visibility::Public ||
       !field->get_type_reference()) {
     cursor.create_expression_error(
-        definition.get_anchor(),
+        definition.get_authored().get_anchor(),
         "Library Interface members require public state with an explicit Type."_view,
         "Declare the shared state as `public state name : Type`."_view);
     return False;

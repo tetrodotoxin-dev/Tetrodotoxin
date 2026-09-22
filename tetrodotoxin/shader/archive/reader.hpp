@@ -25,10 +25,10 @@ class Reader {
   static auto restore(
       Perimortem::Memory::Allocator::Arena& arena,
       Perimortem::Core::View::Bytes payload,
-      const Ttx::Concept::Abstract& language,
+      const Tetrodotoxin::Source::Abstract& language,
       const Tetrodotoxin::Library::Dialect& library,
-      Ttx::Concept::Abstract& context)
-      -> Perimortem::Core::Option<Ttx::Concept::Abstract&>;
+      Tetrodotoxin::Source::Abstract& context)
+      -> Perimortem::Core::Option<Tetrodotoxin::Source::Abstract&>;
 
  private:
   class Record {
@@ -49,7 +49,7 @@ class Reader {
   class Definition {
    public:
     constexpr Definition(
-        const Ttx::Concept::Documentation& documentation,
+        const Tetrodotoxin::Source::Documentation& documentation,
         Perimortem::Core::View::Vector<Tetrodotoxin::Language::Attribute>
             attributes,
         Perimortem::Core::View::Bytes name,
@@ -61,14 +61,14 @@ class Reader {
 
     auto create(
         Perimortem::Memory::Allocator::Arena& arena,
-        Ttx::Concept::Abstract& host) const
+        Tetrodotoxin::Source::Abstract& host) const
         -> Tetrodotoxin::Language::Definition&;
 
     constexpr auto get_attributes() const { return attributes; }
     constexpr auto get_visibility() const { return visibility; }
 
    private:
-    const Ttx::Concept::Documentation& documentation;
+    const Tetrodotoxin::Source::Documentation& documentation;
     Perimortem::Core::View::Vector<Tetrodotoxin::Language::Attribute>
         attributes;
     Perimortem::Core::View::Bytes name;
@@ -90,7 +90,7 @@ class Reader {
   auto read_r64() -> Perimortem::Core::Option<R64>;
   auto read_bytes() -> Perimortem::Core::Option<Perimortem::Core::View::Bytes>;
   auto read_documentation(Perimortem::Memory::Allocator::Arena& arena)
-      -> Perimortem::Core::Option<const Ttx::Concept::Documentation&>;
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Documentation&>;
   auto read_attributes(Perimortem::Memory::Allocator::Arena& arena)
       -> Perimortem::Core::Option<
           Perimortem::Core::View::Vector<Tetrodotoxin::Language::Attribute>>;

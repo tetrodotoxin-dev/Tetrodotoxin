@@ -4,8 +4,8 @@
 #pragma once
 
 #include "tetrodotoxin/library/language/types/contiguous.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/model/documentations/comment.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/documentations/comment.hpp"
 
 namespace Tetrodotoxin::Library::Language::Types {
 
@@ -41,7 +41,7 @@ class View : public Contiguous {
  private:
   Perimortem::Core::View::Bytes name;
   const Model::Type& element;
-  static constexpr Ttx::Model::Documentations::Comment documentation{
+  static constexpr Tetrodotoxin::Source::Documentations::Comment documentation{
     "Provides read-only access to contiguous values."_view,
   };
 };

@@ -6,8 +6,8 @@
 #include "perimortem/core/option.hpp"
 
 #include "tetrodotoxin/app/language/scene.hpp"
-#include "ttx/concept/documentation.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/documentation.hpp"
 
 namespace Tetrodotoxin::App::Interpreter {
 
@@ -17,11 +17,11 @@ class Scene {
  public:
   Scene() = delete;
 
-  static auto is_next(const Ttx::Lexical::Cursor& cursor) -> Bool;
+  static auto is_next(const Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool;
 
   static auto parse(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Documentation& documentation)
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Documentation& documentation)
       -> Perimortem::Core::Option<Language::Scene&>;
 };
 

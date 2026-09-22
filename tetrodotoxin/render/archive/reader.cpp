@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/render/archive/reader.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "perimortem/core/reader/binary.hpp"
 
 #include "perimortem/memory/managed/vector.hpp"
@@ -12,12 +14,12 @@
 #include "tetrodotoxin/render/language/binding.hpp"
 #include "tetrodotoxin/render/language/stage.hpp"
 #include "tetrodotoxin/render/language/structure.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/model/documentations/block.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/documentations/block.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin;
 
 enum class RenderReaderAttributeValue : U8 {
@@ -52,7 +54,7 @@ auto Render::Archive::Reader::restore(
     Allocator::Arena& arena,
     View::Bytes payload,
     const Abstract& language,
-    Abstract& context) -> Option<Ttx::Concept::Abstract&> {
+    Abstract& context) -> Option<Tetrodotoxin::Source::Abstract&> {
   // The outer record bounds every declaration before any graph identity is
   // created. A malformed sibling is therefore confined to its own payload and
   // cannot consume the valid bytes that follow it.
@@ -135,7 +137,7 @@ auto Render::Archive::Reader::read_bytes() -> Option<View::Bytes> {
 }
 
 auto Render::Archive::Reader::read_documentation(Allocator::Arena& arena)
-    -> Option<const Documentation&> {
+    -> Option<const Tetrodotoxin::Source::Documentation&> {
   auto count = read_u32();
   BAIL_IF(!count || Count(*count) > payload.get_size());
   auto lines = arena.reserve<View::Bytes>(*count);
@@ -144,7 +146,7 @@ auto Render::Archive::Reader::read_documentation(Allocator::Arena& arena)
     BAIL_IF(!line);
     lines.get_data()[index] = arena.proxy(*line);
   }
-  return arena.construct<Ttx::Model::Documentations::Block>(
+  return arena.construct<Tetrodotoxin::Source::Documentations::Block>(
       View::Vector<View::Bytes>(lines.get_data(), lines.get_size()));
 }
 
@@ -222,7 +224,7 @@ auto Render::Archive::Reader::read_type_reference(Allocator::Arena& arena)
   auto route = read_bytes();
   BAIL_IF(!route || route->is_empty());
   return Tetrodotoxin::Language::TypeReference::create(
-      arena.proxy(*route), Ttx::Lexical::Anchor::create(Ttx::Lexical::Span()));
+      arena.proxy(*route), Tetrodotoxin::Source::Lexical::Anchor::create(Tetrodotoxin::Source::Lexical::Span()));
 }
 
 auto Render::Archive::Reader::read_layout(Allocator::Arena& arena)
@@ -248,11 +250,11 @@ auto Render::Archive::Reader::read_layout(Allocator::Arena& arena)
     slots.insert(
         Render::Language::Layout::Slot(
             *reference, arena.proxy(*name), *attributes,
-            Ttx::Lexical::Anchor::create(Ttx::Lexical::Span())));
+            Tetrodotoxin::Source::Lexical::Anchor::create(Tetrodotoxin::Source::Lexical::Span())));
   }
   BAIL_IF(!contents.is_complete());
   return Render::Language::Layout::create(
-      arena, slots, Ttx::Lexical::Anchor::create(Ttx::Lexical::Span()),
+      arena, slots, Tetrodotoxin::Source::Lexical::Anchor::create(Tetrodotoxin::Source::Lexical::Span()),
       *parameters == 1);
 }
 
@@ -380,7 +382,7 @@ auto Render::Archive::Reader::read_entries(
     }
     BAIL_IF(!retained);
     if (entry->instance) {
-      auto addressable = entry->semantic.select<Ttx::Model::Addressable>();
+      auto addressable = entry->semantic.select<Tetrodotoxin::Source::Addressable>();
       BAIL_IF(!addressable);
       structure.retain_instance(*addressable);
     }

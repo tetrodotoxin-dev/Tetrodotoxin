@@ -48,7 +48,7 @@ auto Types::Result::create_fitted(
                 : Core::Option<Model::Pack&>();
 }
 
-auto Types::Result::validate_layout(Ttx::Lexical::Cursor& cursor) const
+auto Types::Result::validate_layout(Tetrodotoxin::Source::Lexical::Cursor& cursor) const
     -> Bool {
   if (!value.get_layout().is_empty() && !error.get_layout().is_empty()) {
     return True;

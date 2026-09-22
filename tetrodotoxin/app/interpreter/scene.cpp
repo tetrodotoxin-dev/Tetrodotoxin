@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/app/interpreter/scene.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "perimortem/memory/managed/vector.hpp"
 
 #include "tetrodotoxin/app/interpreter/route.hpp"
@@ -11,8 +13,8 @@
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 static auto require_text(
@@ -65,7 +67,7 @@ auto App::Interpreter::Scene::is_next(const Cursor& cursor) -> Bool {
 
 auto App::Interpreter::Scene::parse(
     Cursor& cursor,
-    const Documentation& documentation) -> Option<Language::Scene&> {
+    const Tetrodotoxin::Source::Documentation& documentation) -> Option<Language::Scene&> {
   Token opening = require_text(
       cursor, Code::Type::Addressable, "lifecycle"_view,
       "App Scene lifecycle requires `lifecycle`."_view);
@@ -93,7 +95,7 @@ auto App::Interpreter::Scene::parse(
       cursor.get_arena());
   while (!cursor.matches(Code::Type::ScopeEnd) &&
          !cursor.matches(Code::Type::Terminal)) {
-    const Documentation& transition_documentation =
+    const Tetrodotoxin::Source::Documentation& transition_documentation =
         Tetrodotoxin::Language::Parser::Comment::parse(cursor);
     Token transition_opening = require_text(
         cursor, Code::Type::Addressable, "on"_view,

@@ -6,7 +6,7 @@
 #include "perimortem/core/view/vector.hpp"
 
 #include "tetrodotoxin/language/attribute.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Render::Language {
 
@@ -28,7 +28,7 @@ class Attributes {
   Attributes() = delete;
 
   static auto validate(
-      Ttx::Lexical::Cursor& cursor,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
       Perimortem::Core::View::Vector<Tetrodotoxin::Language::Attribute>
           attributes,
       Placement placement) -> Bool;

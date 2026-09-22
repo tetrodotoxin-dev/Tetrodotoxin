@@ -3,10 +3,10 @@
 
 #include "tetrodotoxin/library/language/constants/bytes.hpp"
 
-#include "ttx/concept/none.hpp"
+#include "tetrodotoxin/source/none.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library::Language;
 
 auto Constants::Bytes::resolve_concept(Core::View::Bytes name) const
@@ -21,7 +21,7 @@ auto Constants::Bytes::resolve_concept(Core::View::Bytes name) const
 }
 
 auto Constants::Bytes::visit_concepts(
-    Ttx::Concept::Abstract::Visitor visitor) const -> void {
+    Tetrodotoxin::Source::Abstract::Visitor visitor) const -> void {
   auto selected = get_resource();
   if (selected) {
     visitor("resource"_view, *selected);

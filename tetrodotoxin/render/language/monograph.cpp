@@ -3,19 +3,21 @@
 
 #include "tetrodotoxin/render/language/monograph.hpp"
 
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/documentation.hpp"
+
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Memory;
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Render;
 
 auto Language::Monograph::create(
     Allocator::Arena& arena,
     const Abstract& language,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     Abstract& context) -> Monograph& {
   return arena.construct_from<Monograph>(
       [&]() { return Monograph(arena, language, documentation, context); });
@@ -93,7 +95,7 @@ auto Language::Monograph::resolve_concept(View::Bytes name) const
 }
 
 auto Language::Monograph::visit_concepts(
-    Ttx::Concept::Abstract::Visitor visitor) const -> void {
+    Tetrodotoxin::Source::Abstract::Visitor visitor) const -> void {
   declarations.visit_concepts(visitor);
 }
 

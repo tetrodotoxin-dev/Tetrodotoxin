@@ -8,11 +8,11 @@
 
 #include "perimortem/memory/managed/vector.hpp"
 
-#include "ttx/lexical/lexicon.hpp"
+#include "tetrodotoxin/source/lexical/lexicon.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 static auto parse_string(Cursor& cursor) -> Option<Language::Attribute::Value> {

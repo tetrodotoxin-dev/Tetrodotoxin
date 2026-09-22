@@ -5,12 +5,12 @@
 
 #include "tetrodotoxin/language/import.hpp"
 #include "tetrodotoxin/language/monograph.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 static auto is_missing(const Abstract& abstract) -> Bool {
@@ -21,7 +21,7 @@ static auto is_missing(const Abstract& abstract) -> Bool {
 // factual. Import supplies that Type through its own operation, while other
 // declarations and transparent references follow ordinary resolution.
 static auto select_native(const Abstract& candidate) -> const Abstract& {
-  if (candidate.is<Ttx::Model::Type>()) {
+  if (candidate.is<Tetrodotoxin::Source::Type>()) {
     return candidate;
   }
   const Abstract& resolved = candidate.resolve();
@@ -52,7 +52,7 @@ static auto resolve_route(
     Option<Cursor&> cursor,
     Anchor anchor,
     Option<const Abstract&> supplied_root = {})
-    -> Option<const Ttx::Model::Type&> {
+    -> Option<const Tetrodotoxin::Source::Type&> {
   const Abstract* selected = &context;
   Count start = 0;
   Count segment = 0;
@@ -118,7 +118,7 @@ static auto resolve_route(
     }
   }
   const Abstract& resolved = select_native(*selected);
-  auto type = resolved.select<Ttx::Model::Type>();
+  auto type = resolved.select<Tetrodotoxin::Source::Type>();
   if (!type) {
     if (cursor) {
       auto report = cursor->create_report(anchor);
@@ -137,23 +137,23 @@ static auto resolve_route(
 }
 
 auto Language::TypeReference::resolve(Cursor& cursor, const Abstract& context)
-    const -> Option<const Ttx::Model::Type&> {
+    const -> Option<const Tetrodotoxin::Source::Type&> {
   return resolve_route(route, context, cursor, anchor);
 }
 
 auto Language::TypeReference::resolve_selected(
     Cursor& cursor,
-    const Abstract& selected_root) const -> Option<const Ttx::Model::Type&> {
+    const Abstract& selected_root) const -> Option<const Tetrodotoxin::Source::Type&> {
   return resolve_route(route, selected_root, cursor, anchor, selected_root);
 }
 
 auto Language::TypeReference::resolve_restored(const Abstract& context) const
-    -> Option<const Ttx::Model::Type&> {
+    -> Option<const Tetrodotoxin::Source::Type&> {
   return resolve_route(route, context, {}, anchor);
 }
 
 auto Language::TypeReference::resolve_restored_selected(
-    const Abstract& selected_root) const -> Option<const Ttx::Model::Type&> {
+    const Abstract& selected_root) const -> Option<const Tetrodotoxin::Source::Type&> {
   return resolve_route(route, selected_root, {}, anchor, selected_root);
 }
 

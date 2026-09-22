@@ -9,8 +9,8 @@
 #include "tetrodotoxin/library/interpreter/literal.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 
 auto Interpreter::TypeReference::parse(const Abstract& context, Cursor& cursor)

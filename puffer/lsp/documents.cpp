@@ -22,12 +22,12 @@
 #include "tetrodotoxin/render/dialect.hpp"
 #include "tetrodotoxin/scene/dialect.hpp"
 #include "tetrodotoxin/shader/dialect.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/associations.hpp"
-#include "ttx/lexical/cursor.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/associations.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
@@ -345,7 +345,7 @@ auto Lsp::Documents::create_workspace(Document& document)
         toolchain, document.package_root.get_view(), "puffer.package"_view,
         "package.ttx"_view, snapshots);
 
-    session->errors = Dynamic::Record<Ttx::Lexical::Errors>();
+    session->errors = Dynamic::Record<Tetrodotoxin::Source::Lexical::Errors>();
     session->workspace =
         Dynamic::Record<Environment::Workspace>(toolchain, snapshots);
     dependencies.restore(**session->workspace);
@@ -357,7 +357,7 @@ auto Lsp::Documents::create_workspace(Document& document)
     return **session->workspace;
   }
 
-  document.standalone_errors = Dynamic::Record<Ttx::Lexical::Errors>();
+  document.standalone_errors = Dynamic::Record<Tetrodotoxin::Source::Lexical::Errors>();
   document.standalone_workspace =
       Dynamic::Record<Environment::Workspace>(toolchain);
   (*document.standalone_workspace)
@@ -382,19 +382,19 @@ auto Lsp::Documents::get_workspace(Document& document)
 }
 
 auto Lsp::Documents::get_errors(Document& document)
-    -> Option<const Ttx::Lexical::Errors&> {
+    -> Option<const Tetrodotoxin::Source::Lexical::Errors&> {
   BAIL_IF(!get_workspace(document));
 
   auto session = select_session(document);
   if (session) {
     return session->errors
-               ? Option<const Ttx::Lexical::Errors&>(**session->errors)
-               : Option<const Ttx::Lexical::Errors&>();
+               ? Option<const Tetrodotoxin::Source::Lexical::Errors&>(**session->errors)
+               : Option<const Tetrodotoxin::Source::Lexical::Errors&>();
   }
 
   return document.standalone_errors
-             ? Option<const Ttx::Lexical::Errors&>(**document.standalone_errors)
-             : Option<const Ttx::Lexical::Errors&>();
+             ? Option<const Tetrodotoxin::Source::Lexical::Errors&>(**document.standalone_errors)
+             : Option<const Tetrodotoxin::Source::Lexical::Errors&>();
 }
 
 auto Lsp::Documents::get_diagnostics(View::Bytes uri) -> Option<Diagnostics> {
@@ -413,7 +413,7 @@ auto Lsp::Documents::get_diagnostics(View::Bytes uri) -> Option<Diagnostics> {
 auto Lsp::Documents::find_semantic(
     View::Bytes uri,
     const PositionEncoding::Position& position)
-    -> Option<const Ttx::Concept::Abstract&> {
+    -> Option<const Tetrodotoxin::Source::Abstract&> {
   Count slot = find(uri);
   BAIL_IF(slot == Count(-1));
 
@@ -436,7 +436,7 @@ auto Lsp::Documents::find_semantic(
                                 document.package_root.get_view(),
                                 document.logical_route.get_view());
   auto semantic = associations ? associations->find_at(*offset)
-                               : Option<const Ttx::Concept::Abstract&>();
+                               : Option<const Tetrodotoxin::Source::Abstract&>();
   BAIL_IF(!semantic);
 
   return semantic;
@@ -451,7 +451,7 @@ auto Lsp::Documents::get_position_encoding() const -> const PositionEncoding& {
 }
 
 auto Lsp::Documents::get_associations(View::Bytes uri)
-    -> Option<const Ttx::Lexical::Associations&> {
+    -> Option<const Tetrodotoxin::Source::Lexical::Associations&> {
   Count slot = find(uri);
   BAIL_IF(slot == Count(-1));
 
@@ -505,7 +505,7 @@ auto Lsp::Documents::get_completed_monograph(View::Bytes uri)
 }
 
 auto Lsp::Documents::get_tokens(View::Bytes uri)
-    -> View::Vector<Ttx::Lexical::Token> {
+    -> View::Vector<Tetrodotoxin::Source::Lexical::Token> {
   Count slot = find(uri);
   BAIL_IF(slot == Count(-1));
 
@@ -524,7 +524,7 @@ auto Lsp::Documents::get_tokens(View::Bytes uri)
 
 auto Lsp::Documents::find_definition(
     View::Bytes source_uri,
-    const Ttx::Concept::Abstract& semantic)
+    const Tetrodotoxin::Source::Abstract& semantic)
     -> Option<Environment::Workspace::AuthoredLocation> {
   Count slot = find(source_uri);
   BAIL_IF(slot == Count(-1));
@@ -538,7 +538,7 @@ auto Lsp::Documents::find_definition(
 auto Lsp::Documents::find_acquired_definition(
     View::Bytes source_uri,
     const PositionEncoding::Position& position,
-    const Ttx::Concept::Abstract& semantic)
+    const Tetrodotoxin::Source::Abstract& semantic)
     -> Option<Environment::Workspace::AuthoredLocation> {
   Count slot = find(source_uri);
   BAIL_IF(slot == Count(-1));
@@ -551,11 +551,11 @@ auto Lsp::Documents::find_acquired_definition(
   auto workspace = get_workspace(document);
   BAIL_IF(!workspace);
 
-  const Ttx::Concept::Abstract* acquired = &semantic;
-  const Ttx::Concept::Abstract& resource =
+  const Tetrodotoxin::Source::Abstract* acquired = &semantic;
+  const Tetrodotoxin::Source::Abstract& resource =
       semantic.resolve_concept("resource"_view);
-  if (!resource.is<Ttx::Concept::None>() &&
-      !resource.is<Ttx::Concept::Unknown>()) {
+  if (!resource.is<Tetrodotoxin::Source::None>() &&
+      !resource.is<Tetrodotoxin::Source::Unknown>()) {
     acquired = &resource;
   }
 

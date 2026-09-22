@@ -30,13 +30,13 @@ class Interface : public Structure {
       Model::Pack& source) const
       -> Perimortem::Core::Option<Model::Pack&> override;
 
-  auto get_layout() const -> const Ttx::Model::Layouts::Named& override;
+  auto get_layout() const -> const Tetrodotoxin::Source::Layouts::Named& override;
 
   // Interface requirements do not enter value flow, but their ordered state
   // still defines the prefix materialized by every explicit implementation.
   // Native Terminals consume that exact declaration-owned projection without
   // turning the Interface itself into a runtime value.
-  auto get_state_layout() const -> const Ttx::Model::Layouts::Named&;
+  auto get_state_layout() const -> const Tetrodotoxin::Source::Layouts::Named&;
 
  private:
   Interface(
@@ -45,10 +45,10 @@ class Interface : public Structure {
       : Structure(domain, definition, False) {}
 
   auto retain_binding(
-      Ttx::Concept::Abstract& binding,
+      Tetrodotoxin::Source::Abstract& binding,
       Tetrodotoxin::Language::Definition& definition,
       Category category,
-      Ttx::Lexical::Cursor& cursor) -> Bool override;
+      Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
 };
 
 }  // namespace Tetrodotoxin::Library::Language::Types

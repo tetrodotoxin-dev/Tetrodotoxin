@@ -3,13 +3,15 @@
 
 #include "tetrodotoxin/scene/archive/writer.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "perimortem/serialization/stream/binary.hpp"
 
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Serialization;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin;
 
 Scene::Archive::Writer::Writer() {
@@ -45,7 +47,7 @@ auto Scene::Archive::Writer::write(View::Bytes value) -> Bool {
   return True;
 }
 
-auto Scene::Archive::Writer::write(const Documentation& documentation) -> Bool {
+auto Scene::Archive::Writer::write(const Tetrodotoxin::Source::Documentation& documentation) -> Bool {
   BAIL_IF(documentation.line_count() > U32(-1));
   write(U32(documentation.line_count()));
   for (Count index = 0; index < documentation.line_count(); index++) {

@@ -13,14 +13,14 @@
 #include "tetrodotoxin/library/interpreter/layout.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
 #include "tetrodotoxin/library/language/types/composite.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/tokenizer.hpp"
-#include "ttx/model/layouts/addressable.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/layouts/addressable.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 using Tetrodotoxin::Environment::Workspace;
 using namespace Validation;
@@ -48,7 +48,7 @@ static auto parse_layout(
     View::Bytes text,
     Bool parameters = False) -> Option<Language::Model::Layout&> {
   Tokenizer tokenizer(arena, text, "authored-layout.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   auto layout = Interpreter::Layout::parse_model(cursor, context, parameters);
   BAIL_IF(!layout || !cursor.matches(Code::Type::Terminal));
@@ -74,12 +74,12 @@ PERIMORTEM_UNIT_TEST(LibraryModelLayout, parameter_entries) {
   ASSERT(layout);
   Tokenizer link_tokens(
       arena, "[self, .input : Bool,]"_view, "authored-layout.ttx"_view);
-  Ttx::Lexical::Associations link_associations(link_tokens.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations link_associations(link_tokens.get_arena());
   Cursor link_cursor(link_tokens, parse_errors, link_associations);
   EXPECT(layout->declares_self());
   EXPECT_NOT(layout->is_linked());
   ASSERT(layout->link_parameters(
-      link_cursor, static_cast<const Ttx::Model::Type&>(box)));
+      link_cursor, static_cast<const Tetrodotoxin::Source::Type&>(box)));
 
   ASSERT_EQ(layout->get_size(), Count(2));
   ASSERT(layout->get_name(0) && layout->get_name(1));
@@ -88,13 +88,13 @@ PERIMORTEM_UNIT_TEST(LibraryModelLayout, parameter_entries) {
 
   const Abstract& self = layout->resolve_named("self"_view);
   const Abstract& input = layout->resolve_named("input"_view);
-  ASSERT(self.is<Ttx::Model::Layouts::Addressable>());
-  ASSERT(input.is<Ttx::Model::Layouts::Addressable>());
+  ASSERT(self.is<Tetrodotoxin::Source::Layouts::Addressable>());
+  ASSERT(input.is<Tetrodotoxin::Source::Layouts::Addressable>());
   EXPECT(
-      &static_cast<const Ttx::Model::Layouts::Addressable&>(self).get_type() ==
+      &static_cast<const Tetrodotoxin::Source::Layouts::Addressable&>(self).get_type() ==
       &box);
   EXPECT(
-      &static_cast<const Ttx::Model::Layouts::Addressable&>(input).get_type() ==
+      &static_cast<const Tetrodotoxin::Source::Layouts::Addressable&>(input).get_type() ==
       &monograph->resolve_concept("Bool"_view));
   EXPECT(parse_errors.is_empty());
   EXPECT(errors.is_empty());
@@ -143,7 +143,7 @@ PERIMORTEM_UNIT_TEST(LibraryModelLayout, rejects_empty_types) {
   Tokenizer link_tokens(
       arena, "[.nothing : Empty, .value : Bool,]"_view,
       "authored-layout.ttx"_view);
-  Ttx::Lexical::Associations link_associations(link_tokens.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations link_associations(link_tokens.get_arena());
   Cursor link_cursor(link_tokens, parse_errors, link_associations);
   EXPECT_NOT(named->is_linked());
   EXPECT_NOT(named->link_types(link_cursor, monograph->get_source()));
@@ -168,11 +168,11 @@ PERIMORTEM_UNIT_TEST(LibraryModelLayout, named_fitting) {
   ASSERT(source && reordered);
   Tokenizer source_tokens(
       arena, "[.flag : Bool, .count : U64]"_view, "authored-layout.ttx"_view);
-  Ttx::Lexical::Associations source_associations(source_tokens.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations source_associations(source_tokens.get_arena());
   Cursor source_cursor(source_tokens, parse_errors, source_associations);
   Tokenizer reordered_tokens(
       arena, "[.count : U64, .flag : Bool]"_view, "authored-layout.ttx"_view);
-  Ttx::Lexical::Associations reordered_associations(
+  Tetrodotoxin::Source::Lexical::Associations reordered_associations(
       reordered_tokens.get_arena());
   Cursor reordered_cursor(
       reordered_tokens, parse_errors, reordered_associations);
@@ -186,12 +186,12 @@ PERIMORTEM_UNIT_TEST(LibraryModelLayout, named_fitting) {
   const Abstract& boolean = monograph->resolve_concept("Bool"_view);
   EXPECT(count.visit(
       [&](const Abstract& selected) -> Bool { return Bool(&selected == &u64); },
-      [](Ttx::Concept::Layout::Errors) { return False; }));
+      [](Tetrodotoxin::Source::Layout::Errors) { return False; }));
   EXPECT(flag.visit(
       [&](const Abstract& selected) -> Bool {
         return Bool(&selected == &boolean);
       },
-      [](Ttx::Concept::Layout::Errors) { return False; }));
+      [](Tetrodotoxin::Source::Layout::Errors) { return False; }));
   EXPECT(parse_errors.is_empty());
   EXPECT(errors.is_empty());
 }

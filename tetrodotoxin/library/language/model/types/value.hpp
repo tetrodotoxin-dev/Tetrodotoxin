@@ -4,7 +4,7 @@
 #pragma once
 
 #include "tetrodotoxin/library/language/model/type.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 namespace Tetrodotoxin::Library::Language::Model::Types {
 
@@ -18,7 +18,7 @@ class Value : public Model::Type {
   // Folding may retain the selected Type while producing an incompatible
   // Constant carrier. The scalar domain owns that proof so every consumer can
   // reject malformed folded values without enumerating Constant subclasses.
-  virtual auto accepts_constant(const Ttx::Concept::Abstract&) const
+  virtual auto accepts_constant(const Tetrodotoxin::Source::Abstract&) const
       -> Bool = 0;
 
   // Builtin scalars carry the same Library meaning in every source Monograph.
@@ -34,16 +34,16 @@ class Value : public Model::Type {
   auto is_equivalent(const Value& source) const -> Bool;
 
   auto create_supplied(
-      Ttx::Lexical::Cursor& cursor,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
       Model::Pack& source,
-      Perimortem::Core::Option<const Ttx::Concept::Abstract&> access_scope,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor) const
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&> access_scope,
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor) const
       -> Perimortem::Core::Option<Model::Pack&> override;
 
   auto create_supplied_restored(
       Perimortem::Memory::Allocator::Arena& arena,
       Model::Pack& source,
-      Perimortem::Core::Option<const Ttx::Concept::Abstract&> access_scope)
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&> access_scope)
       const -> Perimortem::Core::Option<Model::Pack&> override;
 
   virtual constexpr auto get_width() const -> Count = 0;

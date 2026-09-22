@@ -2,6 +2,8 @@
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "validation/unit_test.hpp"
+
+#include "tetrodotoxin/source/documentation.hpp"
 #include "validation/unit_tests/tetrodotoxin/library/workspace.hpp"
 
 #include "perimortem/core/static/vector.hpp"
@@ -33,14 +35,14 @@
 #include "tetrodotoxin/library/language/types/source.hpp"
 #include "tetrodotoxin/library/language/types/structure.hpp"
 #include "tetrodotoxin/library/language/types/view.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/errors.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Tetrodotoxin::Library;
 using namespace Tetrodotoxin::Library::Language;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Validation;
 
 static Harness LibraryDefaults = {
@@ -52,8 +54,8 @@ class ForeignUnsigned : public Model::Types::Unsigned {
   constexpr auto get_name() const -> View::Bytes override {
     return "ForeignUnsigned"_view;
   }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
   constexpr auto get_width() const -> Count override { return 8; }
   constexpr auto get_size() const -> Count override { return 1; }
@@ -66,7 +68,7 @@ class ForeignUnsigned : public Model::Types::Unsigned {
 
 static auto import_types(
     Tetrodotoxin::Environment::Workspace& workspace,
-    Ttx::Lexical::Errors& errors) -> Option<Monograph&> {
+    Tetrodotoxin::Source::Lexical::Errors& errors) -> Option<Monograph&> {
   static constexpr View::Bytes source =
       "// Default value types.\n"
       "dialect : Library;\n"
@@ -98,7 +100,7 @@ PERIMORTEM_UNIT_TEST(LibraryDefaults, scalar_defaults) {
   auto workspace_toolchain =
       Validation::create_library_toolchain(workspace_toolchain_library);
   Tetrodotoxin::Environment::Workspace workspace(*workspace_toolchain);
-  Ttx::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Errors errors;
   auto monograph = import_types(workspace, errors);
   ASSERT(monograph);
   const Static::Vector<const Model::Type*, 4> unsigned_types = {{
@@ -159,7 +161,7 @@ PERIMORTEM_UNIT_TEST(LibraryDefaults, carrier_defaults) {
   auto workspace_toolchain =
       Validation::create_library_toolchain(workspace_toolchain_library);
   Tetrodotoxin::Environment::Workspace workspace(*workspace_toolchain);
-  Ttx::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Errors errors;
   auto monograph = import_types(workspace, errors);
   ASSERT(monograph);
   const auto& u8 =
@@ -219,7 +221,7 @@ PERIMORTEM_UNIT_TEST(LibraryDefaults, aggregate_defaults) {
   auto workspace_toolchain =
       Validation::create_library_toolchain(workspace_toolchain_library);
   Tetrodotoxin::Environment::Workspace workspace(*workspace_toolchain);
-  Ttx::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Errors errors;
   auto monograph = import_types(workspace, errors);
   ASSERT(monograph);
   const auto& source_type = monograph->get_source();
@@ -281,7 +283,7 @@ PERIMORTEM_UNIT_TEST(LibraryDefaults, fixed_defaults) {
   auto workspace_toolchain =
       Validation::create_library_toolchain(workspace_toolchain_library);
   Tetrodotoxin::Environment::Workspace workspace(*workspace_toolchain);
-  Ttx::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Errors errors;
   auto monograph = import_types(workspace, errors);
   ASSERT(monograph);
   const auto& u8 =
@@ -316,7 +318,7 @@ PERIMORTEM_UNIT_TEST(LibraryDefaults, domain_defaults) {
   auto workspace_toolchain =
       Validation::create_library_toolchain(workspace_toolchain_library);
   Tetrodotoxin::Environment::Workspace workspace(*workspace_toolchain);
-  Ttx::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Errors errors;
   auto monograph = import_types(workspace, errors);
   ASSERT(monograph);
   const auto& source_type = monograph->get_source();
@@ -363,7 +365,7 @@ PERIMORTEM_UNIT_TEST(LibraryDefaults, absent_defaults) {
   auto workspace_toolchain =
       Validation::create_library_toolchain(workspace_toolchain_library);
   Tetrodotoxin::Environment::Workspace workspace(*workspace_toolchain);
-  Ttx::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Errors errors;
   auto monograph = import_types(workspace, errors);
   ASSERT(monograph);
 

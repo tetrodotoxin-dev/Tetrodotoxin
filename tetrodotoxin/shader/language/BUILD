@@ -17,7 +17,7 @@ cc_library(
         "//tetrodotoxin/library:language",
         "//tetrodotoxin/render/language",
         "//ttx:concept",
-        "//ttx:lexical",
-        "//ttx:model",
+        "//tetrodotoxin/source:lexical",
+        "//tetrodotoxin/source",
     ],
 )

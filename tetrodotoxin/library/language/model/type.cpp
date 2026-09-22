@@ -8,16 +8,16 @@
 #include "tetrodotoxin/library/language/initialization.hpp"
 #include "tetrodotoxin/library/language/model/callable.hpp"
 #include "tetrodotoxin/library/language/value.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using Ttx::Semantic::Binding;
+using namespace Tetrodotoxin::Source;
+using Ttx::Semantic::Negotiation::Binding;
 using namespace Tetrodotoxin::Library;
 
 auto Language::Model::Type::complete_source(
     Tetrodotoxin::Source::Declaration::Phase phase,
-    Ttx::Lexical::Cursor* cursor)
+    Tetrodotoxin::Source::Lexical::Cursor* cursor)
     -> Tetrodotoxin::Source::Declaration::Completion {
   using Phase = Tetrodotoxin::Source::Declaration::Phase;
   switch (phase) {
@@ -48,7 +48,7 @@ auto Language::Model::Type::bind_interface(Perimortem::System::Uuid requested)
     return Tetrodotoxin::Source::Declaration::provide(*this);
   }
   if (requested != Language::Initialization::contract_id) {
-    return Ttx::Model::Type::bind_interface(requested);
+    return Tetrodotoxin::Source::Type::bind_interface(requested);
   }
   if (resolve().is<Unknown>()) {
     return Binding::Failure::Pending;
@@ -136,11 +136,11 @@ auto Language::Model::Type::resolve_concept(Core::View::Bytes route) const
                ? static_cast<const Abstract&>(instance_authority->get())
                : static_cast<const Abstract&>(None::get_none());
   }
-  return Ttx::Model::Type::resolve_concept(route);
+  return Tetrodotoxin::Source::Type::resolve_concept(route);
 }
 
 auto Language::Model::Type::visit_concepts(
-    Ttx::Concept::Abstract::Visitor visitor) const -> void {
+    Tetrodotoxin::Source::Abstract::Visitor visitor) const -> void {
   if (!static_authority) {
     return;
   }

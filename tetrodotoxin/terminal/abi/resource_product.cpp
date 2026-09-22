@@ -21,7 +21,7 @@ auto Terminal::Abi::ResourceProduct::compile(
   Linker::Elf::Object object;
   Memory::Managed::Vector<Unit::Binding> bindings(arena);
   Unit unit(package, "resources"_view, artifact);
-  for (const Ttx::Concept::Reference<Package::Resource>& retained :
+  for (const Tetrodotoxin::Source::Reference<Package::Resource>& retained :
        resources.get_values()) {
     const Package::Resource& resource = retained.get();
     Symbol symbol(arena, resource, Symbol::Kind::ReadOnly, unit);

@@ -4,7 +4,7 @@
 #include "tetrodotoxin/language/parser/type_reference.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 auto Language::Parser::TypeReference::parse(Cursor& cursor)

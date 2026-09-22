@@ -37,7 +37,7 @@ using Llvm::Emission::Storage;
 static auto lower_inputs(
     const Llvm::Lowering::Execution& execution,
     const Operation& operation) -> Bool {
-  for (const Ttx::Model::PackReference<Model::Pack>& input :
+  for (const Tetrodotoxin::Source::PackReference<Model::Pack>& input :
        operation.get_inputs()) {
     if (!execution.lower(input.get())) {
       return False;
@@ -51,7 +51,7 @@ static auto lower_arithmetic(
     const Operation& operation,
     Llvm::Emission::Computation::Arithmetic kind) -> Bool {
   auto inputs = operation.get_inputs();
-  auto carrier = operation.get_type().resolve().select<Ttx::Model::Type>();
+  auto carrier = operation.get_type().resolve().select<Tetrodotoxin::Source::Type>();
   BAIL_IF(
       inputs.get_size() != 2 || !carrier ||
       !lower_inputs(execution, operation));
@@ -68,7 +68,7 @@ static auto lower_comparison(
   auto inputs = operation.get_inputs();
   BAIL_IF(inputs.get_size() != 2);
   const Model::Pack& left = inputs.get_data()[0].get();
-  auto carrier = left.get_type().resolve().select<Ttx::Model::Type>();
+  auto carrier = left.get_type().resolve().select<Tetrodotoxin::Source::Type>();
   BAIL_IF(!carrier || !lower_inputs(execution, operation));
   if (admits_bytes && carrier->is<Types::View>()) {
     return execution.get_computation().compare_bytes(
@@ -135,7 +135,7 @@ auto Llvm::Lowering::Operations::lower(
       expression.select<Tetrodotoxin::Library::Language::Operations::Negate>();
   if (negate) {
     auto inputs = negate->get_inputs();
-    auto carrier = negate->get_type().resolve().select<Ttx::Model::Type>();
+    auto carrier = negate->get_type().resolve().select<Tetrodotoxin::Source::Type>();
     return inputs.get_size() == 1 && carrier &&
            execution.lower(inputs.get_data()[0].get()) &&
            execution.get_computation().negate(

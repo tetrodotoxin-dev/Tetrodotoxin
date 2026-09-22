@@ -3,14 +3,16 @@
 
 #include "tetrodotoxin/app/language/program.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "tetrodotoxin/language/monograph.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::App;
 
 static auto resolve_route(const Abstract& context, View::Bytes route)
@@ -57,7 +59,7 @@ static auto resolve_route(const Abstract& context, View::Bytes route)
 
 auto Language::Program::create_authored(
     Perimortem::Memory::Allocator::Arena& arena,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     View::Bytes route,
     View::Bytes callable_name,
     Anchor anchor,
@@ -82,7 +84,7 @@ auto Language::Program::link(Cursor& cursor, Abstract& context) -> Bool {
   const Abstract& selected = receiver.resolve_concept("static"_view)
                                  .resolve_concept(callable_name)
                                  .resolve();
-  auto callable = selected.select<Ttx::Model::Callable>();
+  auto callable = selected.select<Tetrodotoxin::Source::Callable>();
   if (!callable) {
     auto report = cursor.create_report(selection_anchor);
     report << "Program entry `"_view << route << " -> "_view << callable_name
@@ -101,7 +103,7 @@ auto Language::Program::link(Cursor& cursor, Abstract& context) -> Bool {
     return False;
   }
 
-  entry = Reference<const Ttx::Model::Callable>(*callable);
+  entry = Reference<const Tetrodotoxin::Source::Callable>(*callable);
   cursor.get_associations().create(selection_anchor, *callable);
   return True;
 }

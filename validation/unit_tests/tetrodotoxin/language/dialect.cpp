@@ -3,26 +3,28 @@
 
 #include "tetrodotoxin/language/dialect.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "validation/unit_test.hpp"
 
 #include "tetrodotoxin/language/monograph.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Tetrodotoxin;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Validation;
 
 class DefaultDialect : public Language::Dialect {
  public:
   TTX_NAME("Default"_view);
 
-  auto interpret(Cursor&, const Documentation&, const Anchor&, Abstract&)
+  auto interpret(Cursor&, const Tetrodotoxin::Source::Documentation&, const Anchor&, Abstract&)
       -> Option<Language::Monograph&> override {
     return {};
   }
@@ -34,7 +36,7 @@ class DefaultMonograph : public Language::Monograph {
       Allocator::Arena& arena,
       const Language::Dialect& dialect,
       Abstract& context)
-      : Monograph(arena, dialect, Documentation::get_empty(), context) {}
+      : Monograph(arena, dialect, Tetrodotoxin::Source::Documentation::get_empty(), context) {}
 
   auto get_name() const -> View::Bytes override { return "Default"_view; }
 };
@@ -45,8 +47,8 @@ class SemanticContext final : public Abstract {
 
   auto get_name() const -> View::Bytes override { return "Context"_view; }
 
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
 
   auto resolve_concept(View::Bytes route) const -> const Abstract& override {
@@ -79,7 +81,7 @@ PERIMORTEM_UNIT_TEST(LanguageDialect, explicit_defaults) {
   DefaultMonograph empty_monograph(arena, empty_dialect, context);
   Errors errors;
   Tokenizer tokenizer(arena, {}, "default.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
 
   const Bool linked = monograph.link(cursor);
@@ -95,7 +97,7 @@ PERIMORTEM_UNIT_TEST(LanguageDialect, explicit_defaults) {
 
   EXPECT(linked);
   EXPECT(finalized);
-  EXPECT(monograph.is<Ttx::Model::Type>());
+  EXPECT(monograph.is<Tetrodotoxin::Source::Type>());
   EXPECT(monograph.get_layout().is_empty());
   EXPECT_NOT(unsupported);
   EXPECT_NOT(missing);

@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/language/error.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "validation/unit_test.hpp"
 
 #include "perimortem/core/algorithm/search.hpp"
@@ -10,15 +12,15 @@
 #include "perimortem/memory/allocator/arena.hpp"
 
 #include "tetrodotoxin/language/resource.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Tetrodotoxin;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Validation;
 
 enum class TestCause : U8 {
@@ -61,11 +63,11 @@ PERIMORTEM_UNIT_TEST(LanguageError, category_contract) {
   EXPECT(abstract.is<Abstract>());
   EXPECT_NOT(abstract.is<Language::Resource>());
   EXPECT_NOT(abstract.is<Unknown>());
-  EXPECT_NOT(abstract.is<Ttx::Model::Type>());
+  EXPECT_NOT(abstract.is<Tetrodotoxin::Source::Type>());
   EXPECT_TEXT(error.get_name(), "Error"_view);
 
-  const Documentation& documentation = error.get_documentation();
-  EXPECT(&documentation == &Documentation::get_empty());
+  const Tetrodotoxin::Source::Documentation& documentation = error.get_documentation();
+  EXPECT(&documentation == &Tetrodotoxin::Source::Documentation::get_empty());
   EXPECT(documentation.is_empty());
   EXPECT_EQ(documentation.line_count(), 0);
 }

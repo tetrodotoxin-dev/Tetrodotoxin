@@ -32,7 +32,7 @@ class Enumeration : public Tetrodotoxin::Library::Language::Constant {
       Perimortem::Memory::Allocator::Arena& domain,
       const Types::Enumeration& type,
       U64 value,
-      Ttx::Lexical::Anchor anchor) -> Enumeration& {
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> Enumeration& {
     return Constant::create_authored<Enumeration>(
         domain, anchor, [&](auto source) -> Enumeration {
           return Enumeration(domain, type, value, source);
@@ -55,7 +55,7 @@ class Enumeration : public Tetrodotoxin::Library::Language::Constant {
         [this, &rhs](const Enumeration& selected) {
           return has_same_type(rhs) && value == selected.value ? True : False;
         },
-        [](const Ttx::Concept::Abstract&) { return False; });
+        [](const Tetrodotoxin::Source::Abstract&) { return False; });
   }
 
  private:
@@ -63,7 +63,7 @@ class Enumeration : public Tetrodotoxin::Library::Language::Constant {
       Perimortem::Memory::Allocator::Arena& domain,
       const Types::Enumeration& type,
       U64 value,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor)
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor)
       : Tetrodotoxin::Library::Language::Constant(anchor),
         type(type),
         value(value),

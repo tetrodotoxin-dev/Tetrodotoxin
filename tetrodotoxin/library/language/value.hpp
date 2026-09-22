@@ -7,8 +7,8 @@
 
 #include "perimortem/system/uuid.hpp"
 
-#include "ttx/concept/abstract.hpp"
-#include "ttx/semantic/bound.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/bound.hpp"
 
 namespace Tetrodotoxin::Library::Language {
 
@@ -29,17 +29,17 @@ class Value {
   };
 
   struct Operations {
-    auto (*get_type)(const void*) -> Ttx::Concept::Abstract::Handle;
+    auto (*get_type)(const void*) -> Ttx::Concept::Abstract;
     auto (*get_bytes)(const void*, Perimortem::Memory::Allocator::Arena&)
         -> Perimortem::Core::View::Bytes;
     auto (*get_byte_stride)(const void*) -> Count;
   };
 
-  class Handle : public Ttx::Semantic::Bound<Operations> {
+  class Handle : public Tetrodotoxin::Source::Bound<Operations> {
    public:
     using Bound::Bound;
 
-    auto get_type() const -> Ttx::Concept::Abstract::Handle {
+    auto get_type() const -> Ttx::Concept::Abstract {
       return operations.get_type(source);
     }
 
@@ -60,14 +60,14 @@ class Value {
   // their semantic operation. Taking the backing member's address instead
   // would bypass an implementation that computes or overrides that answer.
   template <typename Provider>
-  static auto scalar(const Provider& provider) -> Ttx::Semantic::Binding {
+  static auto scalar(const Provider& provider) -> Ttx::Semantic::Negotiation::Binding {
     using Scalar = decltype(provider.get_value());
     static_assert(
         __is_integral(Scalar) || __is_same(Scalar, Bool) ||
             __is_same(Scalar, R32) || __is_same(Scalar, R64),
         "Scalar binding cannot encode an object's headers or pointers.");
     static const Operations operations = {
-      [](const void* source) -> Ttx::Concept::Abstract::Handle {
+      [](const void* source) -> Ttx::Concept::Abstract {
         return static_cast<const Provider*>(source)->get_type().get_interface();
       },
       [](const void* source, Perimortem::Memory::Allocator::Arena& arena)
@@ -88,7 +88,7 @@ class Value {
         return sizeof(static_cast<const Provider*>(source)->get_value());
       },
     };
-    return Ttx::Semantic::Binding::provide<Value>(&provider, operations);
+    return Ttx::Semantic::Negotiation::Binding::provide<Value>(&provider, operations);
   }
 };
 

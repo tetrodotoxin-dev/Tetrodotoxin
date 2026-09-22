@@ -10,11 +10,11 @@
 
 #include "tetrodotoxin/library/language/expressions/initializer.hpp"
 #include "tetrodotoxin/library/language/field.hpp"
-#include "ttx/concept/reference.hpp"
+#include "tetrodotoxin/source/reference.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library::Language;
 
 auto Types::Structure::create_authored(
@@ -36,7 +36,7 @@ auto Types::Structure::complete_body() -> void {
 }
 
 auto Types::Structure::resolve_concept(View::Bytes route) const
-    -> const Ttx::Concept::Abstract& {
+    -> const Tetrodotoxin::Source::Abstract& {
   return Composite::resolve_concept(route);
 }
 
@@ -64,9 +64,9 @@ auto Types::Structure::create_default(Allocator::Arena& arena) const
     // construction local to the owner rather than a consumer category switch.
     // Authored Layout order is filled from each Field initializer before asking
     // that Field's exact Type for its default.
-    Managed::Vector<Ttx::Model::PackReference<Model::Pack>> values(arena);
+    Managed::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>> values(arena);
     values.reset(get_layout().get_size());
-    for (const Ttx::Concept::Reference<Ttx::Concept::Abstract>& candidate :
+    for (const Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>& candidate :
          get_addressables()) {
       auto field = candidate.get().select<Field>();
       if (!field || field->get_writability() != Writability::Internal) {

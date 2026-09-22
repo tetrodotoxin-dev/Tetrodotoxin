@@ -6,8 +6,8 @@
 #include "perimortem/core/static/vector.hpp"
 
 #include "tetrodotoxin/library/language/generic.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/model/documentations/comment.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/documentations/comment.hpp"
 
 namespace Tetrodotoxin::Library::Language::Generics {
 
@@ -21,7 +21,7 @@ class View : public Generic {
 
   View(
       Perimortem::Memory::Allocator::Arena& domain,
-      const Ttx::Concept::Abstract& context)
+      const Tetrodotoxin::Source::Abstract& context)
       : Generic(domain, context) {}
 
   TTX_NAME(name);
@@ -39,7 +39,7 @@ class View : public Generic {
 
   static constexpr Perimortem::Core::Static::Vector<Parameters, 1>
       parameterization = {{Parameters::Type}};
-  static constexpr Ttx::Model::Documentations::Comment documentation{
+  static constexpr Tetrodotoxin::Source::Documentations::Comment documentation{
     "Provides read-only access to contiguous values."_view,
   };
 };

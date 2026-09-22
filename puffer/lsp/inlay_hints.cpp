@@ -10,7 +10,7 @@
 
 #include "perimortem/serialization/json/blueprint.hpp"
 
-#include "ttx/model/callable.hpp"
+#include "tetrodotoxin/source/callable.hpp"
 
 using namespace Perimortem;
 using namespace Puffer;
@@ -26,10 +26,10 @@ static auto skip_space(Core::View::Bytes source, Count offset, Count end)
 
 static auto collect_arguments(
     Core::View::Bytes source,
-    Ttx::Lexical::Anchor anchor,
+    Tetrodotoxin::Source::Lexical::Anchor anchor,
     Memory::Managed::Vector<Count>& arguments) -> Bool {
-  Ttx::Lexical::Token focus = anchor.get_token();
-  Ttx::Lexical::Span span = anchor.get_span();
+  Tetrodotoxin::Source::Lexical::Token focus = anchor.get_token();
+  Tetrodotoxin::Source::Lexical::Span span = anchor.get_span();
   BAIL_IF(!focus || !span);
   Count end = Core::Math::min(
       source.get_size(), Count(span.get_offset()) + span.get_size());
@@ -108,16 +108,16 @@ auto Puffer::Lsp::inlay_hints_for(
     Memory::Allocator::Arena& arena,
     Core::View::Bytes source,
     const PositionEncoding& encoding,
-    const Ttx::Lexical::Associations& associations,
+    const Tetrodotoxin::Source::Lexical::Associations& associations,
     const PositionEncoding::Position& start,
     const PositionEncoding::Position& end) -> Serialization::Json::Node {
   Memory::Managed::Vector<Serialization::Json::Node> hints(arena);
   // An exact Association retains the selected Callable, while its Anchor keeps
   // the authored call span. The Callable's ordered Layout is the sole semantic
   // parameter authority; the lexical span contributes only argument positions.
-  for (const Ttx::Lexical::Associations::Entry& association :
+  for (const Tetrodotoxin::Source::Lexical::Associations::Entry& association :
        associations.get_entries()) {
-    auto callable = association.get_semantic().select<Ttx::Model::Callable>();
+    auto callable = association.get_semantic().select<Tetrodotoxin::Source::Callable>();
     if (!callable) {
       continue;
     }
@@ -127,7 +127,7 @@ auto Puffer::Lsp::inlay_hints_for(
         arguments.is_empty()) {
       continue;
     }
-    const Ttx::Concept::Layout& parameters = callable->get_parameters();
+    const Tetrodotoxin::Source::Layout& parameters = callable->get_parameters();
     Count parameter_start = parameters.get_name(0).visit(
         []() { return Count(0); },
         [](Core::View::Bytes name) {

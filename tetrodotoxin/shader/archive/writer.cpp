@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/shader/archive/writer.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "perimortem/core/writer/binary.hpp"
 
 #include "perimortem/serialization/stream/binary.hpp"
@@ -10,7 +12,7 @@
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Serialization;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin;
 
 enum class ShaderWriterAttributeValue : U8 {
@@ -96,7 +98,7 @@ auto Shader::Archive::Writer::write(View::Bytes value) -> Bool {
   return True;
 }
 
-auto Shader::Archive::Writer::write(const Documentation& value) -> Bool {
+auto Shader::Archive::Writer::write(const Tetrodotoxin::Source::Documentation& value) -> Bool {
   BAIL_IF(value.line_count() > U32(-1));
   write(U32(value.line_count()));
   for (Count index = 0; index < value.line_count(); index++) {

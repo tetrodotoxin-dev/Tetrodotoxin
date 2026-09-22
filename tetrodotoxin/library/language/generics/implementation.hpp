@@ -6,7 +6,7 @@
 #include "perimortem/core/static/vector.hpp"
 
 #include "tetrodotoxin/library/language/generic.hpp"
-#include "ttx/model/documentations/comment.hpp"
+#include "tetrodotoxin/source/documentations/comment.hpp"
 
 namespace Tetrodotoxin::Library::Language::Generics {
 
@@ -20,7 +20,7 @@ class Implementation : public Generic {
 
   Implementation(
       Perimortem::Memory::Allocator::Arena& domain,
-      const Ttx::Concept::Abstract& context)
+      const Tetrodotoxin::Source::Abstract& context)
       : Generic(domain, context) {}
 
   TTX_NAME(name);
@@ -37,7 +37,7 @@ class Implementation : public Generic {
 
   static constexpr Perimortem::Core::Static::Vector<Parameters, 1>
       parameterization = {{Parameters::SemanticType}};
-  static constexpr Ttx::Model::Documentations::Comment documentation{
+  static constexpr Tetrodotoxin::Source::Documentations::Comment documentation{
     "Carries one Object whose owner satisfies an exact semantic requirement."_view,
   };
 };

@@ -3,14 +3,16 @@
 
 #include "tetrodotoxin/language/resource.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "validation/unit_test.hpp"
 
-#include "ttx/concept/none.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 using namespace Perimortem::Core;
 using namespace Tetrodotoxin;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Validation;
 
 class BorrowedResource : public Language::Resource {
@@ -33,7 +35,7 @@ PERIMORTEM_UNIT_TEST(LanguageResource, category_contract) {
 
   EXPECT(abstract.is<Language::Resource>());
   EXPECT(abstract.is<Abstract>());
-  EXPECT_NOT(abstract.is<Ttx::Model::Type>());
+  EXPECT_NOT(abstract.is<Tetrodotoxin::Source::Type>());
   EXPECT_NOT(abstract.is<Unknown>());
   EXPECT_TEXT(resource.get_name(), "Resource"_view);
 }
@@ -69,9 +71,9 @@ PERIMORTEM_UNIT_TEST(LanguageResource, context_rejection) {
 
 PERIMORTEM_UNIT_TEST(LanguageResource, shared_documentation) {
   BorrowedResource resource("value"_view);
-  const Documentation& documentation = resource.get_documentation();
+  const Tetrodotoxin::Source::Documentation& documentation = resource.get_documentation();
 
-  EXPECT(&documentation == &Documentation::get_empty());
+  EXPECT(&documentation == &Tetrodotoxin::Source::Documentation::get_empty());
   EXPECT(documentation.is_empty());
   EXPECT_EQ(documentation.line_count(), 0);
 }

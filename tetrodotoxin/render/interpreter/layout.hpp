@@ -13,7 +13,7 @@ class Layout {
  public:
   Layout() = delete;
 
-  static auto parse(Ttx::Lexical::Cursor& cursor, Bool parameters)
+  static auto parse(Tetrodotoxin::Source::Lexical::Cursor& cursor, Bool parameters)
       -> Perimortem::Core::Option<Language::Layout&>;
 };
 

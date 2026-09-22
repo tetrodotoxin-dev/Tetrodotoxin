@@ -30,9 +30,9 @@ static auto native_builder(const Llvm::Module::Body& body)
 
 Llvm::Module::Body::Body(
     Llvm::Module::Program& program,
-    const Ttx::Concept::Abstract& owner,
+    const Tetrodotoxin::Source::Abstract& owner,
     LLVMValueRef function,
-    Core::Option<const Ttx::Model::Callable&> callable,
+    Core::Option<const Tetrodotoxin::Source::Callable&> callable,
     Core::Option<LLVMValueRef> sret,
     Core::Option<LLVMTypeRef> sret_type)
     : Emission(Emission::Kind::Body),
@@ -66,7 +66,7 @@ auto Llvm::Module::Body::get_function() const -> LLVMValueRef {
 }
 
 auto Llvm::Module::Body::get_callable() const
-    -> Core::Option<const Ttx::Model::Callable&> {
+    -> Core::Option<const Tetrodotoxin::Source::Callable&> {
   return callable;
 }
 
@@ -78,14 +78,14 @@ auto Llvm::Module::Body::get_sret_type() const -> Core::Option<LLVMTypeRef> {
   return sret_type;
 }
 
-auto Llvm::Module::Body::find_values(const Ttx::Model::Pack& pack) const
+auto Llvm::Module::Body::find_values(const Tetrodotoxin::Source::Pack& pack) const
     -> Core::Option<const NativeValues&> {
   auto found = values.find(&pack);
   return found ? Core::Option<const NativeValues&>(found->value)
                : Core::Option<const NativeValues&>();
 }
 
-auto Llvm::Module::Body::find_value(const Ttx::Model::Pack& pack) const
+auto Llvm::Module::Body::find_value(const Tetrodotoxin::Source::Pack& pack) const
     -> Core::Option<LLVMValueRef> {
   auto found = find_values(pack);
   if (!found || found->get_size() != 1) {
@@ -98,7 +98,7 @@ auto Llvm::Module::Body::find_value(const Ttx::Model::Pack& pack) const
 }
 
 auto Llvm::Module::Body::publish_values(
-    const Ttx::Model::Pack& pack,
+    const Tetrodotoxin::Source::Pack& pack,
     Core::View::Vector<LLVMValueRef> native) -> Bool {
   NativeValues retained(native.get_size());
   for (LLVMValueRef value : native) {
@@ -114,7 +114,7 @@ auto Llvm::Module::Body::publish_values(
 }
 
 auto Llvm::Module::Body::find_address(
-    const Ttx::Model::Addressable& addressable) const
+    const Tetrodotoxin::Source::Addressable& addressable) const
     -> Core::Option<LLVMValueRef> {
   auto found = addresses.find(&addressable);
   return found ? Core::Option<LLVMValueRef>(found->value)
@@ -122,7 +122,7 @@ auto Llvm::Module::Body::find_address(
 }
 
 auto Llvm::Module::Body::publish_address(
-    const Ttx::Model::Addressable& addressable,
+    const Tetrodotoxin::Source::Addressable& addressable,
     LLVMValueRef value) -> Bool {
   if (!value) {
     return False;
@@ -132,7 +132,7 @@ auto Llvm::Module::Body::publish_address(
   return True;
 }
 
-auto Llvm::Module::Body::find_target_address(const Ttx::Model::Pack& pack) const
+auto Llvm::Module::Body::find_target_address(const Tetrodotoxin::Source::Pack& pack) const
     -> Core::Option<const TargetAddress&> {
   auto found = target_addresses.find(&pack);
   return found ? Core::Option<const TargetAddress&>(found->value)
@@ -140,8 +140,8 @@ auto Llvm::Module::Body::find_target_address(const Ttx::Model::Pack& pack) const
 }
 
 auto Llvm::Module::Body::publish_target_address(
-    const Ttx::Model::Pack& pack,
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Pack& pack,
+    const Tetrodotoxin::Source::Type& type,
     LLVMValueRef address) -> Bool {
   if (target_addresses.contains(&pack) || !address) {
     return False;
@@ -151,7 +151,7 @@ auto Llvm::Module::Body::publish_target_address(
   return True;
 }
 
-auto Llvm::Module::Body::find_indexed_target(const Ttx::Model::Pack& pack) const
+auto Llvm::Module::Body::find_indexed_target(const Tetrodotoxin::Source::Pack& pack) const
     -> Core::Option<const IndexedTarget&> {
   auto found = indexed_targets.find(&pack);
   return found ? Core::Option<const IndexedTarget&>(found->value)
@@ -159,8 +159,8 @@ auto Llvm::Module::Body::find_indexed_target(const Ttx::Model::Pack& pack) const
 }
 
 auto Llvm::Module::Body::publish_indexed_target(
-    const Ttx::Model::Pack& pack,
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Pack& pack,
+    const Tetrodotoxin::Source::Type& type,
     LLVMTypeRef native_type,
     LLVMValueRef data,
     LLVMValueRef length,
@@ -176,7 +176,7 @@ auto Llvm::Module::Body::publish_indexed_target(
   return True;
 }
 
-auto Llvm::Module::Body::find_selection(const Ttx::Model::Pack& pack) const
+auto Llvm::Module::Body::find_selection(const Tetrodotoxin::Source::Pack& pack) const
     -> Core::Option<LLVMValueRef> {
   auto found = selections.find(&pack);
   return found ? Core::Option<LLVMValueRef>(found->value)
@@ -184,7 +184,7 @@ auto Llvm::Module::Body::find_selection(const Ttx::Model::Pack& pack) const
 }
 
 auto Llvm::Module::Body::publish_selection(
-    const Ttx::Model::Pack& pack,
+    const Tetrodotoxin::Source::Pack& pack,
     LLVMValueRef value) -> Bool {
   if (!value) {
     return False;
@@ -199,7 +199,7 @@ auto Llvm::Module::Body::get_storage_depth() const -> Count {
 }
 
 auto Llvm::Module::Body::register_storage(
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     LLVMValueRef address) -> Bool {
   auto carriers = select_carriers(*this);
   if (!carriers || !address) {
@@ -226,7 +226,7 @@ auto Llvm::Module::Body::resize_storage(Count size) -> Bool {
 }
 
 auto Llvm::Module::Body::mark_owned(
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     LLVMValueRef value) -> void {
   auto carriers = select_carriers(*this);
   if (!carriers || !value || !carriers->owns_resources(type)) {
@@ -253,7 +253,7 @@ auto Llvm::Module::Body::take_owned(LLVMValueRef value) -> Bool {
 }
 
 auto Llvm::Module::Body::acquire(
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     LLVMValueRef value) -> Bool {
   if (!value) {
     return False;
@@ -348,13 +348,13 @@ auto Llvm::Module::Body::create_return(Core::Option<LLVMValueRef> value)
   return True;
 }
 
-auto Llvm::Module::Body::push_block_scope(const Ttx::Concept::Abstract& owner)
+auto Llvm::Module::Body::push_block_scope(const Tetrodotoxin::Source::Abstract& owner)
     -> Bool {
   block_scopes.insert(BlockScope(owner, get_storage_depth()));
   return True;
 }
 
-auto Llvm::Module::Body::take_block_scope(const Ttx::Concept::Abstract& owner)
+auto Llvm::Module::Body::take_block_scope(const Tetrodotoxin::Source::Abstract& owner)
     -> Core::Option<BlockScope> {
   if (block_scopes.get_size() == 0) {
     return {};
@@ -371,7 +371,7 @@ auto Llvm::Module::Body::take_block_scope(const Ttx::Concept::Abstract& owner)
 }
 
 auto Llvm::Module::Body::publish_loop(
-    const Ttx::Concept::Abstract& owner,
+    const Tetrodotoxin::Source::Abstract& owner,
     LLVMBasicBlockRef break_target,
     LLVMBasicBlockRef continue_target,
     Count lifetime_depth) -> Bool {
@@ -387,7 +387,7 @@ auto Llvm::Module::Body::publish_loop(
   return True;
 }
 
-auto Llvm::Module::Body::find_loop(const Ttx::Concept::Abstract& owner) const
+auto Llvm::Module::Body::find_loop(const Tetrodotoxin::Source::Abstract& owner) const
     -> Core::Option<const LoopTargets&> {
   for (Count index = loops.get_size(); index != 0; index--) {
     const LoopTargets& selected = loops[index - 1];
@@ -399,7 +399,7 @@ auto Llvm::Module::Body::find_loop(const Ttx::Concept::Abstract& owner) const
   return {};
 }
 
-auto Llvm::Module::Body::remove_loop(const Ttx::Concept::Abstract& owner)
+auto Llvm::Module::Body::remove_loop(const Tetrodotoxin::Source::Abstract& owner)
     -> Bool {
   for (Count index = loops.get_size(); index != 0; index--) {
     if (&loops[index - 1].get_owner() == &owner) {

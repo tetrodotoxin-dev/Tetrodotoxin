@@ -31,15 +31,15 @@
 #include "tetrodotoxin/library/language/types/object.hpp"
 #include "tetrodotoxin/library/language/types/option.hpp"
 #include "tetrodotoxin/library/language/types/result.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::System;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 using Tetrodotoxin::Environment::Workspace;
 using namespace Validation;
@@ -169,7 +169,7 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, receiving_type_fit) {
   Allocator::Arena fitted_arena;
   auto& empty = Language::Model::Pack::create_folded(
       fitted_arena,
-      View::Vector<Ttx::Model::PackReference<Language::Model::Pack>>());
+      View::Vector<Tetrodotoxin::Source::PackReference<Language::Model::Pack>>());
   auto& value = Language::Constants::Unsigned::create_synthetic(
       fitted_arena, *element, U64(7));
 
@@ -309,10 +309,10 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, edge_folding) {
   Allocator::Arena domain;
   Errors expression_errors;
   Tokenizer pass_tokenizer(domain, "value?"_view, "option-expression.ttx"_view);
-  Ttx::Lexical::Associations pass_associations(pass_tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations pass_associations(pass_tokenizer.get_arena());
   Cursor pass_cursor(pass_tokenizer, expression_errors, pass_associations);
   Tokenizer stop_tokenizer(domain, "value?"_view, "option-expression.ttx"_view);
-  Ttx::Lexical::Associations stop_associations(stop_tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations stop_associations(stop_tokenizer.get_arena());
   Cursor stop_cursor(stop_tokenizer, expression_errors, stop_associations);
   auto pass_pack = parse_expression(domain, *monograph, pass_cursor);
   auto stop_pack = parse_expression(domain, *monograph, stop_cursor);
@@ -370,13 +370,13 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, edge_folding) {
   // authored branch because an empty Pack cannot replace a one value output.
   Tokenizer present_tokenizer(
       domain, "present?"_view, "option-expression.ttx"_view);
-  Ttx::Lexical::Associations present_associations(
+  Tetrodotoxin::Source::Lexical::Associations present_associations(
       present_tokenizer.get_arena());
   Cursor present_cursor(
       present_tokenizer, expression_errors, present_associations);
   Tokenizer absent_tokenizer(
       domain, "absent?"_view, "option-expression.ttx"_view);
-  Ttx::Lexical::Associations absent_associations(absent_tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations absent_associations(absent_tokenizer.get_arena());
   Cursor absent_cursor(
       absent_tokenizer, expression_errors, absent_associations);
   auto present_pack = parse_expression(domain, *monograph, present_cursor);
@@ -429,7 +429,7 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, edge_folding) {
   // leaves the chain unfolded instead of evaluating the right suffix.
   Tokenizer chain_tokenizer(
       domain, "nested_absent?!"_view, "option-expression.ttx"_view);
-  Ttx::Lexical::Associations chain_associations(chain_tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations chain_associations(chain_tokenizer.get_arena());
   Cursor chain_cursor(chain_tokenizer, expression_errors, chain_associations);
   auto chain_pack = parse_expression(domain, *monograph, chain_cursor);
   auto unwrap = chain_pack.visit(
@@ -714,7 +714,7 @@ PERIMORTEM_UNIT_TEST(PropagationAccessTests, propagation_fixture) {
   const Language::Flow::Match* retained_match = &*match;
   Allocator::Arena repeated_domain;
   Tokenizer repeated_tokenizer(repeated_domain, *source, path);
-  Ttx::Lexical::Associations repeated_associations(
+  Tetrodotoxin::Source::Lexical::Associations repeated_associations(
       repeated_tokenizer.get_arena());
   Cursor repeated_cursor(repeated_tokenizer, errors, repeated_associations);
   ASSERT(monograph.link(repeated_cursor));

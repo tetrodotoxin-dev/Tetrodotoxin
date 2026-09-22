@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/app/dialect.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "tetrodotoxin/app/interpreter/program.hpp"
 #include "tetrodotoxin/app/interpreter/runtime.hpp"
 #include "tetrodotoxin/app/interpreter/scene.hpp"
@@ -13,13 +15,13 @@
 #include "tetrodotoxin/language/parser/comment.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 auto App::Dialect::interpret(
     Cursor& cursor,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     const Anchor&,
     Abstract& context) -> Option<Tetrodotoxin::Language::Monograph&> {
   Option<App::Language::Runtime&> runtime;
@@ -28,7 +30,7 @@ auto App::Dialect::interpret(
   Bool failed = False;
 
   while (!cursor.matches(Code::Type::Terminal)) {
-    const Documentation& declaration_documentation =
+    const Tetrodotoxin::Source::Documentation& declaration_documentation =
         Tetrodotoxin::Language::Parser::Comment::parse(cursor);
     View::Bytes declaration = cursor.get_text();
     if (cursor.matches(Code::Type::Addressable) &&

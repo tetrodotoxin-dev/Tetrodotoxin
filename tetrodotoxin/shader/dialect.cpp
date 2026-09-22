@@ -3,19 +3,21 @@
 
 #include "tetrodotoxin/shader/dialect.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "tetrodotoxin/shader/archive/reader.hpp"
 #include "tetrodotoxin/shader/archive/writer.hpp"
 #include "tetrodotoxin/shader/interpreter/source.hpp"
 #include "tetrodotoxin/shader/language/monograph.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 auto Shader::Dialect::interpret(
     Cursor& cursor,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     const Anchor& source_anchor,
     Abstract& context) -> Option<Tetrodotoxin::Language::Monograph&> {
   auto& child = Library::Language::Monograph::create_authored(

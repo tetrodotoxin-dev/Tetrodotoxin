@@ -64,10 +64,10 @@ static auto align_up(Count value, Count alignment) -> Count {
   return (value + alignment - 1) / alignment * alignment;
 }
 
-static auto select_type(const Ttx::Concept::Abstract& semantic)
+static auto select_type(const Tetrodotoxin::Source::Abstract& semantic)
     -> Core::Option<const Library::Language::Model::Type&> {
-  auto addressable = semantic.select<Ttx::Model::Addressable>();
-  const Ttx::Concept::Abstract& answer =
+  auto addressable = semantic.select<Tetrodotoxin::Source::Addressable>();
+  const Tetrodotoxin::Source::Abstract& answer =
       addressable ? addressable->get_type() : semantic;
   auto direct = answer.select<Library::Language::Model::Type>();
   return direct ? direct
@@ -111,7 +111,7 @@ auto Terminal::Vulkan::Compiler::describe(
 
   Memory::Managed::Vector<Products::Entry> entries(arena);
   const Library::Language::Function* vertex = nullptr;
-  for (const Ttx::Concept::Reference<Ttx::Concept::Abstract>& candidate :
+  for (const Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>& candidate :
        program.get_callables()) {
     auto function = candidate.get().select<Library::Language::Function>();
     auto stage =

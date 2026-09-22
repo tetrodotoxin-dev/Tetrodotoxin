@@ -3,14 +3,14 @@
 
 #include "tetrodotoxin/render/language/structure.hpp"
 
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Utility;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Render;
 
 auto Language::Structure::create(
@@ -38,7 +38,7 @@ auto Language::Structure::retain_type(
   return declarations.retain_type(declaration, visibility);
 }
 
-auto Language::Structure::retain_instance(Ttx::Model::Addressable& value)
+auto Language::Structure::retain_instance(Tetrodotoxin::Source::Addressable& value)
     -> void {
   instances.insert(value);
 }
@@ -73,7 +73,7 @@ auto Language::Structure::resolve_concept(View::Bytes name) const
 }
 
 auto Language::Structure::visit_concepts(
-    Ttx::Concept::Abstract::Visitor visitor) const -> void {
+    Tetrodotoxin::Source::Abstract::Visitor visitor) const -> void {
   declarations.visit_concepts(visitor);
 }
 
@@ -83,7 +83,7 @@ auto Language::Structure::resolve_local_context(View::Bytes name) const
       name, Tetrodotoxin::Language::Visibility::Private);
 }
 
-auto Language::Structure::get_layout() const -> const Ttx::Concept::Layout& {
+auto Language::Structure::get_layout() const -> const Tetrodotoxin::Source::Layout& {
   return layout;
 }
 
@@ -104,14 +104,14 @@ auto Language::Structure::InstanceLayout::get_name(Count index) const
 }
 
 auto Language::Structure::InstanceLayout::fits_entry(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count source_index,
     Count target_index) const -> Bool {
   auto source = get_abstract(source_index);
   auto destination = target.get_abstract(target_index);
   BAIL_IF(!source || !destination);
-  auto source_value = source->select<Ttx::Model::Addressable>();
-  auto target_value = destination->select<Ttx::Model::Addressable>();
+  auto source_value = source->select<Tetrodotoxin::Source::Addressable>();
+  auto target_value = destination->select<Tetrodotoxin::Source::Addressable>();
   const Abstract& source_type =
       source_value ? static_cast<const Abstract&>(source_value->get_type())
                    : source->resolve();
@@ -122,7 +122,7 @@ auto Language::Structure::InstanceLayout::fits_entry(
 }
 
 auto Language::Structure::InstanceLayout::fits_at(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count target_offset) const -> Bool {
   BAIL_IF(!has_target_segment(target, target_offset));
   for (Count index = 0; index < get_size(); index++) {
@@ -132,7 +132,7 @@ auto Language::Structure::InstanceLayout::fits_at(
 }
 
 auto Language::Structure::InstanceLayout::get_fitted_at(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count target_offset,
     Count target_index) const -> Result<const Abstract&, Errors> {
   if (target_index >= get_size()) {

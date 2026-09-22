@@ -5,41 +5,41 @@
 
 #include "tetrodotoxin/language/definition.hpp"
 #include "tetrodotoxin/language/type_reference.hpp"
-#include "ttx/concept/abstract.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 namespace Tetrodotoxin::Render::Language {
 
 // Render owns the authored declaration around this Type relationship. Its
 // name and documentation survive independently of the reference's answer,
 // so transparent Alias is composed behavior rather than a native base class.
-class Alias : public Ttx::Concept::Abstract {
+class Alias : public Tetrodotoxin::Source::Abstract {
  public:
-  TTX_CONTRACT(Alias, Ttx::Concept::Abstract);
+  TTX_CONTRACT(Alias, Tetrodotoxin::Source::Abstract);
   TTX_NAME(definition.get_name());
   TTX_DOCUMENTATION(definition.get_documentation());
 
-  auto resolve() const -> const Ttx::Concept::Abstract& override;
-  auto get_type() const -> const Ttx::Concept::Abstract& override;
+  auto resolve() const -> const Tetrodotoxin::Source::Abstract& override;
+  auto get_type() const -> const Tetrodotoxin::Source::Abstract& override;
   auto resolve_concept(Perimortem::Core::View::Bytes name) const
-      -> const Ttx::Concept::Abstract& override;
-  auto visit_concepts(Ttx::Concept::Abstract::Visitor visitor) const
+      -> const Tetrodotoxin::Source::Abstract& override;
+  auto visit_concepts(Tetrodotoxin::Source::Abstract::Visitor visitor) const
       -> void override;
   auto bind_interface(Perimortem::System::Uuid requested) const
       -> Perimortem::Utility::Result<
-          Ttx::Semantic::Binding,
-          Ttx::Semantic::Binding::Failure> override;
+          Ttx::Semantic::Negotiation::Binding,
+          Ttx::Semantic::Negotiation::Binding::Failure> override;
 
   static auto create(
       Perimortem::Memory::Allocator::Arena& domain,
       Tetrodotoxin::Language::Definition& definition,
       Tetrodotoxin::Language::TypeReference target) -> Alias&;
 
-  auto link(Ttx::Lexical::Cursor& cursor, const Ttx::Concept::Abstract& context)
+  auto link(Tetrodotoxin::Source::Lexical::Cursor& cursor, const Tetrodotoxin::Source::Abstract& context)
       -> Bool;
 
-  auto link_restored(const Ttx::Concept::Abstract& context) -> Bool;
+  auto link_restored(const Tetrodotoxin::Source::Abstract& context) -> Bool;
 
   constexpr auto get_definition() const
       -> const Tetrodotoxin::Language::Definition& {
@@ -59,7 +59,7 @@ class Alias : public Ttx::Concept::Abstract {
 
   Tetrodotoxin::Language::Definition& definition;
   Tetrodotoxin::Language::TypeReference target;
-  Perimortem::Core::Option<Ttx::Concept::Reference<const Ttx::Model::Type>>
+  Perimortem::Core::Option<Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type>>
       selected_type;
 };
 

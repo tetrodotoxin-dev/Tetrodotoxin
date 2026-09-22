@@ -7,7 +7,7 @@
 
 #include "tetrodotoxin/library/language/expression.hpp"
 #include "tetrodotoxin/library/language/model/types/value.hpp"
-#include "ttx/concept/reference.hpp"
+#include "tetrodotoxin/source/reference.hpp"
 
 namespace Tetrodotoxin::Library::Language::Expressions {
 
@@ -41,17 +41,17 @@ class Conversion : public Expression {
   }
 
   auto link(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& lexical_context,
-      Perimortem::Core::Option<const Ttx::Concept::Abstract&> access_scope = {})
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& lexical_context,
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&> access_scope = {})
       -> Bool override;
 
   auto link_restored(
-      const Ttx::Concept::Abstract& lexical_context,
-      Perimortem::Core::Option<const Ttx::Concept::Abstract&> access_scope = {})
+      const Tetrodotoxin::Source::Abstract& lexical_context,
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&> access_scope = {})
       -> Bool override;
 
-  auto finalize(Ttx::Lexical::Cursor& cursor) -> void override;
+  auto finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> void override;
 
  protected:
   auto evaluate() -> Perimortem::Utility::Result<
@@ -66,8 +66,8 @@ class Conversion : public Expression {
       : Expression({}), arena(arena), target(target), source(source) {}
 
   Perimortem::Memory::Allocator::Arena& arena;
-  Ttx::Concept::Reference<const Model::Types::Value> target;
-  Ttx::Model::PackReference<Model::Pack> source;
+  Tetrodotoxin::Source::Reference<const Model::Types::Value> target;
+  Tetrodotoxin::Source::PackReference<Model::Pack> source;
 };
 
 }  // namespace Tetrodotoxin::Library::Language::Expressions

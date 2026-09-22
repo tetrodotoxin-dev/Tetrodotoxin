@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/package/dialect.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "validation/unit_test.hpp"
 
 #include "perimortem/core/algorithm/search.hpp"
@@ -13,15 +15,15 @@
 #include "tetrodotoxin/library/language/types/namespace.hpp"
 #include "tetrodotoxin/library/language/types/structure.hpp"
 #include "tetrodotoxin/package/language/monograph.hpp"
-#include "ttx/lexical/associations.hpp"
-#include "ttx/lexical/cursor.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/lexical/associations.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 using namespace Validation;
 
@@ -38,7 +40,7 @@ static auto interpret(
   Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations, "package.ttx"_view);
   auto selected = dialect.interpret(
-      cursor, Documentation::get_empty(), Anchor::create(Span()), dialect);
+      cursor, Tetrodotoxin::Source::Documentation::get_empty(), Anchor::create(Span()), dialect);
   return selected ? selected->select<Package::Language::Monograph>()
                   : Option<Package::Language::Monograph&>();
 }

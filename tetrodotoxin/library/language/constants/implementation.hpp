@@ -31,7 +31,7 @@ class Implementation : public Tetrodotoxin::Library::Language::Constant {
  private:
   constexpr Implementation(
       const Types::Implementation& type,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor)
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor)
       : Tetrodotoxin::Library::Language::Constant(anchor), type(type) {}
 
   const Types::Implementation& type;

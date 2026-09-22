@@ -24,8 +24,8 @@
 #include "tetrodotoxin/terminal/llvm/module/globals.hpp"
 #include "tetrodotoxin/terminal/llvm/products.hpp"
 #include "tetrodotoxin/terminal/llvm/target.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
 
 namespace Tetrodotoxin::Terminal::Llvm::Module {
 
@@ -35,7 +35,7 @@ class Program : public Emission {
  public:
   Program(
       Perimortem::Memory::Allocator::Arena& arena,
-      Ttx::Lexical::Errors& errors,
+      Tetrodotoxin::Source::Lexical::Errors& errors,
       Perimortem::Core::View::Bytes source_path,
       Perimortem::Core::View::Bytes source_text,
       Target target,
@@ -92,7 +92,7 @@ class Program : public Emission {
   auto fail_toolchain(Perimortem::Core::View::Bytes message) -> Bool;
 
   auto fail_source(
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor,
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor,
       Perimortem::Core::View::Bytes message,
       Perimortem::Core::View::Bytes hint = {}) -> Bool;
 
@@ -111,7 +111,7 @@ class Program : public Emission {
   };
 
   Perimortem::Memory::Allocator::Arena& arena;
-  Ttx::Lexical::Errors& errors;
+  Tetrodotoxin::Source::Lexical::Errors& errors;
   Perimortem::Core::View::Bytes source_path;
   Perimortem::Core::View::Bytes source_text;
   Target target;

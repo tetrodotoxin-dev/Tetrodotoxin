@@ -77,11 +77,11 @@ static auto begin_iteration(
     const Flow::RangeLoop& loop,
     const Model::Type& type) -> Bool {
   const ControlFlow& body = execution.get_control_flow();
-  const Ttx::Concept::Layout& bindings = loop.get_bindings();
+  const Tetrodotoxin::Source::Layout& bindings = loop.get_bindings();
   if (type.is<Types::Range>() || type.is<Types::Contiguous>()) {
     auto entry = bindings.get_abstract(0);
-    auto binding = entry ? entry->select<Ttx::Model::Addressable>()
-                         : Core::Option<const Ttx::Model::Addressable&>();
+    auto binding = entry ? entry->select<Tetrodotoxin::Source::Addressable>()
+                         : Core::Option<const Tetrodotoxin::Source::Addressable&>();
     return binding &&
            body.begin_sequence(loop, *binding, type, loop.get_input());
   }
@@ -169,7 +169,7 @@ static auto lower_match(
 
 static auto lower_root(
     const Llvm::Lowering::Execution& execution,
-    const Ttx::Concept::Abstract& root) -> Bool {
+    const Tetrodotoxin::Source::Abstract& root) -> Bool {
   auto local = root.select<Flow::Local>();
   if (local) {
     return lower_local(execution, *local);

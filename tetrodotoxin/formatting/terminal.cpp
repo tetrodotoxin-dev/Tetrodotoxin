@@ -3,7 +3,7 @@
 
 #include "tetrodotoxin/formatting/terminal.hpp"
 
-#include "ttx/lexical/formatter.hpp"
+#include "tetrodotoxin/source/lexical/formatter.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
@@ -144,8 +144,8 @@ static auto reflow_comments(View::Bytes source) -> Dynamic::Bytes {
 
 auto Formatting::Terminal::format(
     const Language::Monograph& monograph,
-    const Ttx::Lexical::Tokenizer& tokenizer) -> Dynamic::Bytes {
+    const Tetrodotoxin::Source::Lexical::Tokenizer& tokenizer) -> Dynamic::Bytes {
   (void)monograph;
-  Dynamic::Bytes canonical = Ttx::Lexical::Formatter(tokenizer).format();
+  Dynamic::Bytes canonical = Tetrodotoxin::Source::Lexical::Formatter(tokenizer).format();
   return reflow_comments(canonical.get_view());
 }

@@ -8,7 +8,7 @@
 #include "tetrodotoxin/shader/language/monograph.hpp"
 #include "tetrodotoxin/shader/language/program.hpp"
 #include "tetrodotoxin/terminal/spirv/target.hpp"
-#include "ttx/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
 
 namespace Tetrodotoxin::Terminal::Spirv {
 
@@ -20,7 +20,7 @@ class Request {
   constexpr Request(
       const Tetrodotoxin::Shader::Language::Monograph& monograph,
       const Tetrodotoxin::Shader::Language::Program& program,
-      Ttx::Lexical::Errors& errors,
+      Tetrodotoxin::Source::Lexical::Errors& errors,
       Perimortem::Core::View::Bytes source_path,
       Perimortem::Core::View::Bytes source_text,
       Target target)
@@ -41,7 +41,7 @@ class Request {
     return program;
   }
 
-  constexpr auto get_errors() const -> Ttx::Lexical::Errors& { return errors; }
+  constexpr auto get_errors() const -> Tetrodotoxin::Source::Lexical::Errors& { return errors; }
   constexpr auto get_source_path() const -> Perimortem::Core::View::Bytes {
     return source_path;
   }
@@ -53,7 +53,7 @@ class Request {
  private:
   const Tetrodotoxin::Shader::Language::Monograph& monograph;
   const Tetrodotoxin::Shader::Language::Program& program;
-  Ttx::Lexical::Errors& errors;
+  Tetrodotoxin::Source::Lexical::Errors& errors;
   Perimortem::Core::View::Bytes source_path;
   Perimortem::Core::View::Bytes source_text;
   Target target;

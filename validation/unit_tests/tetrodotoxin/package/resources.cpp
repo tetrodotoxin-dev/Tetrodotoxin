@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/package/resources.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "validation/unit_test.hpp"
 
 #include <stdio.h>
@@ -20,16 +22,16 @@
 #include "tetrodotoxin/environment/workspace.hpp"
 #include "tetrodotoxin/package/dialect.hpp"
 #include "tetrodotoxin/package/language/monograph.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::System;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 using namespace Validation;
 
@@ -262,10 +264,10 @@ PERIMORTEM_UNIT_TEST(PackageResources, monograph_dispatch) {
   Package::Dialect dialect(library);
   Errors errors;
   Tokenizer tokenizer(arena, {}, "package-resources.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   auto& root = Package::Language::Monograph::create_authored(
-      arena, dialect, Documentation::get_empty(), Anchor::create(Span()),
+      arena, dialect, Tetrodotoxin::Source::Documentation::get_empty(), Anchor::create(Span()),
       "Validation.Resources"_view, Version(1, 0), dialect, library);
   EXPECT(&root.resolve_concept(complete) == &Unknown::get_unknown());
   EXPECT(&root.resolve_concept(partial) == &Unknown::get_unknown());

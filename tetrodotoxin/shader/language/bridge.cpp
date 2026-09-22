@@ -4,12 +4,12 @@
 #include "tetrodotoxin/shader/language/bridge.hpp"
 
 #include "tetrodotoxin/library/language/model/type.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 using namespace Tetrodotoxin::Shader;
 
@@ -36,13 +36,13 @@ auto Shader::Language::Bridge::link(Cursor& cursor, const Abstract& context)
   auto shader_type = selected_gpu->select<Library::Language::Model::Type>();
   if (!library_type || !shader_type) {
     cursor.create_expression_error(
-        definition.get_anchor(),
+        definition.get_authored().get_anchor(),
         "Shader Bridge endpoints require one Library CPU Type and one Shader GPU Type."_view);
     return False;
   }
   if (&*library_type == &*shader_type) {
     cursor.create_expression_error(
-        definition.get_anchor(),
+        definition.get_authored().get_anchor(),
         "Shader Bridge endpoints must retain distinct CPU and GPU identities."_view);
     return False;
   }
@@ -50,14 +50,14 @@ auto Shader::Language::Bridge::link(Cursor& cursor, const Abstract& context)
       (!library_type->get_layout().fits(shader_type->get_layout()) ||
        !shader_type->get_layout().fits(library_type->get_layout()))) {
     cursor.create_expression_error(
-        definition.get_anchor(),
+        definition.get_authored().get_anchor(),
         "Identity marshaling requires matching CPU and GPU Layouts."_view,
         "Choose copy or pack marshaling when the semantic shapes differ."_view);
     return False;
   }
 
-  cpu_type = Reference<const Ttx::Model::Type>(*library_type);
-  gpu_type = Reference<const Ttx::Model::Type>(*shader_type);
+  cpu_type = Reference<const Tetrodotoxin::Source::Type>(*library_type);
+  gpu_type = Reference<const Tetrodotoxin::Source::Type>(*shader_type);
   return True;
 }
 
@@ -79,8 +79,8 @@ auto Shader::Language::Bridge::link_restored(const Abstract& context) -> Bool {
       (marshaling == Marshaling::Identity &&
        (!library_type->get_layout().fits(shader_type->get_layout()) ||
         !shader_type->get_layout().fits(library_type->get_layout()))));
-  cpu_type = Reference<const Ttx::Model::Type>(*library_type);
-  gpu_type = Reference<const Ttx::Model::Type>(*shader_type);
+  cpu_type = Reference<const Tetrodotoxin::Source::Type>(*library_type);
+  gpu_type = Reference<const Tetrodotoxin::Source::Type>(*shader_type);
   return True;
 }
 

@@ -4,8 +4,8 @@
 #include "tetrodotoxin/library/simulacra.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using Ttx::Semantic::Binding;
+using namespace Tetrodotoxin::Source;
+using Ttx::Semantic::Negotiation::Binding;
 using namespace Tetrodotoxin::Library;
 
 auto Simulacra::Handle::project(Abstract::Handle candidate) const
@@ -57,7 +57,7 @@ auto Simulacra::project(Abstract::Handle source)
     return *failure;
   }
 
-  failure = collect<Ttx::Model::Type>(source, projection.type);
+  failure = collect<Tetrodotoxin::Source::Type>(source, projection.type);
   if (failure) {
     return *failure;
   }
@@ -68,7 +68,7 @@ auto Simulacra::project(Abstract::Handle source)
     return *failure;
   }
 
-  failure = collect<Ttx::Model::Callable>(source, projection.callable);
+  failure = collect<Tetrodotoxin::Source::Callable>(source, projection.callable);
   if (failure) {
     return *failure;
   }
@@ -78,7 +78,7 @@ auto Simulacra::project(Abstract::Handle source)
     return *failure;
   }
 
-  failure = collect<Ttx::Model::Addressable>(source, projection.addressable);
+  failure = collect<Tetrodotoxin::Source::Addressable>(source, projection.addressable);
   if (failure) {
     return *failure;
   }

@@ -11,8 +11,8 @@
 #include "perimortem/serialization/json/node.hpp"
 
 #include "puffer/lsp/position_encoding.hpp"
-#include "ttx/lexical/associations.hpp"
-#include "ttx/lexical/token.hpp"
+#include "tetrodotoxin/source/lexical/associations.hpp"
+#include "tetrodotoxin/source/lexical/token.hpp"
 
 namespace Puffer::Lsp {
 
@@ -25,8 +25,8 @@ auto semantic_tokens_for(
     Perimortem::Memory::Allocator::Arena& arena,
     Perimortem::Core::View::Bytes source,
     const PositionEncoding& encoding,
-    Perimortem::Core::View::Vector<Ttx::Lexical::Token> tokens = {},
-    const Ttx::Lexical::Associations* associations = nullptr)
+    Perimortem::Core::View::Vector<Tetrodotoxin::Source::Lexical::Token> tokens = {},
+    const Tetrodotoxin::Source::Lexical::Associations* associations = nullptr)
     -> Perimortem::Serialization::Json::Node;
 
 }  // namespace Puffer::Lsp

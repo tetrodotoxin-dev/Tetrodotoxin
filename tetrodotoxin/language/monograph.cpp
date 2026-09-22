@@ -3,23 +3,25 @@
 
 #include "tetrodotoxin/language/monograph.hpp"
 
-#include "ttx/concept/unknown.hpp"
-#include "ttx/model/layouts/fluid.hpp"
+#include "tetrodotoxin/source/documentation.hpp"
+
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/layouts/fluid.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
-static constexpr Ttx::Model::Layouts::Fluid monograph_layout;
+static constexpr Tetrodotoxin::Source::Layouts::Fluid monograph_layout;
 
 Language::Monograph::~Monograph() {}
 
 Language::Monograph::Monograph(
     Allocator::Arena& domain,
     const Abstract& language,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     Abstract& context)
     : domain(domain),
       documentation(documentation),

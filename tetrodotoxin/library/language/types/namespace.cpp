@@ -5,8 +5,8 @@
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library::Language;
 
 auto Types::Namespace::create_authored(
@@ -29,7 +29,7 @@ auto Types::Namespace::retain_binding(
     Cursor& cursor) -> Bool {
   if (category != Category::Type) {
     cursor.create_expression_error(
-        definition.get_anchor(),
+        definition.get_authored().get_anchor(),
         "Library Namespace bodies contain only Types and Aliases."_view,
         "Move state and Callables into an ordinary Structure or Object."_view);
     return False;

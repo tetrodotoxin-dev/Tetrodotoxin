@@ -6,24 +6,24 @@
 #include "perimortem/core/option.hpp"
 
 #include "tetrodotoxin/library/language/model/memory.hpp"
-#include "ttx/model/callable.hpp"
+#include "tetrodotoxin/source/callable.hpp"
 
 namespace Tetrodotoxin::Library::Language::Model {
 
 // Callable derives Library's Static or Self receiver role from the one real
 // parameter Layout instead of retaining a second marker on each Function.
-class Callable : public Ttx::Model::Callable {
+class Callable : public Tetrodotoxin::Source::Callable {
  public:
-  TTX_CONTRACT(Callable, Ttx::Model::Callable);
+  TTX_CONTRACT(Callable, Tetrodotoxin::Source::Callable);
 
   auto bind_interface(Perimortem::System::Uuid requested) const
       -> Perimortem::Utility::Result<
-          Ttx::Semantic::Binding,
-          Ttx::Semantic::Binding::Failure> override {
+          Ttx::Semantic::Negotiation::Binding,
+          Ttx::Semantic::Negotiation::Binding::Failure> override {
     if (requested == Tetrodotoxin::Source::Declaration::contract_id) {
       return Tetrodotoxin::Source::Declaration::provide(*this);
     }
-    return Ttx::Model::Callable::bind_interface(requested);
+    return Tetrodotoxin::Source::Callable::bind_interface(requested);
   }
 
   // A selected Self Callable may impose receiver authority beyond exact Type
@@ -31,8 +31,8 @@ class Callable : public Ttx::Model::Callable {
   // Borrowing intrinsic Callables use this boundary to require writable
   // storage without teaching Call about a concrete declaration category.
   virtual auto accepts_receiver(
-      const Ttx::Concept::Abstract&,
-      const Ttx::Concept::Abstract&) const -> Bool {
+      const Tetrodotoxin::Source::Abstract&,
+      const Tetrodotoxin::Source::Abstract&) const -> Bool {
     return True;
   }
 
@@ -40,15 +40,15 @@ class Callable : public Ttx::Model::Callable {
   // closure barriers. Signatures settle before Fields may invoke them, while
   // bodies wait until every initializer has linked. Bodyless and generated
   // Callables keep the neutral behavior.
-  virtual auto link_declaration_signature(Ttx::Lexical::Cursor&) -> Bool {
+  virtual auto link_declaration_signature(Tetrodotoxin::Source::Lexical::Cursor&) -> Bool {
     return True;
   }
 
-  virtual auto link_declaration_body(Ttx::Lexical::Cursor&) -> Bool {
+  virtual auto link_declaration_body(Tetrodotoxin::Source::Lexical::Cursor&) -> Bool {
     return True;
   }
 
-  virtual auto finalize_declaration(Ttx::Lexical::Cursor&) -> Bool {
+  virtual auto finalize_declaration(Tetrodotoxin::Source::Lexical::Cursor&) -> Bool {
     return True;
   }
 
@@ -64,7 +64,7 @@ class Callable : public Ttx::Model::Callable {
   }
 
   virtual constexpr auto get_declaration_anchor() const
-      -> Perimortem::Core::Option<Ttx::Lexical::Anchor> {
+      -> Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> {
     return {};
   }
 
@@ -81,7 +81,7 @@ class Callable : public Ttx::Model::Callable {
       return {};
     }
 
-    auto parameter = first->select<Ttx::Model::Addressable>();
+    auto parameter = first->select<Tetrodotoxin::Source::Addressable>();
     if (!parameter || parameter->get_name() != "self"_view) {
       return {};
     }
@@ -101,29 +101,29 @@ class Callable : public Ttx::Model::Callable {
   // value. Keeping the identity check here gives every semantic and lowering
   // consumer one canonical test for the reserved reference result.
   auto get_self_result() const
-      -> Perimortem::Core::Option<const Ttx::Model::Addressable&> {
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Addressable&> {
     auto first = get_parameters().get_abstract(0);
     auto self =
-        first ? first->select<Ttx::Model::Addressable>()
-              : Perimortem::Core::Option<const Ttx::Model::Addressable&>();
+        first ? first->select<Tetrodotoxin::Source::Addressable>()
+              : Perimortem::Core::Option<const Tetrodotoxin::Source::Addressable&>();
     auto returned =
         get_results().get_size() == 1
             ? get_results().get_abstract(0)
-            : Perimortem::Core::Option<const Ttx::Concept::Abstract&>();
+            : Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&>();
     auto reference =
-        returned ? returned->select<Ttx::Model::Addressable>()
-                 : Perimortem::Core::Option<const Ttx::Model::Addressable&>();
+        returned ? returned->select<Tetrodotoxin::Source::Addressable>()
+                 : Perimortem::Core::Option<const Tetrodotoxin::Source::Addressable&>();
     return self && self->get_name() == "self"_view && reference &&
                    &*self == &*reference
                ? reference
-               : Perimortem::Core::Option<const Ttx::Model::Addressable&>();
+               : Perimortem::Core::Option<const Tetrodotoxin::Source::Addressable&>();
   }
 
  private:
   friend class Tetrodotoxin::Source::Declaration;
   auto complete_source(
       Tetrodotoxin::Source::Declaration::Phase phase,
-      Ttx::Lexical::Cursor* cursor)
+      Tetrodotoxin::Source::Lexical::Cursor* cursor)
       -> Tetrodotoxin::Source::Declaration::Completion {
     using Phase = Tetrodotoxin::Source::Declaration::Phase;
     switch (phase) {

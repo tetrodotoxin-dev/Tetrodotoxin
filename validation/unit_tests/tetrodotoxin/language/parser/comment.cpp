@@ -7,9 +7,9 @@
 
 #include "perimortem/memory/allocator/arena.hpp"
 
-#include "ttx/lexical/cursor.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
@@ -24,18 +24,18 @@ static Harness ParserCommentTests = {
 
 PERIMORTEM_UNIT_TEST(ParserCommentTests, greedy) {
   Allocator::Arena arena;
-  Lexical::Errors errors;
-  Lexical::Tokenizer tokenizer(
+  Tetrodotoxin::Source::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Tokenizer tokenizer(
       arena, "// First line\n// Second line\nValue"_view,
       "<greedy comments>"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
-  Lexical::Cursor cursor(tokenizer, errors, associations);
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Cursor cursor(tokenizer, errors, associations);
 
-  Option<const Concept::Documentation&> documentation =
+  Option<const Tetrodotoxin::Source::Documentation&> documentation =
       Parser::Comment::parse(cursor);
   Bool correct = documentation.visit(
       []() { return False; },
-      [](const Concept::Documentation& selected) -> Bool {
+      [](const Tetrodotoxin::Source::Documentation& selected) -> Bool {
         return Bool(
             selected.line_count() == 2 &&
             selected.get_line(0) == "First line"_view &&
@@ -44,25 +44,25 @@ PERIMORTEM_UNIT_TEST(ParserCommentTests, greedy) {
 
   EXPECT(correct);
   EXPECT(errors.is_empty());
-  EXPECT(cursor.matches(Lexical::Code::Type::Type));
+  EXPECT(cursor.matches(Tetrodotoxin::Source::Lexical::Code::Type::Type));
   EXPECT_TEXT(
       cursor.current().caculate_text(cursor.get_source_text()), "Value"_view);
 }
 
 PERIMORTEM_UNIT_TEST(ParserCommentTests, preserves_empty) {
   Allocator::Arena arena;
-  Lexical::Errors errors;
-  Lexical::Tokenizer tokenizer(
+  Tetrodotoxin::Source::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Tokenizer tokenizer(
       arena, "// First line\n//\n// \n//  Indented line\nValue"_view,
       "<empty comment lines>"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
-  Lexical::Cursor cursor(tokenizer, errors, associations);
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Cursor cursor(tokenizer, errors, associations);
 
-  Option<const Concept::Documentation&> documentation =
+  Option<const Tetrodotoxin::Source::Documentation&> documentation =
       Parser::Comment::parse(cursor);
   Bool correct = documentation.visit(
       []() { return False; },
-      [](const Concept::Documentation& selected) -> Bool {
+      [](const Tetrodotoxin::Source::Documentation& selected) -> Bool {
         return Bool(
             selected.line_count() == 4 &&
             selected.get_line(0) == "First line"_view &&
@@ -73,39 +73,39 @@ PERIMORTEM_UNIT_TEST(ParserCommentTests, preserves_empty) {
 
   EXPECT(correct);
   EXPECT(errors.is_empty());
-  EXPECT(cursor.matches(Lexical::Code::Type::Type));
+  EXPECT(cursor.matches(Tetrodotoxin::Source::Lexical::Code::Type::Type));
 }
 
 PERIMORTEM_UNIT_TEST(ParserCommentTests, excludes_raw_comments) {
   Allocator::Arena arena;
-  Lexical::Errors errors;
-  Lexical::Tokenizer tokenizer(
+  Tetrodotoxin::Source::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Tokenizer tokenizer(
       arena,
       "/// Tetrodotoxin\n"
       "/// Copyright metadata\n"
       "// Public documentation.\n"
       "Value"_view,
       "<raw comments>"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
-  Lexical::Cursor cursor(tokenizer, errors, associations);
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Cursor cursor(tokenizer, errors, associations);
 
-  const Concept::Documentation& documentation = Parser::Comment::parse(cursor);
+  const Tetrodotoxin::Source::Documentation& documentation = Parser::Comment::parse(cursor);
   EXPECT_EQ(documentation.line_count(), Count(1));
   EXPECT_TEXT(documentation.get_line(0), "Public documentation."_view);
   EXPECT(errors.is_empty());
-  EXPECT(cursor.matches(Lexical::Code::Type::Type));
+  EXPECT(cursor.matches(Tetrodotoxin::Source::Lexical::Code::Type::Type));
 }
 
 PERIMORTEM_UNIT_TEST(ParserCommentTests, raw_only_is_not_documentation) {
   Allocator::Arena arena;
-  Lexical::Errors errors;
-  Lexical::Tokenizer tokenizer(
+  Tetrodotoxin::Source::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Tokenizer tokenizer(
       arena, "/// Build metadata\nValue"_view, "<raw only>"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
-  Lexical::Cursor cursor(tokenizer, errors, associations);
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Cursor cursor(tokenizer, errors, associations);
 
-  const Concept::Documentation& documentation = Parser::Comment::parse(cursor);
+  const Tetrodotoxin::Source::Documentation& documentation = Parser::Comment::parse(cursor);
   EXPECT(documentation.is_empty());
   EXPECT(errors.is_empty());
-  EXPECT(cursor.matches(Lexical::Code::Type::Type));
+  EXPECT(cursor.matches(Tetrodotoxin::Source::Lexical::Code::Type::Type));
 }

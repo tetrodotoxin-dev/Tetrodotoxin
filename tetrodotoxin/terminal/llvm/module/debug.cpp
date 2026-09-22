@@ -39,7 +39,7 @@ auto Llvm::Module::Debug::release() -> void {
   builder = {};
 }
 
-auto Llvm::Module::Debug::find_type(const Ttx::Model::Type& type) const
+auto Llvm::Module::Debug::find_type(const Tetrodotoxin::Source::Type& type) const
     -> Core::Option<LLVMMetadataRef> {
   auto found = types.find(&type);
   return found ? Core::Option<LLVMMetadataRef>(found->value)
@@ -47,7 +47,7 @@ auto Llvm::Module::Debug::find_type(const Ttx::Model::Type& type) const
 }
 
 auto Llvm::Module::Debug::publish_type(
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     LLVMMetadataRef metadata) -> Bool {
   if (types.contains(&type) || !metadata) {
     return False;
@@ -58,7 +58,7 @@ auto Llvm::Module::Debug::publish_type(
 }
 
 auto Llvm::Module::Debug::replace_type(
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     LLVMMetadataRef metadata) -> Bool {
   auto found = types.find(&type);
   if (!found || !metadata) {
@@ -69,7 +69,7 @@ auto Llvm::Module::Debug::replace_type(
   return True;
 }
 
-auto Llvm::Module::Debug::find_payload(const Ttx::Model::Type& type) const
+auto Llvm::Module::Debug::find_payload(const Tetrodotoxin::Source::Type& type) const
     -> Core::Option<LLVMMetadataRef> {
   auto found = payloads.find(&type);
   return found ? Core::Option<LLVMMetadataRef>(found->value)
@@ -77,7 +77,7 @@ auto Llvm::Module::Debug::find_payload(const Ttx::Model::Type& type) const
 }
 
 auto Llvm::Module::Debug::publish_payload(
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     LLVMMetadataRef metadata) -> Bool {
   if (payloads.contains(&type) || !metadata) {
     return False;
@@ -88,7 +88,7 @@ auto Llvm::Module::Debug::publish_payload(
 }
 
 auto Llvm::Module::Debug::replace_payload(
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     LLVMMetadataRef metadata) -> Bool {
   auto found = payloads.find(&type);
   if (!found || !metadata) {
@@ -100,7 +100,7 @@ auto Llvm::Module::Debug::replace_payload(
 }
 
 auto Llvm::Module::Debug::publish_enumerator(
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     LLVMMetadataRef metadata) -> Bool {
   if (!metadata) {
     return False;
@@ -121,14 +121,14 @@ auto Llvm::Module::Debug::publish_enumerator(
   return True;
 }
 
-auto Llvm::Module::Debug::get_enumerators(const Ttx::Model::Type& type) const
+auto Llvm::Module::Debug::get_enumerators(const Tetrodotoxin::Source::Type& type) const
     -> Core::View::Vector<LLVMMetadataRef> {
   auto found = enumerators.find(&type);
   return found ? found->value.get_view()
                : Core::View::Vector<LLVMMetadataRef>();
 }
 
-auto Llvm::Module::Debug::find_scope(const Ttx::Model::Type& type) const
+auto Llvm::Module::Debug::find_scope(const Tetrodotoxin::Source::Type& type) const
     -> Core::Option<LLVMMetadataRef> {
   auto found = scopes.find(&type);
   return found ? Core::Option<LLVMMetadataRef>(found->value)
@@ -136,7 +136,7 @@ auto Llvm::Module::Debug::find_scope(const Ttx::Model::Type& type) const
 }
 
 auto Llvm::Module::Debug::publish_scope(
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     LLVMMetadataRef metadata) -> Bool {
   if (scopes.contains(&type) || !metadata) {
     return False;
@@ -148,7 +148,7 @@ auto Llvm::Module::Debug::publish_scope(
 }
 
 auto Llvm::Module::Debug::replace_scope(
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     LLVMMetadataRef metadata) -> Bool {
   auto found = scopes.find(&type);
   if (!found || !metadata) {
@@ -160,12 +160,12 @@ auto Llvm::Module::Debug::replace_scope(
 }
 
 auto Llvm::Module::Debug::get_scope_types() const
-    -> Core::View::Vector<Ttx::Concept::Reference<const Ttx::Model::Type>> {
+    -> Core::View::Vector<Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type>> {
   return scope_types.get_view();
 }
 
 auto Llvm::Module::Debug::publish_member(
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     LLVMMetadataRef metadata) -> Bool {
   if (!metadata) {
     return False;
@@ -186,7 +186,7 @@ auto Llvm::Module::Debug::publish_member(
   return True;
 }
 
-auto Llvm::Module::Debug::get_members(const Ttx::Model::Type& type) const
+auto Llvm::Module::Debug::get_members(const Tetrodotoxin::Source::Type& type) const
     -> Core::View::Vector<LLVMMetadataRef> {
   auto found = members.find(&type);
   return found ? found->value.get_view()
@@ -278,20 +278,20 @@ auto Llvm::Module::Debug::initialize(
   return True;
 }
 
-static auto source_token(Ttx::Lexical::Anchor anchor) -> Ttx::Lexical::Token {
-  Ttx::Lexical::Token token = anchor.get_token();
+static auto source_token(Tetrodotoxin::Source::Lexical::Anchor anchor) -> Tetrodotoxin::Source::Lexical::Token {
+  Tetrodotoxin::Source::Lexical::Token token = anchor.get_token();
   return token ? token : anchor.get_span().get_start();
 }
 
-static auto source_line(Ttx::Lexical::Anchor anchor) -> Count {
+static auto source_line(Tetrodotoxin::Source::Lexical::Anchor anchor) -> Count {
   return source_token(anchor).get_line();
 }
 
-static auto source_column(Ttx::Lexical::Anchor anchor) -> Count {
+static auto source_column(Tetrodotoxin::Source::Lexical::Anchor anchor) -> Count {
   return source_token(anchor).get_column();
 }
 
-static auto set_location(Llvm::Module::Body& body, Ttx::Lexical::Anchor anchor)
+static auto set_location(Llvm::Module::Body& body, Tetrodotoxin::Source::Lexical::Anchor anchor)
     -> Bool {
   auto scope = native_scope(body);
   if (!scope) {
@@ -306,27 +306,27 @@ static auto set_location(Llvm::Module::Body& body, Ttx::Lexical::Anchor anchor)
   return True;
 }
 
-static auto select_type(const Ttx::Concept::Abstract& answer)
-    -> Core::Option<const Ttx::Model::Type&> {
-  auto direct = answer.select<Ttx::Model::Type>();
-  return direct ? direct : answer.resolve().select<Ttx::Model::Type>();
+static auto select_type(const Tetrodotoxin::Source::Abstract& answer)
+    -> Core::Option<const Tetrodotoxin::Source::Type&> {
+  auto direct = answer.select<Tetrodotoxin::Source::Type>();
+  return direct ? direct : answer.resolve().select<Tetrodotoxin::Source::Type>();
 }
 
-static auto select_type(const Ttx::Concept::Layout& layout, Count index)
-    -> Core::Option<const Ttx::Model::Type&> {
+static auto select_type(const Tetrodotoxin::Source::Layout& layout, Count index)
+    -> Core::Option<const Tetrodotoxin::Source::Type&> {
   auto entry = layout.get_abstract(index);
   if (!entry) {
     return {};
   }
 
-  auto type = entry->select<Ttx::Model::Type>();
+  auto type = entry->select<Tetrodotoxin::Source::Type>();
   if (type) {
     return *type;
   }
 
-  auto addressable = entry->select<Ttx::Model::Addressable>();
+  auto addressable = entry->select<Tetrodotoxin::Source::Addressable>();
   return addressable ? select_type(addressable->get_type())
-                     : Core::Option<const Ttx::Model::Type&>();
+                     : Core::Option<const Tetrodotoxin::Source::Type&>();
 }
 
 static auto native_module(Llvm::Module::Program& program) -> llvm::Module& {
@@ -372,9 +372,9 @@ static auto create_member(
 
 static auto create_debug_type(
     Llvm::Module::Program& program,
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     Count line = 0) -> Core::Option<llvm::DIType&> {
-  auto create = [&](auto& create_type, const Ttx::Model::Type& selected,
+  auto create = [&](auto& create_type, const Tetrodotoxin::Source::Type& selected,
                     Count selected_line) -> Core::Option<llvm::DIType&> {
     auto existing = program.get_debug().find_type(selected);
     if (existing) {
@@ -521,8 +521,8 @@ static auto create_debug_type(
       llvm::SmallVector<llvm::Metadata*, 16> members;
       for (Count index = 0; index < fields->get_size(); index++) {
         auto entry = fields->get_abstract(index);
-        auto field = entry ? entry->select<Ttx::Model::Addressable>()
-                           : Core::Option<const Ttx::Model::Addressable&>();
+        auto field = entry ? entry->select<Tetrodotoxin::Source::Addressable>()
+                           : Core::Option<const Tetrodotoxin::Source::Addressable&>();
         if (!field) {
           return {};
         }
@@ -747,8 +747,8 @@ static auto create_debug_type(
       if (fields) {
         for (Count index = 0; index < fields->get_size(); index++) {
           auto entry = fields->get_abstract(index);
-          auto field = entry ? entry->select<Ttx::Model::Addressable>()
-                             : Core::Option<const Ttx::Model::Addressable&>();
+          auto field = entry ? entry->select<Tetrodotoxin::Source::Addressable>()
+                             : Core::Option<const Tetrodotoxin::Source::Addressable&>();
           if (!field) {
             return {};
           }
@@ -797,7 +797,7 @@ static auto create_debug_type(
 
 static auto reserve_debug_scope(
     Llvm::Module::Program& program,
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     Count line,
     Bool complete) -> Core::Option<llvm::DIScope&> {
   auto builder = native_builder(program);
@@ -887,8 +887,8 @@ static auto debug_visibility(Tetrodotoxin::Language::Visibility visibility)
 static auto create_local_variable(
     Llvm::Module::Program& program,
     Llvm::Module::Body& body,
-    const Ttx::Model::Addressable& addressable,
-    Ttx::Lexical::Anchor anchor,
+    const Tetrodotoxin::Source::Addressable& addressable,
+    Tetrodotoxin::Source::Lexical::Anchor anchor,
     Core::Option<Count> parameter) -> Core::Option<llvm::DILocalVariable&> {
   auto builder = native_builder(program);
   auto file = native_file(program);
@@ -915,8 +915,8 @@ static auto create_local_variable(
 
 static auto declare_local(
     Llvm::Module::Body& body,
-    const Ttx::Model::Addressable& addressable,
-    Ttx::Lexical::Anchor anchor,
+    const Tetrodotoxin::Source::Addressable& addressable,
+    Tetrodotoxin::Source::Lexical::Anchor anchor,
     Core::Option<Count> parameter) -> Bool {
   auto selected_body = select_body(body);
   auto selected_program = select_program(body.get_program());
@@ -953,8 +953,8 @@ static auto declare_local(
 
 static auto describe_local_value(
     Llvm::Module::Body& body,
-    const Ttx::Model::Addressable& addressable,
-    Ttx::Lexical::Anchor anchor,
+    const Tetrodotoxin::Source::Addressable& addressable,
+    Tetrodotoxin::Source::Lexical::Anchor anchor,
     LLVMValueRef value) -> Bool {
   auto selected_body = select_body(body);
   auto selected_program = select_program(body.get_program());
@@ -1010,21 +1010,21 @@ static auto describe_local_value(
 }
 
 auto Llvm::Module::Debug::type(
-    const Ttx::Model::Type&,
-    Core::Option<Ttx::Lexical::Anchor>) -> Bool {
+    const Tetrodotoxin::Source::Type&,
+    Core::Option<Tetrodotoxin::Source::Lexical::Anchor>) -> Bool {
   return True;
 }
 
 auto Llvm::Module::Debug::field(
-    const Ttx::Model::Addressable&,
-    Ttx::Lexical::Anchor) -> Bool {
+    const Tetrodotoxin::Source::Addressable&,
+    Tetrodotoxin::Source::Lexical::Anchor) -> Bool {
   return True;
 }
 
 auto Llvm::Module::Debug::signed_enumerator(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Type& type,
-    const Ttx::Concept::Abstract& enumerator,
+    const Tetrodotoxin::Source::Type& type,
+    const Tetrodotoxin::Source::Abstract& enumerator,
     S64 value) -> Bool {
   auto selected = select_program(program);
   if (!selected ||
@@ -1041,8 +1041,8 @@ auto Llvm::Module::Debug::signed_enumerator(
 
 auto Llvm::Module::Debug::unsigned_enumerator(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Type& type,
-    const Ttx::Concept::Abstract& enumerator,
+    const Tetrodotoxin::Source::Type& type,
+    const Tetrodotoxin::Source::Abstract& enumerator,
     U64 value) -> Bool {
   auto selected = select_program(program);
   if (!selected ||
@@ -1059,7 +1059,7 @@ auto Llvm::Module::Debug::unsigned_enumerator(
 
 auto Llvm::Module::Debug::global(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Addressable& addressable,
+    const Tetrodotoxin::Source::Addressable& addressable,
     const Tetrodotoxin::Language::Definition& definition,
     Bool local,
     Bool defined) -> Bool {
@@ -1088,7 +1088,7 @@ auto Llvm::Module::Debug::global(
         "LLVM debug information requires Static storage to be one global."_view);
   }
 
-  Ttx::Lexical::Anchor anchor = definition.get_anchor();
+  Tetrodotoxin::Source::Lexical::Anchor anchor = definition.get_authored().get_anchor();
   auto semantic_type = select_type(addressable.get_type());
   auto type = semantic_type
                   ? create_debug_type(*selected_program, *semantic_type)
@@ -1098,7 +1098,7 @@ auto Llvm::Module::Debug::global(
         "LLVM cannot describe the completed Static carrier."_view);
   }
 
-  auto host = definition.get_host().select<Ttx::Model::Type>();
+  auto host = definition.get_host().select<Tetrodotoxin::Source::Type>();
   auto scope = host ? reserve_debug_scope(
                           *selected_program, *host, source_line(anchor), False)
                     : Core::Option<llvm::DIScope&>(*file);
@@ -1137,16 +1137,16 @@ auto Llvm::Module::Debug::global(
   return True;
 }
 
-static auto declares_self(const Ttx::Model::Callable& callable) -> Bool {
+static auto declares_self(const Tetrodotoxin::Source::Callable& callable) -> Bool {
   auto first = callable.get_parameters().get_abstract(0);
-  auto parameter = first ? first->select<Ttx::Model::Addressable>()
-                         : Core::Option<const Ttx::Model::Addressable&>();
+  auto parameter = first ? first->select<Tetrodotoxin::Source::Addressable>()
+                         : Core::Option<const Tetrodotoxin::Source::Addressable&>();
   return parameter && parameter->get_name() == "self"_view;
 }
 
 auto Llvm::Module::Debug::begin_function(
     Llvm::Module::Emission& body,
-    const Ttx::Model::Callable& callable,
+    const Tetrodotoxin::Source::Callable& callable,
     const Tetrodotoxin::Language::Definition& definition) -> Bool {
   auto selected_body = select_body(body);
   auto selected_program = selected_body
@@ -1164,8 +1164,8 @@ auto Llvm::Module::Debug::begin_function(
 
   llvm::Function& function =
       *llvm::unwrap<llvm::Function>(selected_body->get_function());
-  Ttx::Lexical::Anchor anchor = definition.get_anchor();
-  auto host = definition.get_host().select<Ttx::Model::Type>();
+  Tetrodotoxin::Source::Lexical::Anchor anchor = definition.get_authored().get_anchor();
+  auto host = definition.get_host().select<Tetrodotoxin::Source::Type>();
   auto owner_scope =
       host ? reserve_debug_scope(
                  *selected_program, *host, source_line(anchor), True)
@@ -1175,7 +1175,7 @@ auto Llvm::Module::Debug::begin_function(
   }
 
   llvm::SmallVector<llvm::Metadata*, 16> signature_types;
-  const Ttx::Concept::Layout& results = callable.get_results();
+  const Tetrodotoxin::Source::Layout& results = callable.get_results();
   if (results.is_empty()) {
     signature_types.push_back(nullptr);
   } else if (results.get_size() == 1) {
@@ -1240,7 +1240,7 @@ auto Llvm::Module::Debug::begin_function(
     signature_types.push_back(completed);
   }
 
-  const Ttx::Concept::Layout& parameters = callable.get_parameters();
+  const Tetrodotoxin::Source::Layout& parameters = callable.get_parameters();
   for (Count index = 0; index < parameters.get_size(); index++) {
     auto parameter = select_type(parameters, index);
     auto debug_parameter =
@@ -1274,8 +1274,8 @@ auto Llvm::Module::Debug::begin_function(
 
 auto Llvm::Module::Debug::parameter(
     Llvm::Module::Emission& body,
-    const Ttx::Model::Addressable& parameter,
-    Ttx::Lexical::Anchor anchor,
+    const Tetrodotoxin::Source::Addressable& parameter,
+    Tetrodotoxin::Source::Lexical::Anchor anchor,
     Count index) -> Bool {
   auto selected = select_body(body);
   return selected && declare_local(*selected, parameter, anchor, index);
@@ -1295,8 +1295,8 @@ auto Llvm::Module::Debug::end_function(Llvm::Module::Emission& body) -> Bool {
 
 auto Llvm::Module::Debug::begin_block(
     Llvm::Module::Emission& body,
-    const Ttx::Concept::Abstract& block,
-    Ttx::Lexical::Anchor anchor) -> Bool {
+    const Tetrodotoxin::Source::Abstract& block,
+    Tetrodotoxin::Source::Lexical::Anchor anchor) -> Bool {
   auto selected_body = select_body(body);
   auto selected_program = selected_body
                               ? select_program(selected_body->get_program())
@@ -1327,23 +1327,23 @@ auto Llvm::Module::Debug::begin_block(
 
 auto Llvm::Module::Debug::statement(
     Llvm::Module::Emission& body,
-    Ttx::Lexical::Anchor anchor) -> Bool {
+    Tetrodotoxin::Source::Lexical::Anchor anchor) -> Bool {
   auto selected = select_body(body);
   return selected && set_location(*selected, anchor);
 }
 
 auto Llvm::Module::Debug::local(
     Llvm::Module::Emission& body,
-    const Ttx::Model::Addressable& local,
-    Ttx::Lexical::Anchor anchor) -> Bool {
+    const Tetrodotoxin::Source::Addressable& local,
+    Tetrodotoxin::Source::Lexical::Anchor anchor) -> Bool {
   auto selected = select_body(body);
   return selected && declare_local(*selected, local, anchor, {});
 }
 
 auto Llvm::Module::Debug::value(
     Llvm::Module::Emission& body,
-    const Ttx::Model::Addressable& local,
-    Ttx::Lexical::Anchor anchor,
+    const Tetrodotoxin::Source::Addressable& local,
+    Tetrodotoxin::Source::Lexical::Anchor anchor,
     LLVMValueRef value) -> Bool {
   auto selected = select_body(body);
   return selected && describe_local_value(*selected, local, anchor, value);
@@ -1362,9 +1362,9 @@ auto Llvm::Module::Debug::finalize(Llvm::Module::Emission& program) -> Bool {
     return True;
   }
 
-  for (const Ttx::Concept::Reference<const Ttx::Model::Type>& retained :
+  for (const Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type>& retained :
        get_scope_types()) {
-    const Ttx::Model::Type& type = retained.get();
+    const Tetrodotoxin::Source::Type& type = retained.get();
     auto kind = selected->get_carriers().get_kind(type);
     Bool source = type.get_name() == "<source>"_view;
 

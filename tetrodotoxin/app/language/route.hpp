@@ -5,9 +5,9 @@
 
 #include "perimortem/core/option.hpp"
 
-#include "ttx/concept/abstract.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::App::Language {
 
@@ -19,29 +19,29 @@ class Route {
  public:
   static constexpr auto create_authored(
       Perimortem::Core::View::Bytes spelling,
-      Ttx::Lexical::Anchor anchor) -> Route {
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> Route {
     return Route(spelling, anchor);
   }
 
   auto resolve(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& context) const
-      -> Perimortem::Core::Option<const Ttx::Concept::Abstract&>;
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& context) const
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&>;
 
   constexpr auto get_spelling() const -> Perimortem::Core::View::Bytes {
     return spelling;
   }
 
-  constexpr auto get_anchor() const -> Ttx::Lexical::Anchor { return anchor; }
+  constexpr auto get_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor { return anchor; }
 
  private:
   constexpr Route(
       Perimortem::Core::View::Bytes spelling,
-      Ttx::Lexical::Anchor anchor)
+      Tetrodotoxin::Source::Lexical::Anchor anchor)
       : spelling(spelling), anchor(anchor) {}
 
   Perimortem::Core::View::Bytes spelling;
-  Ttx::Lexical::Anchor anchor;
+  Tetrodotoxin::Source::Lexical::Anchor anchor;
 };
 
 }  // namespace Tetrodotoxin::App::Language

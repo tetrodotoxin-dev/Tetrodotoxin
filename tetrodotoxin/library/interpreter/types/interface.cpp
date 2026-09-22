@@ -6,16 +6,16 @@
 #include "tetrodotoxin/library/interpreter/types/composite.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 
 auto Interpreter::Types::Interface::parse(
     Cursor& cursor,
     Tetrodotoxin::Language::Definition& definition)
     -> Option<Parsed<Language::Types::Interface>> {
-  if (definition.get_name_token().get_code() != Code::Type::Type) {
+  if (definition.get_authored().get_name().get_code() != Code::Type::Type) {
     cursor.create_token_error(
-        definition.get_name_token(),
+        definition.get_authored().get_name(),
         "Library Interface definitions require a Type shaped name."_view);
     return {};
   }
@@ -23,14 +23,14 @@ auto Interpreter::Types::Interface::parse(
   if (definition.get_visibility() ==
       Tetrodotoxin::Language::Visibility::Exposed) {
     cursor.create_token_error(
-        definition.get_visibility_token(),
+        definition.get_authored().get_visibility(),
         "Library Interfaces accept only `public` or `private` visibility."_view);
     return {};
   }
 
-  if (!definition.get_modifiers().is_empty()) {
+  if (!definition.get_authored().get_modifiers().is_empty()) {
     cursor.create_token_error(
-        definition.get_modifiers().get_data()[0],
+        definition.get_authored().get_modifiers().get_data()[0],
         "Library Interfaces do not accept evaluation modifiers."_view);
     return {};
   }

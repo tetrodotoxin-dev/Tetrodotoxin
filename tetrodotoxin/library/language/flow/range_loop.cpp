@@ -4,14 +4,14 @@
 #include "tetrodotoxin/library/language/flow/range_loop.hpp"
 
 #include "tetrodotoxin/library/language/expression.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
 Language::Flow::RangeLoop::RangeLoop(
@@ -110,7 +110,7 @@ auto Language::Flow::RangeLoop::link(
   if (!binding_layout) {
     for (Count index = 0; index < authored_bindings.get_size(); index++) {
       const AuthoredBinding& source = authored_bindings[index];
-      auto binding = Ttx::Model::Layouts::Addressable::create_authored(
+      auto binding = Tetrodotoxin::Source::Layouts::Addressable::create_authored(
           domain, source.name, selected_types[index].get());
       BAIL_IF(!binding);
       bindings.insert(*binding);
@@ -118,7 +118,7 @@ auto Language::Flow::RangeLoop::link(
       cursor.get_associations().create(
           Anchor::create(Span(source.name_token)), *binding);
     }
-    binding_layout = Ttx::Model::Layouts::Named(binding_entries.get_view());
+    binding_layout = Tetrodotoxin::Source::Layouts::Named(binding_entries.get_view());
   } else {
     BAIL_IF(bindings.get_size() != selected_types.get_size());
     for (Count index = 0; index < bindings.get_size(); index++) {
@@ -175,7 +175,7 @@ auto Language::Flow::RangeLoop::finalize(Cursor& cursor) -> void {
 
 auto Language::Flow::RangeLoop::resolve_concept(View::Bytes route) const
     -> const Abstract& {
-  for (const Reference<Ttx::Model::Layouts::Addressable>& binding :
+  for (const Reference<Tetrodotoxin::Source::Layouts::Addressable>& binding :
        bindings.get_view()) {
     if (binding.get().get_name() == route) {
       return binding.get();
@@ -188,7 +188,7 @@ auto Language::Flow::RangeLoop::resolve_concept(View::Bytes route) const
 auto Language::Flow::RangeLoop::resolve_authored_context(
     View::Bytes route,
     Count offset) const -> const Abstract& {
-  for (const Reference<Ttx::Model::Layouts::Addressable>& binding :
+  for (const Reference<Tetrodotoxin::Source::Layouts::Addressable>& binding :
        bindings.get_view()) {
     if (binding.get().get_name() == route) {
       return binding.get();

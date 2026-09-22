@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/library/interpreter/source/foreign.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "perimortem/memory/managed/vector.hpp"
 
 #include "tetrodotoxin/language/definition.hpp"
@@ -10,11 +12,11 @@
 #include "tetrodotoxin/library/interpreter/declarations/signature.hpp"
 #include "tetrodotoxin/library/interpreter/type_reference.hpp"
 #include "tetrodotoxin/library/language/foreign.hpp"
-#include "ttx/lexical/lexicon.hpp"
+#include "tetrodotoxin/source/lexical/lexicon.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 
 using Tetrodotoxin::Language::Visibility;
@@ -56,7 +58,7 @@ static auto parse_visibility(
 static auto parse_state(
     Language::Foreign& host,
     Cursor& cursor,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     Core::View::Bytes abi) -> Core::Option<Language::Foreign::State&> {
   Token opening = cursor.current();
   Token visibility_token;
@@ -107,7 +109,7 @@ static auto parse_state(
 static auto parse_function(
     Language::Foreign& host,
     Cursor& cursor,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     Core::View::Bytes abi) -> Core::Option<Language::Foreign::Function&> {
   Token opening = cursor.current();
   Token visibility = cursor.current();
@@ -179,7 +181,7 @@ auto Interpreter::Source::Foreign::is_next(const Cursor& cursor) -> Bool {
 auto Interpreter::Source::Foreign::parse(
     Language::Foreign& host,
     Cursor& cursor,
-    const Documentation& block_documentation) -> Bool {
+    const Tetrodotoxin::Source::Documentation& block_documentation) -> Bool {
   if (host.get_stage() != Language::Foreign::Stage::Authored ||
       !is_next(cursor)) {
     cursor.create_token_error(
@@ -215,11 +217,11 @@ auto Interpreter::Source::Foreign::parse(
       Code::Type::ScopeStart,
       "Foreign blocks require `{` before their declarations."_view));
 
-  Memory::Managed::Vector<Ttx::Concept::Reference<Language::Foreign::State>>
+  Memory::Managed::Vector<Tetrodotoxin::Source::Reference<Language::Foreign::State>>
       states(cursor.get_arena());
-  Memory::Managed::Vector<Ttx::Concept::Reference<Language::Foreign::Function>>
+  Memory::Managed::Vector<Tetrodotoxin::Source::Reference<Language::Foreign::Function>>
       functions(cursor.get_arena());
-  Memory::Managed::Vector<Ttx::Concept::Reference<Abstract>> declarations(
+  Memory::Managed::Vector<Tetrodotoxin::Source::Reference<Abstract>> declarations(
       cursor.get_arena());
   while (!cursor.matches(Code::Type::ScopeEnd)) {
     if (cursor.matches(Code::Type::Terminal)) {
@@ -228,7 +230,7 @@ auto Interpreter::Source::Foreign::parse(
       return False;
     }
 
-    const Documentation& documentation =
+    const Tetrodotoxin::Source::Documentation& documentation =
         Tetrodotoxin::Language::Parser::Comment::parse(cursor);
     Code::Type visibility = cursor.get_code().get_type();
     if (visibility != Code::Type::Public && visibility != Code::Type::Private &&
@@ -318,12 +320,16 @@ auto Interpreter::Source::Foreign::parse(
       block_documentation, retained_abi, states.get_view(),
       functions.get_view(), declarations.get_view()));
   for (const auto& state : states.get_view()) {
+    const auto name = state.get().get_definition().get_authored().get_name();
     cursor.get_associations().create(
-        state.get().get_definition().get_name_anchor(), state.get());
+        Anchor::create(Span(name)), state.get());
   }
+
   for (const auto& function : functions.get_view()) {
+    const auto name = function.get().get_definition().get_authored().get_name();
     cursor.get_associations().create(
-        function.get().get_definition().get_name_anchor(), function.get());
+        Anchor::create(Span(name)), function.get());
   }
+
   return True;
 }

@@ -24,7 +24,7 @@ using namespace Perimortem;
 using namespace Tetrodotoxin::Library::Language;
 
 auto Tetrodotoxin::Terminal::Abi::Representation::Type::get_kind(
-    const Ttx::Model::Type& type) -> Core::Option<Kind> {
+    const Tetrodotoxin::Source::Type& type) -> Core::Option<Kind> {
   if (type.is<Model::Types::Value>()) {
     return Kind::Value;
   }
@@ -69,14 +69,14 @@ auto Tetrodotoxin::Terminal::Abi::Representation::Type::get_kind(
 }
 
 auto Tetrodotoxin::Terminal::Abi::Representation::Type::get_width(
-    const Ttx::Model::Type& type) -> Core::Option<Count> {
+    const Tetrodotoxin::Source::Type& type) -> Core::Option<Count> {
   auto value = type.select<Model::Types::Value>();
   return value ? Core::Option<Count>(value->get_width())
                : Core::Option<Count>();
 }
 
 auto Tetrodotoxin::Terminal::Abi::Representation::Type::get_element(
-    const Ttx::Model::Type& type) -> Core::Option<const Model::Type&> {
+    const Tetrodotoxin::Source::Type& type) -> Core::Option<const Model::Type&> {
   auto enumeration = type.select<Types::Enumeration>();
   if (enumeration) {
     return enumeration->get_storage_type();
@@ -111,7 +111,7 @@ auto Tetrodotoxin::Terminal::Abi::Representation::Type::get_element(
 }
 
 auto Tetrodotoxin::Terminal::Abi::Representation::Type::get_flag(
-    const Ttx::Model::Type& type) -> Core::Option<const Model::Type&> {
+    const Tetrodotoxin::Source::Type& type) -> Core::Option<const Model::Type&> {
   auto option = type.select<Types::Option>();
   if (option) {
     return option->get_flag_type();
@@ -122,43 +122,43 @@ auto Tetrodotoxin::Terminal::Abi::Representation::Type::get_flag(
 }
 
 auto Tetrodotoxin::Terminal::Abi::Representation::Type::get_error(
-    const Ttx::Model::Type& type) -> Core::Option<const Model::Type&> {
+    const Tetrodotoxin::Source::Type& type) -> Core::Option<const Model::Type&> {
   auto result = type.select<Types::Result>();
   return result ? Core::Option<const Model::Type&>(result->get_error_type())
                 : Core::Option<const Model::Type&>();
 }
 
 auto Tetrodotoxin::Terminal::Abi::Representation::Type::get_extent(
-    const Ttx::Model::Type& type) -> Core::Option<Count> {
+    const Tetrodotoxin::Source::Type& type) -> Core::Option<Count> {
   auto fixed = type.select<Types::Fixed>();
   return fixed ? Core::Option<Count>(fixed->get_extent())
                : Core::Option<Count>();
 }
 
 auto Tetrodotoxin::Terminal::Abi::Representation::Type::get_fields(
-    const Ttx::Model::Type& type) -> Core::Option<const Ttx::Concept::Layout&> {
+    const Tetrodotoxin::Source::Type& type) -> Core::Option<const Tetrodotoxin::Source::Layout&> {
   auto structure = type.select<Types::Structure>();
-  return structure ? Core::Option<const Ttx::Concept::Layout&>(
+  return structure ? Core::Option<const Tetrodotoxin::Source::Layout&>(
                          structure->get_layout())
-                   : Core::Option<const Ttx::Concept::Layout&>();
+                   : Core::Option<const Tetrodotoxin::Source::Layout&>();
 }
 
 auto Tetrodotoxin::Terminal::Abi::Representation::Type::is_real(
-    const Ttx::Model::Type& type) -> Bool {
+    const Tetrodotoxin::Source::Type& type) -> Bool {
   return type.is<Model::Types::Real>();
 }
 
 auto Tetrodotoxin::Terminal::Abi::Representation::Type::is_signed(
-    const Ttx::Model::Type& type) -> Bool {
+    const Tetrodotoxin::Source::Type& type) -> Bool {
   return type.is<Model::Types::Signed>();
 }
 
 auto Tetrodotoxin::Terminal::Abi::Representation::Type::is_flag(
-    const Ttx::Model::Type& type) -> Bool {
+    const Tetrodotoxin::Source::Type& type) -> Bool {
   return type.is<Model::Types::Flag>();
 }
 
 auto Tetrodotoxin::Terminal::Abi::Representation::Type::is_object(
-    const Ttx::Model::Type& type) -> Bool {
+    const Tetrodotoxin::Source::Type& type) -> Bool {
   return type.is<Types::Object>();
 }

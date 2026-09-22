@@ -12,7 +12,7 @@ using namespace Tetrodotoxin;
 using namespace Tetrodotoxin::Terminal::Spirv;
 
 auto Module::Program::report_failure(Core::View::Bytes message) const -> void {
-  Ttx::Lexical::Errors::Report report(
+  Tetrodotoxin::Source::Lexical::Errors::Report report(
       request.get_errors(), request.get_source_path(),
       request.get_source_text(), request.get_program().get_anchor());
   report << message;
@@ -26,7 +26,7 @@ auto Module::Program::compile() -> Utility::Result<Products, Failure> {
     return Failure::ToolchainFailed;
   }
   Bool selected = False;
-  for (const Ttx::Concept::Reference<Shader::Language::Program>& program :
+  for (const Tetrodotoxin::Source::Reference<Shader::Language::Program>& program :
        request.get_monograph().get_programs()) {
     selected |= &program.get() == &request.get_program();
   }
@@ -42,7 +42,7 @@ auto Module::Program::compile() -> Utility::Result<Products, Failure> {
   for (Interface::Stage* stage : interface.get_stages()) {
     prepared &= body.prepare(*stage);
   }
-  for (const Ttx::Concept::Reference<Shader::Language::Bridge>& bridge :
+  for (const Tetrodotoxin::Source::Reference<Shader::Language::Bridge>& bridge :
        request.get_monograph().get_bridges()) {
     auto gpu = bridge.get().get_gpu_type();
     auto library_type =
@@ -103,7 +103,7 @@ auto Module::Program::compile() -> Utility::Result<Products, Failure> {
       Count stage_error_count = request.get_errors().get_size();
       if (!body.emit(*stage, assembler)) {
         if (request.get_errors().get_size() == stage_error_count) {
-          Ttx::Lexical::Errors::Report report(
+          Tetrodotoxin::Source::Lexical::Errors::Report report(
               request.get_errors(), request.get_source_path(),
               request.get_source_text(), stage->function.get().get_anchor());
           report << "Shader Stage `"_view << stage->function.get().get_name()

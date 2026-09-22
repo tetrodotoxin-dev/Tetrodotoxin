@@ -13,12 +13,12 @@
 #include "tetrodotoxin/library/language/field.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
 #include "tetrodotoxin/library/language/types/source.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/errors.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
 
 using namespace Perimortem::Core;
 using namespace Tetrodotoxin;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Validation;
 
 static Harness AddressTests = {
@@ -110,10 +110,10 @@ PERIMORTEM_UNIT_TEST(AddressTests, receiver_storage) {
   auto fields = data.get_addressables();
   auto field = fields.begin();
   ASSERT(field != fields.end());
-  const Ttx::Concept::Abstract& static_identity = (*field).get();
+  const Tetrodotoxin::Source::Abstract& static_identity = (*field).get();
   ++field;
   ASSERT(field != fields.end());
-  const Ttx::Concept::Abstract& state_identity = (*field).get();
+  const Tetrodotoxin::Source::Abstract& state_identity = (*field).get();
   auto layout_state = data.get_layout().get_abstract(0);
   ASSERT(layout_state);
   EXPECT(&*layout_state == &state_identity);

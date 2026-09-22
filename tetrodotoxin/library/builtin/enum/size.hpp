@@ -5,8 +5,8 @@
 
 #include "tetrodotoxin/library/language/model/memory.hpp"
 #include "tetrodotoxin/library/language/model/types/unsigned.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/model/documentations/comment.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/documentations/comment.hpp"
 
 namespace Tetrodotoxin::Library::Builtin::Enum {
 
@@ -30,7 +30,7 @@ class Size : public Language::Model::Memory {
     return type;
   }
 
-  constexpr auto resolve() const -> const Ttx::Concept::Abstract& override {
+  constexpr auto resolve() const -> const Tetrodotoxin::Source::Abstract& override {
     return *this;
   }
 
@@ -48,7 +48,7 @@ class Size : public Language::Model::Memory {
   const Language::Model::Types::Unsigned& type;
   Language::Model::Pack& constant;
 
-  static constexpr Ttx::Model::Documentations::Comment documentation{
+  static constexpr Tetrodotoxin::Source::Documentations::Comment documentation{
     "Provides the compile time number of cases in this Enumeration."_view,
   };
 };

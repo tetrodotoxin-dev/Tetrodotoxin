@@ -25,19 +25,19 @@ class Source : public Composite {
 
  protected:
   auto retain_binding(
-      Ttx::Concept::Abstract& binding,
+      Tetrodotoxin::Source::Abstract& binding,
       Tetrodotoxin::Language::Definition& definition,
       Category category,
-      Ttx::Lexical::Cursor& cursor) -> Bool override;
+      Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
 
  public:
   TTX_CONTRACT(Source, Composite);
 
   static auto create_synthetic(
       Perimortem::Memory::Allocator::Arena& domain,
-      const Ttx::Concept::Documentation& documentation,
-      Ttx::Concept::Abstract& host,
-      const Ttx::Lexical::Anchor& source_anchor) -> Source&;
+      const Tetrodotoxin::Source::Documentation& documentation,
+      Tetrodotoxin::Source::Abstract& host,
+      const Tetrodotoxin::Source::Lexical::Anchor& source_anchor) -> Source&;
 
   Source(const Source&) = delete;
   Source(Source&&) = delete;
@@ -47,31 +47,31 @@ class Source : public Composite {
   auto retain_import_route(Import import) -> Bool;
 
   auto link(
-      Ttx::Lexical::Cursor& cursor,
-      Ttx::Concept::Abstract& interpretation_context) -> Bool;
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      Tetrodotoxin::Source::Abstract& interpretation_context) -> Bool;
 
-  auto link_restored(Ttx::Concept::Abstract& interpretation_context) -> Bool;
+  auto link_restored(Tetrodotoxin::Source::Abstract& interpretation_context) -> Bool;
 
   auto finalize_restored() -> Bool override;
 
-  auto finalize(Ttx::Lexical::Cursor& cursor) -> Bool override;
+  auto finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
 
   constexpr auto get_foreign() -> Foreign& { return foreign; }
 
   constexpr auto get_foreign() const -> const Foreign& { return foreign; }
 
   auto bind_static(
-      Ttx::Concept::Abstract& binding,
+      Tetrodotoxin::Source::Abstract& binding,
       Category category,
       Bool published = False) -> Bool;
 
-  auto can_bind_static(const Ttx::Concept::Abstract& binding, Category category)
+  auto can_bind_static(const Tetrodotoxin::Source::Abstract& binding, Category category)
       const -> Bool;
 
   auto resolve_imports(Perimortem::Core::View::Bytes name) const
-      -> const Ttx::Concept::Abstract&;
+      -> const Tetrodotoxin::Source::Abstract&;
 
-  constexpr auto resolve() const -> const Ttx::Concept::Abstract& override {
+  constexpr auto resolve() const -> const Tetrodotoxin::Source::Abstract& override {
     return *this;
   }
 
@@ -79,37 +79,37 @@ class Source : public Composite {
       -> Perimortem::Core::Option<Model::Pack&> override;
 
   auto resolve_concept(Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract& override;
+      -> const Tetrodotoxin::Source::Abstract& override;
 
   auto resolve_lexical_context(Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract& override;
+      -> const Tetrodotoxin::Source::Abstract& override;
 
   auto resolve_public_context(Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract& override;
+      -> const Tetrodotoxin::Source::Abstract& override;
 
   auto resolve_local(
       Perimortem::Core::View::Bytes route,
       Tetrodotoxin::Language::Visibility visibility =
           Tetrodotoxin::Language::Visibility::Public) const
-      -> const Ttx::Concept::Abstract&;
+      -> const Tetrodotoxin::Source::Abstract&;
 
   constexpr auto get_imports() const { return import_routes.get_view(); }
 
  private:
-  auto retain_import_context(const Ttx::Concept::Abstract& context) -> Bool;
+  auto retain_import_context(const Tetrodotoxin::Source::Abstract& context) -> Bool;
   auto link_imports(
-      Ttx::Lexical::Cursor& cursor,
-      Ttx::Concept::Abstract& interpretation_context) -> Bool;
-  auto link_types(Ttx::Lexical::Cursor& cursor) -> Bool override;
-  auto link_fields(Ttx::Lexical::Cursor& cursor) -> Bool override;
-  auto link_initializers(Ttx::Lexical::Cursor& cursor) -> Bool override;
-  auto link_callable_signatures(Ttx::Lexical::Cursor& cursor) -> Bool override;
-  auto link_callable_bodies(Ttx::Lexical::Cursor& cursor) -> Bool override;
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      Tetrodotoxin::Source::Abstract& interpretation_context) -> Bool;
+  auto link_types(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
+  auto link_fields(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
+  auto link_initializers(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
+  auto link_callable_signatures(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
+  auto link_callable_bodies(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
 
   Foreign foreign;
   Perimortem::Memory::Managed::Vector<Import> import_routes;
   Perimortem::Memory::Managed::Vector<
-      Ttx::Concept::Reference<const Ttx::Concept::Abstract>>
+      Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Abstract>>
       imports;
   Bool imports_linked = False;
 };

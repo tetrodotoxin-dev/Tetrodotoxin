@@ -5,10 +5,10 @@
 
 #include "tetrodotoxin/library/language/model/callable.hpp"
 #include "tetrodotoxin/library/language/types/enumeration.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/model/documentations/comment.hpp"
-#include "ttx/model/layouts/addressable.hpp"
-#include "ttx/model/layouts/ranged.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/documentations/comment.hpp"
+#include "tetrodotoxin/source/layouts/addressable.hpp"
+#include "tetrodotoxin/source/layouts/ranged.hpp"
 
 namespace Tetrodotoxin::Library::Builtin::Enum {
 
@@ -28,11 +28,11 @@ class Name : public Language::Model::Callable {
   TTX_DOCUMENTATION(documentation);
 
   constexpr auto get_parameters() const
-      -> const Ttx::Concept::Layout& override {
+      -> const Tetrodotoxin::Source::Layout& override {
     return parameters;
   }
 
-  constexpr auto get_results() const -> const Ttx::Concept::Layout& override {
+  constexpr auto get_results() const -> const Tetrodotoxin::Source::Layout& override {
     return results;
   }
 
@@ -44,7 +44,7 @@ class Name : public Language::Model::Callable {
 
  private:
   constexpr Name(
-      Ttx::Model::Layouts::Addressable& self,
+      Tetrodotoxin::Source::Layouts::Addressable& self,
       const Language::Types::Enumeration& enumeration,
       const Language::Model::Type& result)
       : enumeration(enumeration),
@@ -54,10 +54,10 @@ class Name : public Language::Model::Callable {
 
   const Language::Types::Enumeration& enumeration;
   const Language::Model::Type& result_type;
-  Ttx::Model::Layouts::Ranged parameters;
-  Ttx::Model::Layouts::Ranged results;
+  Tetrodotoxin::Source::Layouts::Ranged parameters;
+  Tetrodotoxin::Source::Layouts::Ranged results;
 
-  static constexpr Ttx::Model::Documentations::Comment documentation{
+  static constexpr Tetrodotoxin::Source::Documentations::Comment documentation{
     "Returns the authored name of this Enumeration value or an empty View."_view,
   };
 };

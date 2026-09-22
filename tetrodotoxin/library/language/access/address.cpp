@@ -3,14 +3,16 @@
 
 #include "tetrodotoxin/library/language/access/address.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "tetrodotoxin/library/language/diagnostics.hpp"
 #include "tetrodotoxin/library/language/field.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
 auto Language::Access::Address::create_authored(
@@ -39,7 +41,7 @@ auto Language::Access::Address::create_synthetic(
 }
 
 auto Language::Access::Address::link(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& lexical_context,
     Core::Option<const Abstract&> access_scope) -> Bool {
   BAIL_IF(!receiver.link(cursor, lexical_context, access_scope));
@@ -58,7 +60,7 @@ auto Language::Access::Address::link(
         return type.resolve_concept("static"_view).resolve_concept(name);
       },
       [&](const Abstract& receiver) -> const Abstract& {
-        auto addressable = receiver.resolve().select<Ttx::Model::Addressable>();
+        auto addressable = receiver.resolve().select<Tetrodotoxin::Source::Addressable>();
         return addressable ? addressable->get_type()
                                  .resolve()
                                  .resolve_concept("instance"_view)
@@ -115,11 +117,11 @@ auto Language::Access::Address::link(
 }
 
 auto Language::Access::Address::get_documentation() const
-    -> const Documentation& {
+    -> const Tetrodotoxin::Source::Documentation& {
   return addressable.visit(
-      []() -> const Documentation& { return Documentation::get_empty(); },
+      []() -> const Tetrodotoxin::Source::Documentation& { return Tetrodotoxin::Source::Documentation::get_empty(); },
       [](const Reference<const Language::Model::Memory>& selected)
-          -> const Documentation& {
+          -> const Tetrodotoxin::Source::Documentation& {
         return selected.get().get_documentation();
       });
 }

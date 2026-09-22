@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/scene/dialect.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "tetrodotoxin/language/definition.hpp"
 #include "tetrodotoxin/language/visibility.hpp"
 #include "tetrodotoxin/library/language/types/object.hpp"
@@ -13,13 +15,13 @@
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 auto Scene::Dialect::interpret(
     Cursor& cursor,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     const Anchor& source_anchor,
     Abstract& context) -> Option<Tetrodotoxin::Language::Monograph&> {
   Allocator::Arena& arena = cursor.get_arena();

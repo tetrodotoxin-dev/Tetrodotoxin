@@ -6,19 +6,19 @@
 #include "tetrodotoxin/library/interpreter/types/composite.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 
 auto Interpreter::Types::Namespace::parse(
     Cursor& cursor,
     Tetrodotoxin::Language::Definition& definition)
     -> Option<Parsed<Language::Types::Namespace>> {
-  if (definition.get_name_token().get_code() != Code::Type::Type ||
+  if (definition.get_authored().get_name().get_code() != Code::Type::Type ||
       definition.get_visibility() ==
           Tetrodotoxin::Language::Visibility::Exposed ||
-      !definition.get_modifiers().is_empty()) {
+      !definition.get_authored().get_modifiers().is_empty()) {
     cursor.create_expression_error(
-        definition.get_anchor(),
+        definition.get_authored().get_anchor(),
         "Library Namespace definitions require a public or private Type-shaped name without modifiers."_view);
     return {};
   }

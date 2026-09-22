@@ -4,7 +4,7 @@
 #include "tetrodotoxin/language/parser/layout.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 auto Language::Parser::Layout::require_shape(

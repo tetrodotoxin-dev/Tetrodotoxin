@@ -20,15 +20,15 @@
 #include "tetrodotoxin/library/language/types/structure.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 using namespace Tetrodotoxin::Library::Language;
 
 auto Interpreter::Member::parse(
     Cursor& cursor,
     Tetrodotoxin::Language::Definition& definition) -> Option<Result> {
-  Token qualifier = definition.get_qualifier();
+  Token qualifier = definition.get_authored().get_qualifier();
   switch (qualifier.get_code().get_type()) {
   case Code::Type::Type:
   case Code::Type::Assign: {

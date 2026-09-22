@@ -25,7 +25,7 @@ class Writer {
   auto write(U16 value) -> void;
   auto write(U32 value) -> void;
   auto write(Perimortem::Core::View::Bytes value) -> Bool;
-  auto write(const Ttx::Concept::Documentation& documentation) -> Bool;
+  auto write(const Tetrodotoxin::Source::Documentation& documentation) -> Bool;
 
   Perimortem::Memory::Dynamic::Bytes bytes;
 };

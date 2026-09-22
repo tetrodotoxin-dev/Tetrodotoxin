@@ -13,12 +13,12 @@
 #include "tetrodotoxin/library/dialect.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
 #include "tetrodotoxin/library/language/types/fixed.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/errors.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 using namespace Validation;
 
@@ -133,14 +133,13 @@ PERIMORTEM_UNIT_TEST(ForeignTests, source_lifecycle) {
   const auto& state_definition = shared_state.get_definition();
   EXPECT(state_definition.get_visibility() == Visibility::Public);
   EXPECT(observed.get_definition().get_visibility() == Visibility::Exposed);
-  EXPECT(state_definition.is_authored());
-  EXPECT(state_definition.is_complete());
+  EXPECT(state_definition.get_authored().is_authored());
   EXPECT(&state_definition.get_host() == &foreign);
   EXPECT_TEXT(
       state_definition.get_documentation().get_line(0),
       "Shared State category."_view);
   EXPECT_TEXT(
-      state_definition.get_anchor().get_span().caculate_text(source),
+      state_definition.get_authored().get_anchor().get_span().caculate_text(source),
       "public state shared : U64;"_view);
   EXPECT(buffer.get_type().is<Library::Language::Types::Fixed>());
   EXPECT(buffer.get_type_reference().has_arguments());
@@ -150,14 +149,13 @@ PERIMORTEM_UNIT_TEST(ForeignTests, source_lifecycle) {
   EXPECT(transform.get_symbol() == "transform"_view);
   const auto& function_definition = transform.get_definition();
   EXPECT(function_definition.get_visibility() == Visibility::Public);
-  EXPECT(function_definition.is_authored());
-  EXPECT(function_definition.is_complete());
+  EXPECT(function_definition.get_authored().is_authored());
   EXPECT(&function_definition.get_host() == &foreign);
   EXPECT_TEXT(
       function_definition.get_documentation().get_line(0),
       "Shared Callable category."_view);
   EXPECT_TEXT(
-      function_definition.get_anchor().get_span().caculate_text(source),
+      function_definition.get_authored().get_anchor().get_span().caculate_text(source),
       "public func transform[.value : U64] -> U64;"_view);
   EXPECT_EQ(transform.get_parameters().get_size(), Count(1));
   EXPECT_EQ(transform.get_results().get_size(), Count(1));

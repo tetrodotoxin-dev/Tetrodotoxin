@@ -6,12 +6,12 @@
 #include "tetrodotoxin/library/interpreter/type_reference.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 
 auto Interpreter::Source::Import::parse(
     Cursor& cursor,
-    const Ttx::Concept::Documentation& documentation)
+    const Tetrodotoxin::Source::Documentation& documentation)
     -> Option<Language::Import> {
   Token opening = cursor.require(
       Code::Type::Using, "Library Imports require `using`."_view);

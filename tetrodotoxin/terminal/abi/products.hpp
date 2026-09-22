@@ -53,7 +53,7 @@ class Products {
     return publications;
   }
 
-  auto find_export(const Ttx::Model::Callable& callable) const
+  auto find_export(const Tetrodotoxin::Source::Callable& callable) const
       -> Perimortem::Core::Option<const Abi::Export&> {
     for (Count index = 0; index < exports.get_size(); index++) {
       const Abi::Export& exported = exports.get_data()[index];
@@ -64,7 +64,7 @@ class Products {
     return {};
   }
 
-  auto find_publication(const Ttx::Concept::Abstract& semantic) const
+  auto find_publication(const Tetrodotoxin::Source::Abstract& semantic) const
       -> Perimortem::Core::Option<const Abi::Publication&> {
     for (Count index = 0; index < publications.get_size(); index++) {
       const Abi::Publication& publication = publications.get_data()[index];

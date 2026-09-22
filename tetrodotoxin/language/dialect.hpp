@@ -9,10 +9,10 @@
 #include "perimortem/memory/dynamic/bytes.hpp"
 
 #include "tetrodotoxin/language/monograph.hpp"
-#include "ttx/concept/abstract.hpp"
-#include "ttx/concept/documentation.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/documentation.hpp"
 
 namespace Tetrodotoxin::Language {
 
@@ -32,9 +32,9 @@ namespace Tetrodotoxin::Language {
 // Since Terminals leave the graph that means any two Dialects that produce the
 // exact same Monograph structure for every possible input are considered to be
 // simulacra and can be substituted just like any other Abstract.
-class Dialect : public Ttx::Concept::Abstract {
+class Dialect : public Tetrodotoxin::Source::Abstract {
  public:
-  TTX_CONTRACT(Dialect, Ttx::Concept::Abstract);
+  TTX_CONTRACT(Dialect, Tetrodotoxin::Source::Abstract);
 
   virtual ~Dialect() = default;
 
@@ -57,10 +57,10 @@ class Dialect : public Ttx::Concept::Abstract {
   // TODO: API is still work in progress but this seems about right minus some
   // context shuffling as we work out plugins.
   virtual auto interpret(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Documentation& documentation,
-      const Ttx::Lexical::Anchor& source_anchor,
-      Ttx::Concept::Abstract& context)
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Documentation& documentation,
+      const Tetrodotoxin::Source::Lexical::Anchor& source_anchor,
+      Tetrodotoxin::Source::Abstract& context)
       -> Perimortem::Core::Option<Monograph&> = 0;
 
   // Uses the Dialect to encode the Abstract in two steps:
@@ -71,7 +71,7 @@ class Dialect : public Ttx::Concept::Abstract {
   // This is essentially serialization but gives the Dialect the promise that it
   // will be the only one ever asked to decode the bytes to regenerate the right
   // simulacra.
-  virtual auto encode(const Ttx::Concept::Abstract& abstract) const
+  virtual auto encode(const Tetrodotoxin::Source::Abstract& abstract) const
       -> Perimortem::Core::Option<Perimortem::Memory::Dynamic::Bytes> {
     return {};
   }
@@ -92,15 +92,15 @@ class Dialect : public Ttx::Concept::Abstract {
   virtual auto decode(
       Perimortem::Memory::Allocator::Arena& arena,
       Perimortem::Core::View::Bytes encoding,
-      Ttx::Concept::Abstract& context) -> Perimortem::Core::Option<Abstract&> {
+      Tetrodotoxin::Source::Abstract& context) -> Perimortem::Core::Option<Abstract&> {
     return {};
   }
 
   // By default Dialects don't produce any useful documentation so the override
   // is provided at this level to save on Dialect boiler plate.
   constexpr auto get_documentation() const
-      -> const Ttx::Concept::Documentation& override {
-    return Ttx::Concept::Documentation::get_empty();
+      -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
 };
 

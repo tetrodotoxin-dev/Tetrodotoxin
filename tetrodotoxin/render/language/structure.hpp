@@ -8,54 +8,54 @@
 
 #include "tetrodotoxin/language/definition.hpp"
 #include "tetrodotoxin/render/language/declarations.hpp"
-#include "ttx/concept/layout.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/model/addressable.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/layout.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/addressable.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 namespace Tetrodotoxin::Render::Language {
 
 // Structure is one authored Render contract context. Its nested declarations
 // remain separate semantic identities, while its instance Layout contains only
 // ordinary GPU values that participate in value flow.
-class Structure : public Ttx::Model::Type {
+class Structure : public Tetrodotoxin::Source::Type {
  public:
-  TTX_CONTRACT(Structure, Ttx::Model::Type);
+  TTX_CONTRACT(Structure, Tetrodotoxin::Source::Type);
 
   static auto create(
       Perimortem::Memory::Allocator::Arena& domain,
       Tetrodotoxin::Language::Definition& definition) -> Structure&;
 
   auto retain_addressable(
-      Ttx::Concept::Abstract& declaration,
+      Tetrodotoxin::Source::Abstract& declaration,
       Tetrodotoxin::Language::Visibility visibility) -> Bool;
 
   auto retain_callable(
-      Ttx::Concept::Abstract& declaration,
+      Tetrodotoxin::Source::Abstract& declaration,
       Tetrodotoxin::Language::Visibility visibility) -> Bool;
 
   auto retain_type(
-      Ttx::Concept::Abstract& declaration,
+      Tetrodotoxin::Source::Abstract& declaration,
       Tetrodotoxin::Language::Visibility visibility) -> Bool;
 
-  auto retain_instance(Ttx::Model::Addressable& value) -> void;
+  auto retain_instance(Tetrodotoxin::Source::Addressable& value) -> void;
 
-  auto link(Ttx::Lexical::Cursor& cursor) -> Bool;
+  auto link(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool;
 
   auto link_restored() -> Bool;
 
-  auto resolve() const -> const Ttx::Concept::Abstract& override;
+  auto resolve() const -> const Tetrodotoxin::Source::Abstract& override;
 
   auto resolve_concept(Perimortem::Core::View::Bytes name) const
-      -> const Ttx::Concept::Abstract& override;
+      -> const Tetrodotoxin::Source::Abstract& override;
 
-  auto visit_concepts(Ttx::Concept::Abstract::Visitor visitor) const
+  auto visit_concepts(Tetrodotoxin::Source::Abstract::Visitor visitor) const
       -> void override;
 
   auto resolve_local_context(Perimortem::Core::View::Bytes name) const
-      -> const Ttx::Concept::Abstract&;
+      -> const Tetrodotoxin::Source::Abstract&;
 
-  auto get_layout() const -> const Ttx::Concept::Layout& override;
+  auto get_layout() const -> const Tetrodotoxin::Source::Layout& override;
 
   TTX_NAME(definition.get_name());
   TTX_DOCUMENTATION(definition.get_documentation());
@@ -76,28 +76,28 @@ class Structure : public Ttx::Model::Type {
   constexpr auto get_instances() const { return instances.get_view(); }
 
  private:
-  class InstanceLayout : public Ttx::Concept::Layout {
+  class InstanceLayout : public Tetrodotoxin::Source::Layout {
    public:
     constexpr InstanceLayout(const Structure& owner) : owner(owner) {}
 
     auto get_size() const -> Count override;
     auto get_abstract(Count index) const
-        -> Perimortem::Core::Option<const Ttx::Concept::Abstract&> override;
+        -> Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&> override;
     auto get_name(Count index) const
         -> Perimortem::Core::Option<Perimortem::Core::View::Bytes> override;
     auto fits_entry(
-        const Ttx::Concept::Layout& target,
+        const Tetrodotoxin::Source::Layout& target,
         Count source_index,
         Count target_index) const -> Bool override;
-    auto fits_at(const Ttx::Concept::Layout& target, Count target_offset) const
+    auto fits_at(const Tetrodotoxin::Source::Layout& target, Count target_offset) const
         -> Bool override;
     auto get_fitted_at(
-        const Ttx::Concept::Layout& target,
+        const Tetrodotoxin::Source::Layout& target,
         Count target_offset,
         Count target_index) const
         -> Perimortem::Utility::Result<
-            const Ttx::Concept::Abstract&,
-            Ttx::Concept::Layout::Errors> override;
+            const Tetrodotoxin::Source::Abstract&,
+            Tetrodotoxin::Source::Layout::Errors> override;
 
    private:
     const Structure& owner;
@@ -114,7 +114,7 @@ class Structure : public Ttx::Model::Type {
   Tetrodotoxin::Language::Definition& definition;
   Declarations declarations;
   Perimortem::Memory::Managed::Vector<
-      Ttx::Concept::Reference<Ttx::Model::Addressable>>
+      Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Addressable>>
       instances;
   InstanceLayout layout;
 };

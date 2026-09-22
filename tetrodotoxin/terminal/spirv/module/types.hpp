@@ -10,8 +10,8 @@
 #include "tetrodotoxin/library/language/model/type.hpp"
 #include "tetrodotoxin/terminal/spirv/assembler/spir_v.hpp"
 #include "tetrodotoxin/terminal/spirv/module/ids.hpp"
-#include "ttx/concept/abstract.hpp"
-#include "ttx/concept/reference.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/reference.hpp"
 
 namespace Tetrodotoxin::Terminal::Spirv::Module {
 
@@ -50,7 +50,7 @@ class Types {
 
   auto requires_float64() const -> Bool;
 
-  static auto select(const Ttx::Concept::Abstract& semantic)
+  static auto select(const Tetrodotoxin::Source::Abstract& semantic)
       -> Perimortem::Core::Option<
           const Tetrodotoxin::Library::Language::Model::Type&>;
 
@@ -62,7 +62,7 @@ class Types {
         U32 id)
         : type(type), id(id) {}
 
-    Ttx::Concept::Reference<const Tetrodotoxin::Library::Language::Model::Type>
+    Tetrodotoxin::Source::Reference<const Tetrodotoxin::Library::Language::Model::Type>
         type;
     U32 id;
   };
@@ -75,7 +75,7 @@ class Types {
         U32 id)
         : type(type), storage(storage), id(id) {}
 
-    Ttx::Concept::Reference<const Tetrodotoxin::Library::Language::Model::Type>
+    Tetrodotoxin::Source::Reference<const Tetrodotoxin::Library::Language::Model::Type>
         type;
     Assembler::SpirV::StorageClass storage;
     U32 id;
@@ -95,9 +95,9 @@ class Types {
           sampled_id(sampled_id),
           pointer_id(pointer_id) {}
 
-    Ttx::Concept::Reference<const Tetrodotoxin::Library::Language::Model::Type>
+    Tetrodotoxin::Source::Reference<const Tetrodotoxin::Library::Language::Model::Type>
         type;
-    Ttx::Concept::Reference<const Tetrodotoxin::Library::Language::Model::Type>
+    Tetrodotoxin::Source::Reference<const Tetrodotoxin::Library::Language::Model::Type>
         sampled;
     U32 image_id;
     U32 sampled_id;

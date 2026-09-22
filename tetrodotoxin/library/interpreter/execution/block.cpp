@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/library/interpreter/execution/block.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "tetrodotoxin/language/parser/comment.hpp"
 #include "tetrodotoxin/library/interpreter/execution/branch.hpp"
 #include "tetrodotoxin/library/interpreter/execution/local.hpp"
@@ -13,8 +15,8 @@
 #include "tetrodotoxin/library/interpreter/expression.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 
 static auto parse_statement(
@@ -22,7 +24,7 @@ static auto parse_statement(
     Language::Flow::Block& block,
     Language::Model::Callable& function,
     const Language::Model::Type& access_scope,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     Option<const Interpreter::Execution::StatementParser&> extension)
     -> Option<Language::Statement> {
   switch (cursor.get_code().get_type()) {
@@ -210,7 +212,7 @@ auto Interpreter::Execution::Block::parse(
     }
 
     Token statement_start = cursor.current();
-    const Documentation& documentation =
+    const Tetrodotoxin::Source::Documentation& documentation =
         Tetrodotoxin::Language::Parser::Comment::parse(cursor);
     if (cursor.matches(Code::Type::ScopeEnd)) {
       cursor.create_token_error(

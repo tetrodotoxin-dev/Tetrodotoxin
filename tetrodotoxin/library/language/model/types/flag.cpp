@@ -6,7 +6,7 @@
 #include "tetrodotoxin/library/language/constants/flag.hpp"
 
 using namespace Tetrodotoxin::Library::Language;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 
 auto Model::Types::Flag::accepts_constant(const Abstract& value) const -> Bool {
   return value.visit<Constants::Flag>(

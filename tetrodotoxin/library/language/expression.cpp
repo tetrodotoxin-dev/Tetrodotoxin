@@ -6,27 +6,27 @@
 #include "tetrodotoxin/library/language/constant.hpp"
 #include "tetrodotoxin/library/language/diagnostics.hpp"
 #include "tetrodotoxin/library/language/model/memory.hpp"
-#include "ttx/concept/constant.hpp"
+#include "tetrodotoxin/source/constant.hpp"
 #include "ttx/concept/domain.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/model/layouts/fluid.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/layouts/fluid.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using Ttx::Semantic::Binding;
+using namespace Tetrodotoxin::Source;
+using Ttx::Semantic::Negotiation::Binding;
 using namespace Tetrodotoxin::Library;
 
 auto Language::Expression::bind_interface(Perimortem::System::Uuid requested)
     const -> Perimortem::Utility::Result<Binding, Binding::Failure> {
-  if (requested == Domain::contract_id) {
-    static const Domain::Operations operations = {
+  if (requested == Ttx::Concept::Domain::contract_id) {
+    static const Ttx::Concept::Domain::Operations operations = {
       [](const void* source, ttx_abstract* output) -> ttx_binding_status {
         const auto& expression = *static_cast<const Expression*>(source);
         const Abstract& result = expression.get_result();
         if (&result != &expression) {
           return result.bind<Domain>().visit(
-              [&](const Domain::Handle& domain) -> ttx_binding_status {
+              [&](const Ttx::Concept::Domain::Handle& domain) -> ttx_binding_status {
                 return domain.get_domain().visit(
                     [&](Abstract::Handle answer) -> ttx_binding_status {
                       *output = answer.get_abi();
@@ -74,7 +74,7 @@ static auto select_layout_type(const Abstract& candidate)
   }
 
   const Abstract& resolved = candidate.resolve();
-  auto addressable = resolved.select<Ttx::Model::Addressable>();
+  auto addressable = resolved.select<Tetrodotoxin::Source::Addressable>();
   return addressable ? addressable->get_type().select<Language::Model::Type>()
                      : resolved.select<Language::Model::Type>();
 }
@@ -98,7 +98,7 @@ static auto has_exact_representation(
   return True;
 }
 
-static constexpr Ttx::Model::Layouts::Fluid empty_expression_layout;
+static constexpr Tetrodotoxin::Source::Layouts::Fluid empty_expression_layout;
 
 auto Language::Expression::Error::from_pack(
     Type type,
@@ -137,7 +137,7 @@ auto Language::Expression::resolve_concept(View::Bytes name) const
       []() -> const Abstract& { return Unknown::get_unknown(); },
       [](const Language::Model::Pack& representation) -> const Abstract& {
         auto identity = representation.get_identity();
-        return identity && identity->is<Ttx::Concept::Constant>()
+        return identity && identity->is<Tetrodotoxin::Source::Constant>()
                    ? *identity
                    : static_cast<const Abstract&>(None::get_none());
       },
@@ -145,7 +145,7 @@ auto Language::Expression::resolve_concept(View::Bytes name) const
 }
 
 auto Language::Expression::visit_concepts(
-    Ttx::Concept::Abstract::Visitor visitor) const -> void {
+    Tetrodotoxin::Source::Abstract::Visitor visitor) const -> void {
   const Abstract& folded = resolve_concept("folded"_view);
   visitor("folded"_view, folded);
 }
@@ -163,12 +163,12 @@ auto Language::Expression::get_value_type(Count index) const
           });
 }
 
-auto Language::Expression::finalize(Ttx::Lexical::Cursor&) -> void {
+auto Language::Expression::finalize(Tetrodotoxin::Source::Lexical::Cursor&) -> void {
   fold();
 }
 
 auto Language::Expression::link(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract&,
     Option<const Abstract&>) -> Bool {
   auto source_anchor = get_anchor();
@@ -324,7 +324,7 @@ auto Language::Expression::get_write_type(
 }
 
 auto Language::Expression::link_write(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& lexical_context,
     const Language::Model::Type& access_scope,
     Language::Model::Pack& source) -> Bool {
@@ -373,7 +373,7 @@ auto Language::Expression::link_write_restored(
 }
 
 auto Language::Expression::link_write_target(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& lexical_context,
     const Language::Model::Type& access_scope) -> Bool {
   return link(cursor, lexical_context, access_scope);

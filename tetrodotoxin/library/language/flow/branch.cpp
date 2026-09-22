@@ -7,9 +7,9 @@
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
 static auto select_condition_flag(const Language::Model::Pack& condition)
@@ -49,7 +49,7 @@ auto Language::Flow::Branch::complete_anchor(Anchor selected) -> void {
 }
 
 auto Language::Flow::Branch::link(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     Scope& lexical_context,
     const Language::Model::Type& access_scope) -> Bool {
   if (linked) {

@@ -3,19 +3,21 @@
 
 #include "tetrodotoxin/language/parser/import.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "validation/unit_test.hpp"
 
 #include "perimortem/core/static/vector.hpp"
 
-#include "ttx/lexical/associations.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/lexical/associations.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::System;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 using namespace Validation;
 
@@ -40,7 +42,7 @@ PERIMORTEM_UNIT_TEST(ImportParser, alias_qualifier) {
 
     ASSERT(Language::Parser::Import::is_next(cursor));
     auto imported =
-        Language::Parser::Import::parse(cursor, Documentation::get_empty());
+        Language::Parser::Import::parse(cursor, Tetrodotoxin::Source::Documentation::get_empty());
     ASSERT(imported);
     if (i == 2) {
       EXPECT(imported->get_visibility() == Language::Visibility::Private);
@@ -77,6 +79,6 @@ PERIMORTEM_UNIT_TEST(ImportParser, alias_qualifier) {
   EXPECT_NOT(Language::Parser::Import::is_next(uppercase_cursor));
   EXPECT_NOT(
       Language::Parser::Import::parse(
-          uppercase_cursor, Documentation::get_empty()));
+          uppercase_cursor, Tetrodotoxin::Source::Documentation::get_empty()));
   EXPECT_NOT(uppercase_errors.is_empty());
 }

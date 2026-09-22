@@ -12,13 +12,13 @@
 
 #include "tetrodotoxin/library/language/generics/view.hpp"
 #include "tetrodotoxin/library/language/types/u8.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Tetrodotoxin::Library::Language;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Validation;
 
 static Harness LibraryView = {
@@ -30,7 +30,7 @@ PERIMORTEM_UNIT_TEST(LibraryView, direct_contract) {
   Types::View view("View[U8]"_view, element);
 
   EXPECT(view.is<Types::View>());
-  EXPECT(view.is<Ttx::Model::Type>());
+  EXPECT(view.is<Tetrodotoxin::Source::Type>());
   EXPECT(view.is<Abstract>());
   EXPECT_NOT(view.is<Generic>());
   EXPECT_TEXT(view.get_name(), "View[U8]"_view);

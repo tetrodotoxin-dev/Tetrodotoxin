@@ -10,10 +10,10 @@
 #include "tetrodotoxin/render/language/attributes.hpp"
 #include "tetrodotoxin/render/language/binding.hpp"
 #include "tetrodotoxin/render/language/stage.hpp"
-#include "ttx/model/interfaces/callable.hpp"
+#include "tetrodotoxin/source/interfaces/callable.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin;
 using namespace Tetrodotoxin::Shader;
 
@@ -65,18 +65,18 @@ static auto slot_failure(
 class Evaluation {
  public:
   constexpr Evaluation(
-      Ttx::Concept::Interface::Relation relation,
+      Tetrodotoxin::Source::Interface::Relation relation,
       View::Bytes failure = {})
       : relation(relation), failure(failure) {}
 
-  Ttx::Concept::Interface::Relation relation;
+  Tetrodotoxin::Source::Interface::Relation relation;
   View::Bytes failure;
 
   static auto compatible_binding_type(
       const Abstract& requirement,
       const Abstract& candidate) -> Bool {
-    auto requirement_type = requirement.select<Ttx::Model::Type>();
-    auto candidate_type = candidate.select<Ttx::Model::Type>();
+    auto requirement_type = requirement.select<Tetrodotoxin::Source::Type>();
+    auto candidate_type = candidate.select<Tetrodotoxin::Source::Type>();
     BAIL_IF(!requirement_type || !candidate_type);
     const Abstract& required = requirement_type->resolve();
     const Abstract& supplied = candidate_type->resolve();
@@ -98,29 +98,29 @@ static auto evaluate(const Abstract& requirement, const Abstract& candidate)
   auto shader = candidate.resolve().select<Shader::Language::Program>();
   if (!render || !shader) {
     return Evaluation(
-        Ttx::Concept::Interface::Relation::Rejected,
+        Tetrodotoxin::Source::Interface::Relation::Rejected,
         "The restored relationship no longer selects Pipeline and Shader owners."_view);
   }
 
   // Callable negotiation establishes shared value flow first. Render then adds
   // Stage and slot policy that Layout fitting deliberately omits.
-  Ttx::Model::Interfaces::Callable callable_interface;
+  Tetrodotoxin::Source::Interfaces::Callable callable_interface;
   for (const Reference<Abstract>& entry : render->get_callables()) {
     auto required = entry.get().select<Render::Language::Stage>();
     if (!required) {
       return Evaluation(
-          Ttx::Concept::Interface::Relation::Rejected,
+          Tetrodotoxin::Source::Interface::Relation::Rejected,
           "The restored Pipeline callable is not one Stage."_view);
     }
     auto supplied = find_function(*shader, required->get_name());
     if (!supplied) {
       return Evaluation(
-          Ttx::Concept::Interface::Relation::Rejected,
+          Tetrodotoxin::Source::Interface::Relation::Rejected,
           "The restored Shader is missing one required Stage Function."_view);
     }
     if (!callable_interface.accepts(*required, *supplied)) {
       return Evaluation(
-          Ttx::Concept::Interface::Relation::Rejected,
+          Tetrodotoxin::Source::Interface::Relation::Rejected,
           "The restored Stage Function no longer has a compatible Signature."_view);
     }
     View::Bytes parameter_failure = slot_failure(
@@ -128,13 +128,13 @@ static auto evaluate(const Abstract& requirement, const Abstract& candidate)
         required->get_parameter_layout());
     if (!parameter_failure.is_empty()) {
       return Evaluation(
-          Ttx::Concept::Interface::Relation::Rejected, parameter_failure);
+          Tetrodotoxin::Source::Interface::Relation::Rejected, parameter_failure);
     }
     View::Bytes result_failure = slot_failure(
         supplied->get_signature().get_results(), required->get_result_layout());
     if (!result_failure.is_empty()) {
       return Evaluation(
-          Ttx::Concept::Interface::Relation::Rejected, result_failure);
+          Tetrodotoxin::Source::Interface::Relation::Rejected, result_failure);
     }
   }
 
@@ -145,13 +145,13 @@ static auto evaluate(const Abstract& requirement, const Abstract& candidate)
     auto required = entry.get().select<Render::Language::Binding>();
     if (!required) {
       return Evaluation(
-          Ttx::Concept::Interface::Relation::Rejected,
+          Tetrodotoxin::Source::Interface::Relation::Rejected,
           "The restored Pipeline value is not one Binding."_view);
     }
     auto supplied = find_binding(*shader, required->get_name());
     if (!supplied) {
       return Evaluation(
-          Ttx::Concept::Interface::Relation::Rejected,
+          Tetrodotoxin::Source::Interface::Relation::Rejected,
           "The restored Shader is missing one required Binding."_view);
     }
     const Library::Language::Field& field = supplied->get_field();
@@ -160,11 +160,11 @@ static auto evaluate(const Abstract& requirement, const Abstract& candidate)
         !Evaluation::compatible_binding_type(
             required->get_type(), field.get_type())) {
       return Evaluation(
-          Ttx::Concept::Interface::Relation::Rejected,
+          Tetrodotoxin::Source::Interface::Relation::Rejected,
           "The restored Shader Binding no longer has its required kind and Type."_view);
     }
   }
-  return Evaluation(Ttx::Concept::Interface::Relation::Satisfied);
+  return Evaluation(Tetrodotoxin::Source::Interface::Relation::Satisfied);
 }
 
 auto Shader::Language::Contract::negotiate(
@@ -174,7 +174,7 @@ auto Shader::Language::Contract::negotiate(
 }
 
 auto Shader::Language::Contract::validate(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& requirement,
     const Abstract& candidate) const -> Bool {
   Relation relation = negotiate(requirement, candidate);
@@ -185,7 +185,7 @@ auto Shader::Language::Contract::validate(
   auto program = candidate.select<Shader::Language::Program>();
   cursor.create_expression_error(
       program ? program->get_anchor()
-              : Ttx::Lexical::Anchor::create(Ttx::Lexical::Span()),
+              : Tetrodotoxin::Source::Lexical::Anchor::create(Tetrodotoxin::Source::Lexical::Span()),
       "Shader does not satisfy its selected Pipeline contract."_view,
       "Match every required Stage, value, and Type."_view);
   return False;

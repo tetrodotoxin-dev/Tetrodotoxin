@@ -14,7 +14,7 @@
 #include "tetrodotoxin/terminal/spirv/assembler/spir_v.hpp"
 #include "tetrodotoxin/terminal/spirv/module/ids.hpp"
 #include "tetrodotoxin/terminal/spirv/module/types.hpp"
-#include "ttx/concept/reference.hpp"
+#include "tetrodotoxin/source/reference.hpp"
 
 namespace Tetrodotoxin::Terminal::Spirv::Module {
 
@@ -26,7 +26,7 @@ class Interface {
   class Variable {
    public:
     constexpr Variable(
-        const Ttx::Concept::Abstract& semantic,
+        const Tetrodotoxin::Source::Abstract& semantic,
         const Tetrodotoxin::Library::Language::Model::Type& type,
         Perimortem::Core::View::Bytes name,
         Perimortem::Core::View::Vector<Tetrodotoxin::Language::Attribute>
@@ -46,8 +46,8 @@ class Interface {
           push_index_id(push_index_id),
           location(location) {}
 
-    Ttx::Concept::Reference<const Ttx::Concept::Abstract> semantic;
-    Ttx::Concept::Reference<const Tetrodotoxin::Library::Language::Model::Type>
+    Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Abstract> semantic;
+    Tetrodotoxin::Source::Reference<const Tetrodotoxin::Library::Language::Model::Type>
         type;
     Perimortem::Core::View::Bytes name;
     Perimortem::Core::View::Vector<Tetrodotoxin::Language::Attribute>
@@ -72,7 +72,7 @@ class Interface {
           inputs(arena),
           outputs(arena) {}
 
-    Ttx::Concept::Reference<const Tetrodotoxin::Library::Language::Function>
+    Tetrodotoxin::Source::Reference<const Tetrodotoxin::Library::Language::Function>
         function;
     Assembler::SpirV::ExecutionModel model;
     U32 id;
@@ -102,7 +102,7 @@ class Interface {
     return bindings;
   }
 
-  auto is_resource(const Ttx::Concept::Abstract& semantic) const -> Bool;
+  auto is_resource(const Tetrodotoxin::Source::Abstract& semantic) const -> Bool;
 
  private:
   auto prepare_variables(

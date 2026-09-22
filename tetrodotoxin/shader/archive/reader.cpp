@@ -3,19 +3,21 @@
 
 #include "tetrodotoxin/shader/archive/reader.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "perimortem/core/reader/binary.hpp"
 
 #include "perimortem/memory/managed/vector.hpp"
 
 #include "tetrodotoxin/library/language/field.hpp"
 #include "tetrodotoxin/render/language/attributes.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/model/documentations/block.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/documentations/block.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin;
 
 enum class ShaderReaderAttributeValue : U8 {
@@ -51,7 +53,7 @@ auto Shader::Archive::Reader::restore(
     View::Bytes payload,
     const Abstract& language,
     const Library::Dialect& library,
-    Abstract& context) -> Option<Ttx::Concept::Abstract&> {
+    Abstract& context) -> Option<Tetrodotoxin::Source::Abstract&> {
   // Shader and its Library child share one reconstruction Arena just as they
   // share one authored source transaction. Program records can then restore
   // Library declarations into the exact Shader subtype they describe.
@@ -66,7 +68,7 @@ auto Shader::Archive::Reader::restore(
   auto documentation = contents.read_documentation(arena);
   BAIL_IF(!documentation);
   auto& child = Library::Language::Monograph::create(
-      arena, *documentation, Ttx::Lexical::Anchor::create(Ttx::Lexical::Span()),
+      arena, *documentation, Tetrodotoxin::Source::Lexical::Anchor::create(Tetrodotoxin::Source::Lexical::Span()),
       library, context);
   auto& monograph = Shader::Language::Monograph::create(
       arena, language, *documentation, context, child);
@@ -148,7 +150,7 @@ auto Shader::Archive::Reader::read_bytes() -> Option<View::Bytes> {
 }
 
 auto Shader::Archive::Reader::read_documentation(Allocator::Arena& arena)
-    -> Option<const Documentation&> {
+    -> Option<const Tetrodotoxin::Source::Documentation&> {
   auto count = read_u32();
   BAIL_IF(!count || Count(*count) > payload.get_size());
   auto lines = arena.reserve<View::Bytes>(*count);
@@ -157,7 +159,7 @@ auto Shader::Archive::Reader::read_documentation(Allocator::Arena& arena)
     BAIL_IF(!line);
     lines.get_data()[index] = arena.proxy(*line);
   }
-  return arena.construct<Ttx::Model::Documentations::Block>(
+  return arena.construct<Tetrodotoxin::Source::Documentations::Block>(
       View::Vector<View::Bytes>(lines.get_data(), lines.get_size()));
 }
 

@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/library/language/types/structure.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "validation/unit_test.hpp"
 #include "validation/unit_tests/tetrodotoxin/library/workspace.hpp"
 
@@ -21,18 +23,18 @@
 #include "tetrodotoxin/library/language/function.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
 #include "tetrodotoxin/library/language/types/source.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
-#include "ttx/model/addressable.hpp"
-#include "ttx/model/alias.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/addressable.hpp"
+#include "tetrodotoxin/source/alias.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 using Tetrodotoxin::Environment::Workspace;
 using namespace Validation;
@@ -81,14 +83,14 @@ static auto parse_authored(
     Errors& errors,
     View::Bytes source) -> Option<Language::Monograph&> {
   Tokenizer tokenizer(lexical, source, "structure.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   if (!cursor.get_code().is_comment()) {
     return {};
   }
 
   Token source_opening = cursor.current();
-  const Documentation& documentation =
+  const Tetrodotoxin::Source::Documentation& documentation =
       Tetrodotoxin::Language::Parser::Comment::parse(cursor);
   Token dialect_declaration = cursor.current();
   if (Tetrodotoxin::Language::Parser::Dialect::parse(cursor) !=
@@ -133,7 +135,7 @@ static auto rejects_link(View::Bytes source) -> Bool {
 
   Allocator::Arena completion;
   Tokenizer tokenizer(completion, source, "structure.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   Bool linked = monograph->link(cursor);
   return !linked && !errors.is_empty();
@@ -154,7 +156,7 @@ static auto rejects_finalize(View::Bytes source) -> Bool {
 
   Allocator::Arena completion;
   Tokenizer tokenizer(completion, source, "structure.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   if (!monograph->link(cursor)) {
     return False;
@@ -210,7 +212,7 @@ PERIMORTEM_UNIT_TEST(StructureTests, nested_type_aliases) {
 
   Allocator::Arena completion;
   Tokenizer tokenizer(completion, source, "structure.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   ASSERT(monograph.link(cursor));
   ASSERT(monograph.finalize(cursor));
@@ -653,7 +655,7 @@ PERIMORTEM_UNIT_TEST(StructureTests, static_empty_types) {
   EXPECT(first_empty_result.get_results().fits(empty_result.get_results()));
   EXPECT(empty_result.get_results().fits(first_empty_result.get_results()));
 
-  const auto& scalar = static_cast<const Ttx::Model::Type&>(
+  const auto& scalar = static_cast<const Tetrodotoxin::Source::Type&>(
       monograph->resolve_concept("U8"_view));
   ASSERT_EQ(scalar.get_layout().get_size(), Count(1));
   auto scalar_layout_type = scalar.get_layout().get_abstract(0);
@@ -785,7 +787,7 @@ PERIMORTEM_UNIT_TEST(StructureTests, initializer_fitting) {
 
   Allocator::Arena completion;
   Tokenizer tokenizer(completion, source, "structure.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   ASSERT(monograph.link(cursor));
   ASSERT(monograph.finalize(cursor));
@@ -838,7 +840,7 @@ PERIMORTEM_UNIT_TEST(StructureTests, inferred_fields) {
 
   Allocator::Arena completion;
   Tokenizer tokenizer(completion, source, "structure.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   ASSERT(monograph.link(cursor));
   auto source_fields = source_type.get_addressables();
@@ -920,7 +922,7 @@ PERIMORTEM_UNIT_TEST(StructureTests, inference_rollback) {
     const auto& source_type = monograph.get_source();
     Allocator::Arena completion;
     Tokenizer tokenizer(completion, sources[i], "structure.ttx"_view);
-    Ttx::Lexical::Associations associations(tokenizer.get_arena());
+    Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
     Cursor cursor(tokenizer, errors, associations);
     EXPECT_NOT(monograph.link(cursor));
     auto fields = source_type.get_addressables();
@@ -960,7 +962,7 @@ PERIMORTEM_UNIT_TEST(StructureTests, public_inference) {
   auto& monograph = *owner;
   Allocator::Arena completion;
   Tokenizer tokenizer(completion, source, "structure.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   ASSERT(monograph.link(cursor));
   const auto& source_type = monograph.get_source();
@@ -1016,7 +1018,7 @@ PERIMORTEM_UNIT_TEST(StructureTests, initializer_mismatch) {
 
     Allocator::Arena completion;
     Tokenizer tokenizer(completion, sources[i], "structure.ttx"_view);
-    Ttx::Lexical::Associations associations(tokenizer.get_arena());
+    Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
     Cursor cursor(tokenizer, errors, associations);
     EXPECT_NOT(monograph.link(cursor));
     auto fields = packet.get_addressables();

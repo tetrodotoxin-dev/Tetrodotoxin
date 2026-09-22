@@ -5,9 +5,9 @@
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
 auto Language::Signature::create_authored(
@@ -30,8 +30,8 @@ auto Language::Signature::create(
 auto Language::Signature::link_restored() -> Bool {
   BAIL_IF(!parameters.link_restored(host, True));
   auto first = parameters.get_abstract(0);
-  auto self = first ? first->select<Ttx::Model::Addressable>()
-                    : Option<const Ttx::Model::Addressable&>();
+  auto self = first ? first->select<Tetrodotoxin::Source::Addressable>()
+                    : Option<const Tetrodotoxin::Source::Addressable&>();
   return results.link_restored(host, False, self);
 }
 
@@ -41,8 +41,8 @@ auto Language::Signature::link(Cursor& cursor) -> Bool {
   Bool parameters_linked = parameters.link_parameters(cursor, host);
   auto first = parameters_linked ? parameters.get_abstract(0)
                                  : Option<const Abstract&>();
-  auto self = first ? first->select<Ttx::Model::Addressable>()
-                    : Option<const Ttx::Model::Addressable&>();
+  auto self = first ? first->select<Tetrodotoxin::Source::Addressable>()
+                    : Option<const Tetrodotoxin::Source::Addressable&>();
   Bool results_linked = results.link_types(cursor, host, self);
   return parameters_linked && results_linked;
 }

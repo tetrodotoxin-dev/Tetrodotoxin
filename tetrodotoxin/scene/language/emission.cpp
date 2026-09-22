@@ -4,12 +4,12 @@
 #include "tetrodotoxin/scene/language/emission.hpp"
 
 #include "tetrodotoxin/scene/language/monograph.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 auto Scene::Language::Emission::create_authored(

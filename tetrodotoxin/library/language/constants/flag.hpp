@@ -19,8 +19,8 @@ class Flag : public Tetrodotoxin::Library::Language::Constant {
 
   auto bind_interface(Perimortem::System::Uuid requested) const
       -> Perimortem::Utility::Result<
-          Ttx::Semantic::Binding,
-          Ttx::Semantic::Binding::Failure> override {
+          Ttx::Semantic::Negotiation::Binding,
+          Ttx::Semantic::Negotiation::Binding::Failure> override {
     using Contract = Tetrodotoxin::Library::Language::Value;
     if (requested == Contract::contract_id) {
       return Contract::scalar(*this);
@@ -32,7 +32,7 @@ class Flag : public Tetrodotoxin::Library::Language::Constant {
       Perimortem::Memory::Allocator::Arena& domain,
       const Tetrodotoxin::Library::Language::Model::Types::Flag& type,
       Value value,
-      Ttx::Lexical::Anchor anchor) -> Flag& {
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> Flag& {
     return Constant::create_authored<Flag>(
         domain, anchor,
         [&](auto source) -> Flag { return Flag(type, value, source); });
@@ -65,10 +65,10 @@ class Flag : public Tetrodotoxin::Library::Language::Constant {
                      ? ::True
                      : ::False;
         },
-        [](const Ttx::Concept::Abstract&) { return ::False; });
+        [](const Tetrodotoxin::Source::Abstract&) { return ::False; });
   }
 
-  constexpr auto fits(const Ttx::Model::Type& target) const -> Bool override {
+  constexpr auto fits(const Tetrodotoxin::Source::Type& target) const -> Bool override {
     return get_type()
                .resolve()
                .is<Tetrodotoxin::Library::Language::Model::Types::Flag>() &&
@@ -80,7 +80,7 @@ class Flag : public Tetrodotoxin::Library::Language::Constant {
   constexpr Flag(
       const Tetrodotoxin::Library::Language::Model::Types::Flag& type,
       Value value,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor)
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor)
       : Tetrodotoxin::Library::Language::Constant(anchor),
         type(type),
         value(value) {}

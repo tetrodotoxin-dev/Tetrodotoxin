@@ -27,7 +27,7 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include "tetrodotoxin/terminal/llvm/module/program.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
 using namespace Tetrodotoxin::Terminal;
@@ -91,7 +91,7 @@ static auto create_abi_fingerprint(
 
 Llvm::Module::Program::Program(
     Memory::Allocator::Arena& arena,
-    Ttx::Lexical::Errors& errors,
+    Tetrodotoxin::Source::Lexical::Errors& errors,
     Core::View::Bytes source_path,
     Core::View::Bytes source_text,
     Target target,
@@ -297,12 +297,12 @@ auto Llvm::Module::Program::fail_toolchain(Core::View::Bytes message) -> Bool {
 }
 
 auto Llvm::Module::Program::fail_source(
-    Core::Option<Ttx::Lexical::Anchor> anchor,
+    Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor,
     Core::View::Bytes message,
     Core::View::Bytes hint) -> Bool {
-  Ttx::Lexical::Errors::Report report(
+  Tetrodotoxin::Source::Lexical::Errors::Report report(
       errors, source_path, source_text,
-      anchor ? *anchor : Ttx::Lexical::Anchor::create(Ttx::Lexical::Span()));
+      anchor ? *anchor : Tetrodotoxin::Source::Lexical::Anchor::create(Tetrodotoxin::Source::Lexical::Span()));
   report << message;
   report.get_hint() << hint;
   failures |= U8(FailureFlag::Source);

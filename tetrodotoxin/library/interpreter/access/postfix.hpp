@@ -6,8 +6,8 @@
 #include "perimortem/core/option.hpp"
 
 #include "tetrodotoxin/library/language/expression.hpp"
-#include "ttx/concept/abstract.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Interpreter::Access {
 
@@ -19,20 +19,20 @@ class Postfix {
   Postfix() = delete;
 
   static auto parse_type(
-      const Ttx::Concept::Abstract& context,
-      Ttx::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& context,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
       Language::Model::Pack& receiver)
       -> Perimortem::Core::Option<Language::Expression&>;
 
   static auto parse_propagate(
-      const Ttx::Concept::Abstract& context,
-      Ttx::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& context,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
       Language::Model::Pack& receiver)
       -> Perimortem::Core::Option<Language::Expression&>;
 
   static auto parse_unwrap(
-      const Ttx::Concept::Abstract& context,
-      Ttx::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& context,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
       Language::Model::Pack& receiver)
       -> Perimortem::Core::Option<Language::Expression&>;
 };

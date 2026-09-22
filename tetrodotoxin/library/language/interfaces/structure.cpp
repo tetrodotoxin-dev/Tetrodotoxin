@@ -9,7 +9,7 @@
 #include "tetrodotoxin/library/language/types/structure.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
 auto Language::Interfaces::Structure::compatible_type(

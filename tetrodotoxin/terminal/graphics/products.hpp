@@ -8,7 +8,7 @@
 
 #include "tetrodotoxin/library/language/field.hpp"
 #include "tetrodotoxin/scene/language/monograph.hpp"
-#include "ttx/concept/reference.hpp"
+#include "tetrodotoxin/source/reference.hpp"
 
 namespace Tetrodotoxin::Terminal::Graphics {
 
@@ -42,7 +42,7 @@ class Products {
     }
 
    private:
-    Ttx::Concept::Reference<const Tetrodotoxin::Library::Language::Field> field;
+    Tetrodotoxin::Source::Reference<const Tetrodotoxin::Library::Language::Field> field;
     Count type_index;
     Perimortem::Core::Option<Count> element_index;
   };
@@ -62,7 +62,7 @@ class Products {
   }
 
  private:
-  Ttx::Concept::Reference<const Tetrodotoxin::Scene::Language::Monograph> scene;
+  Tetrodotoxin::Source::Reference<const Tetrodotoxin::Scene::Language::Monograph> scene;
   Perimortem::Core::View::Vector<Hosted> hosted;
 };
 

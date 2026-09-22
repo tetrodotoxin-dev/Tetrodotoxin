@@ -18,22 +18,22 @@ class Monograph : public Tetrodotoxin::Language::Monograph {
 
   static auto create_program(
       Perimortem::Memory::Allocator::Arena& arena,
-      const Ttx::Concept::Abstract& language,
-      const Ttx::Concept::Documentation& documentation,
-      Ttx::Concept::Abstract& context,
+      const Tetrodotoxin::Source::Abstract& language,
+      const Tetrodotoxin::Source::Documentation& documentation,
+      Tetrodotoxin::Source::Abstract& context,
       Runtime& runtime,
       Program& program) -> Monograph&;
 
   static auto create_scene(
       Perimortem::Memory::Allocator::Arena& arena,
-      const Ttx::Concept::Abstract& language,
-      const Ttx::Concept::Documentation& documentation,
-      Ttx::Concept::Abstract& context,
+      const Tetrodotoxin::Source::Abstract& language,
+      const Tetrodotoxin::Source::Documentation& documentation,
+      Tetrodotoxin::Source::Abstract& context,
       Runtime& runtime,
       Scene& scene) -> Monograph&;
 
-  auto link(Ttx::Lexical::Cursor& cursor) -> Bool override;
-  auto finalize(Ttx::Lexical::Cursor& cursor) -> Bool override;
+  auto link(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
+  auto finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
 
   TTX_NAME("App"_view);
 
@@ -56,9 +56,9 @@ class Monograph : public Tetrodotoxin::Language::Monograph {
  private:
   constexpr Monograph(
       Perimortem::Memory::Allocator::Arena& arena,
-      const Ttx::Concept::Abstract& language,
-      const Ttx::Concept::Documentation& documentation,
-      Ttx::Concept::Abstract& context,
+      const Tetrodotoxin::Source::Abstract& language,
+      const Tetrodotoxin::Source::Documentation& documentation,
+      Tetrodotoxin::Source::Abstract& context,
       Runtime& runtime,
       Perimortem::Core::Option<Program&> program,
       Perimortem::Core::Option<Scene&> scene)

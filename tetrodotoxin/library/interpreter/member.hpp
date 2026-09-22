@@ -10,9 +10,9 @@
 #include "tetrodotoxin/language/definition.hpp"
 #include "tetrodotoxin/library/interpreter/parsed.hpp"
 #include "tetrodotoxin/library/language/types/composite.hpp"
-#include "ttx/concept/abstract.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Interpreter {
 
@@ -27,12 +27,12 @@ class Member {
   class Result {
    public:
     constexpr Result(
-        Ttx::Concept::Abstract& semantic,
+        Tetrodotoxin::Source::Abstract& semantic,
         Language::Types::Composite::Category category,
         ParseState state)
         : semantic(semantic), category(category), state(state) {}
 
-    constexpr auto get_semantic() const -> Ttx::Concept::Abstract& {
+    constexpr auto get_semantic() const -> Tetrodotoxin::Source::Abstract& {
       return semantic.get();
     }
 
@@ -50,7 +50,7 @@ class Member {
     }
 
    private:
-    Ttx::Concept::Reference<Ttx::Concept::Abstract> semantic;
+    Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract> semantic;
     Language::Types::Composite::Category category;
     ParseState state;
   };
@@ -58,7 +58,7 @@ class Member {
   Member() = delete;
 
   static auto parse(
-      Ttx::Lexical::Cursor& cursor,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
       Tetrodotoxin::Language::Definition& definition)
       -> Perimortem::Core::Option<Result>;
 };

@@ -7,8 +7,8 @@
 
 #include "tetrodotoxin/library/language/expression.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Language::Access {
 
@@ -25,29 +25,29 @@ class Slice : public Expression {
       Perimortem::Memory::Allocator::Arena& domain,
       Model::Pack& receiver,
       Model::Pack& index,
-      Ttx::Lexical::Anchor anchor) -> Slice&;
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> Slice&;
   static auto create_authored(
       Perimortem::Memory::Allocator::Arena& domain,
       Model::Pack& receiver,
       Model::Pack& start,
       Model::Pack& count,
-      Ttx::Lexical::Anchor anchor) -> Slice&;
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> Slice&;
   TTX_NAME("Slice"_view);
   TTX_EMPTY_DOCUMENTATION();
 
   auto link(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& lexical_context,
-      Perimortem::Core::Option<const Ttx::Concept::Abstract&> access_scope = {})
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& lexical_context,
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&> access_scope = {})
       -> Bool override;
 
-  auto get_type() const -> const Ttx::Concept::Abstract& override;
+  auto get_type() const -> const Tetrodotoxin::Source::Abstract& override;
   auto get_value_type(Count index) const
-      -> const Ttx::Concept::Abstract& override;
-  auto get_layout() const -> const Ttx::Concept::Layout& override;
-  auto resolve() const -> const Ttx::Concept::Abstract& override;
-  auto fits(const Ttx::Model::Type& target) const -> Bool override;
-  auto finalize(Ttx::Lexical::Cursor& cursor) -> void override;
+      -> const Tetrodotoxin::Source::Abstract& override;
+  auto get_layout() const -> const Tetrodotoxin::Source::Layout& override;
+  auto resolve() const -> const Tetrodotoxin::Source::Abstract& override;
+  auto fits(const Tetrodotoxin::Source::Type& target) const -> Bool override;
+  auto finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> void override;
 
   constexpr auto get_receiver() const -> const Model::Pack& { return receiver; }
 
@@ -58,7 +58,7 @@ class Slice : public Expression {
       -> Perimortem::Core::Option<const Model::Pack&> {
     return count.visit(
         []() -> Perimortem::Core::Option<const Model::Pack&> { return {}; },
-        [](const Ttx::Model::PackReference<Model::Pack>& selected)
+        [](const Tetrodotoxin::Source::PackReference<Model::Pack>& selected)
             -> Perimortem::Core::Option<const Model::Pack&> {
           return selected.get();
         });
@@ -68,7 +68,7 @@ class Slice : public Expression {
       -> Perimortem::Core::Option<const Model::Type&> {
     return element_type.visit(
         []() -> Perimortem::Core::Option<const Model::Type&> { return {}; },
-        [](const Ttx::Concept::Reference<const Model::Type>& selected)
+        [](const Tetrodotoxin::Source::Reference<const Model::Type>& selected)
             -> Perimortem::Core::Option<const Model::Type&> {
           return selected.get();
         });
@@ -78,7 +78,7 @@ class Slice : public Expression {
       -> Perimortem::Core::Option<const Model::Pack&> {
     return fallback.visit(
         []() -> Perimortem::Core::Option<const Model::Pack&> { return {}; },
-        [](const Ttx::Model::PackReference<Model::Pack>& selected)
+        [](const Tetrodotoxin::Source::PackReference<Model::Pack>& selected)
             -> Perimortem::Core::Option<const Model::Pack&> {
           return selected.get();
         });
@@ -98,23 +98,23 @@ class Slice : public Expression {
       Perimortem::Memory::Allocator::Arena& domain,
       Model::Pack& receiver,
       Model::Pack& index,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor);
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor);
   Slice(
       Perimortem::Memory::Allocator::Arena& domain,
       Model::Pack& receiver,
       Model::Pack& start,
       Model::Pack& count,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor);
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor);
 
   Perimortem::Memory::Allocator::Arena& domain;
   Model::Pack& receiver;
   Model::Pack& first;
-  Perimortem::Core::Option<Ttx::Model::PackReference<Model::Pack>> count;
-  Perimortem::Core::Option<Ttx::Concept::Reference<const Model::Type>>
+  Perimortem::Core::Option<Tetrodotoxin::Source::PackReference<Model::Pack>> count;
+  Perimortem::Core::Option<Tetrodotoxin::Source::Reference<const Model::Type>>
       element_type;
-  Perimortem::Core::Option<Ttx::Model::PackReference<Model::Pack>> fallback;
+  Perimortem::Core::Option<Tetrodotoxin::Source::PackReference<Model::Pack>> fallback;
   Perimortem::Core::Option<Count> range_count;
-  Perimortem::Core::Option<const Ttx::Concept::Layout&> range_layout;
+  Perimortem::Core::Option<const Tetrodotoxin::Source::Layout&> range_layout;
 };
 
 }  // namespace Tetrodotoxin::Library::Language::Access

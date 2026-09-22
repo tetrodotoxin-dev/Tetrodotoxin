@@ -4,7 +4,7 @@
 #include "tetrodotoxin/library/language/access/static.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
 auto Language::Access::Static::can_bind(const Abstract& binding) const -> Bool {
@@ -56,7 +56,7 @@ auto Language::Access::Static::resolve_concept(Core::View::Bytes name) const
 }
 
 auto Language::Access::Static::visit_concepts(
-    Ttx::Concept::Abstract::Visitor visitor) const -> void {
+    Tetrodotoxin::Source::Abstract::Visitor visitor) const -> void {
   for (Count entry = 0; entry < bindings.get_size(); entry++) {
     const auto* selected = bindings.get_entry(entry);
     if (selected != nullptr && selected->value.published) {

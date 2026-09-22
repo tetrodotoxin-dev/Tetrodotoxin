@@ -6,10 +6,10 @@
 #include "perimortem/core/view/bytes.hpp"
 #include "perimortem/core/option.hpp"
 
-#include "ttx/concept/abstract.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/lexical/cursor.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 namespace Tetrodotoxin::Language {
 
@@ -21,31 +21,31 @@ class TypeReference {
  public:
   static constexpr auto create(
       Perimortem::Core::View::Bytes route,
-      Ttx::Lexical::Anchor anchor) -> TypeReference {
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> TypeReference {
     return TypeReference(route, anchor);
   }
 
   auto resolve(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& context) const
-      -> Perimortem::Core::Option<const Ttx::Model::Type&>;
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& context) const
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Type&>;
 
   // A concrete declaration owner may select the first route segment through
   // its private lexical policy, then return to ordinary public Type context
   // queries for every explicit `::` suffix.
   auto resolve_selected(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& selected_root) const
-      -> Perimortem::Core::Option<const Ttx::Model::Type&>;
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& selected_root) const
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Type&>;
 
   // Archive restoration follows the same semantic route after every owner has
   // reconstructed its identities. It has no authored Cursor to report through,
   // so absence lets the persistent Dialect reject the complete transaction.
-  auto resolve_restored(const Ttx::Concept::Abstract& context) const
-      -> Perimortem::Core::Option<const Ttx::Model::Type&>;
+  auto resolve_restored(const Tetrodotoxin::Source::Abstract& context) const
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Type&>;
 
-  auto resolve_restored_selected(const Ttx::Concept::Abstract& selected_root)
-      const -> Perimortem::Core::Option<const Ttx::Model::Type&>;
+  auto resolve_restored_selected(const Tetrodotoxin::Source::Abstract& selected_root)
+      const -> Perimortem::Core::Option<const Tetrodotoxin::Source::Type&>;
 
   auto get_root() const -> Perimortem::Core::View::Bytes;
 
@@ -53,16 +53,16 @@ class TypeReference {
     return route;
   }
 
-  constexpr auto get_anchor() const -> Ttx::Lexical::Anchor { return anchor; }
+  constexpr auto get_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor { return anchor; }
 
  private:
   constexpr TypeReference(
       Perimortem::Core::View::Bytes route,
-      Ttx::Lexical::Anchor anchor)
+      Tetrodotoxin::Source::Lexical::Anchor anchor)
       : route(route), anchor(anchor) {}
 
   Perimortem::Core::View::Bytes route;
-  Ttx::Lexical::Anchor anchor;
+  Tetrodotoxin::Source::Lexical::Anchor anchor;
 };
 
 }  // namespace Tetrodotoxin::Language

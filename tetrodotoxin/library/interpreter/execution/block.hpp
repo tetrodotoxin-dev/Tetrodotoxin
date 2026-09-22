@@ -7,9 +7,9 @@
 
 #include "tetrodotoxin/library/interpreter/execution/statement_parser.hpp"
 #include "tetrodotoxin/library/language/flow/block.hpp"
-#include "ttx/concept/abstract.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Interpreter::Execution {
 
@@ -21,12 +21,12 @@ class Block {
   Block() = delete;
 
   static auto parse(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& lexical_context,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& lexical_context,
       Language::Model::Callable& function,
       const Language::Model::Type& access_scope,
-      Perimortem::Core::Option<Ttx::Concept::Reference<
-          const Ttx::Concept::Abstract>> enclosing_loop = {},
+      Perimortem::Core::Option<Tetrodotoxin::Source::Reference<
+          const Tetrodotoxin::Source::Abstract>> enclosing_loop = {},
       Perimortem::Core::Option<const StatementParser&> extension = {})
       -> Perimortem::Core::Option<Language::Flow::Block&>;
 };

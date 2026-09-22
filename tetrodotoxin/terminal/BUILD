@@ -15,7 +15,7 @@ cc_library(
         "//perimortem:headless",
         "//tetrodotoxin/language",
         "//ttx:concept",
-        "//ttx:model",
+        "//tetrodotoxin/source",
     ],
 )
 
@@ -31,7 +31,7 @@ cc_library(
         "//tetrodotoxin/app/language",
         "//tetrodotoxin/scene/language",
         "//ttx:concept",
-        "//ttx:model",
+        "//tetrodotoxin/source",
     ],
 )
 
@@ -51,7 +51,7 @@ cc_library(
         "//tetrodotoxin/shader/language",
         "//tetrodotoxin/language",
         "//ttx:concept",
-        "//ttx:model",
+        "//tetrodotoxin/source",
     ],
 )
 
@@ -74,8 +74,8 @@ cc_library(
         "//toolchain/llvm:sdk",
         "//toolchain/llvm:lld",
         "//ttx:concept",
-        "//ttx:lexical",
-        "//ttx:model",
+        "//tetrodotoxin/source:lexical",
+        "//tetrodotoxin/source",
     ],
 )
 
@@ -92,7 +92,7 @@ cc_library(
         "//tetrodotoxin/library:language",
         "//tetrodotoxin/scene/language",
         "//ttx:concept",
-        "//ttx:model",
+        "//tetrodotoxin/source",
     ],
 )
 
@@ -111,8 +111,8 @@ cc_library(
         "//tetrodotoxin/render/language",
         "//tetrodotoxin/shader/language",
         "//ttx:concept",
-        "//ttx:lexical",
-        "//ttx:model",
+        "//tetrodotoxin/source:lexical",
+        "//tetrodotoxin/source",
     ],
 )
 
@@ -131,6 +131,21 @@ cc_library(
         "//tetrodotoxin/render/language",
         "//tetrodotoxin/shader/language",
         "//ttx:concept",
-        "//ttx:model",
+        "//tetrodotoxin/source",
+    ],
+)
+
+# The extracted execution terminal consumes model capabilities alone. Legacy
+# language lowering remains separate until its remaining operations migrate.
+cc_library(
+    name = "execution",
+    srcs = ["llvm/execution.cpp"],
+    hdrs = ["llvm/execution.hpp"],
+    deps = [
+        "//tetrodotoxin/model",
+        "//toolchain/llvm:sdk",
+        "//ttx:concept",
+        "//ttx:semantic",
+        "//perimortem:headless",
     ],
 )

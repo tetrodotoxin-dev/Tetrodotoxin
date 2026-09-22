@@ -24,8 +24,7 @@ cc_library(
         "//tetrodotoxin/language",
         "//tetrodotoxin/source",
         "//ttx:concept",
-        "//ttx:lexical",
-        "//ttx:model",
+        "//tetrodotoxin/source:lexical",
         "//ttx:semantic",
     ],
 )
@@ -43,8 +42,8 @@ cc_library(
         "//perimortem:headless",
         "//tetrodotoxin/language",
         "//ttx:concept",
-        "//ttx:lexical",
-        "//ttx:model",
+        "//tetrodotoxin/source:lexical",
+        "//tetrodotoxin/source",
     ],
 )
 
@@ -57,8 +56,8 @@ cc_library(
         "//perimortem:headless",
         "//tetrodotoxin/language",
         "//ttx:concept",
-        "//ttx:lexical",
-        "//ttx:model",
+        "//tetrodotoxin/source:lexical",
+        "//tetrodotoxin/source",
         "//ttx:semantic",
     ],
 )
@@ -74,7 +73,7 @@ cc_library(
         "//perimortem:headless",
         "//tetrodotoxin/language",
         "//ttx:concept",
-        "//ttx:lexical",
-        "//ttx:model",
+        "//tetrodotoxin/source:lexical",
+        "//tetrodotoxin/source",
     ],
 )

@@ -4,9 +4,9 @@
 #pragma once
 
 #include "tetrodotoxin/library/language/model/type.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/model/documentations/comment.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/documentations/comment.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 namespace Tetrodotoxin::Library::Language::Types {
 
@@ -20,7 +20,7 @@ class Implementation : public Model::Type {
 
   constexpr Implementation(
       Perimortem::Core::View::Bytes name,
-      const Ttx::Model::Type& requirement)
+      const Tetrodotoxin::Source::Type& requirement)
       : name(name), requirement(requirement) {}
 
   TTX_NAME(name);
@@ -31,19 +31,19 @@ class Implementation : public Model::Type {
 
   auto accepts(const Model::Pack& source) const -> Bool override;
 
-  auto validate_layout(Ttx::Lexical::Cursor& cursor) const -> Bool override;
+  auto validate_layout(Tetrodotoxin::Source::Lexical::Cursor& cursor) const -> Bool override;
 
   auto resolve_concept(Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract& override;
+      -> const Tetrodotoxin::Source::Abstract& override;
 
-  constexpr auto get_requirement() const -> const Ttx::Model::Type& {
+  constexpr auto get_requirement() const -> const Tetrodotoxin::Source::Type& {
     return requirement.get();
   }
 
  private:
   Perimortem::Core::View::Bytes name;
-  Ttx::Concept::Reference<const Ttx::Model::Type> requirement;
-  static constexpr Ttx::Model::Documentations::Comment documentation{
+  Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type> requirement;
+  static constexpr Tetrodotoxin::Source::Documentations::Comment documentation{
     "Carries one accepted Object with its target Projection."_view,
   };
 };

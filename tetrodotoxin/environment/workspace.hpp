@@ -19,9 +19,9 @@
 #include "tetrodotoxin/package/language/monograph.hpp"
 #include "tetrodotoxin/package/resource.hpp"
 #include "tetrodotoxin/package/snapshots.hpp"
-#include "ttx/lexical/associations.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/token.hpp"
+#include "tetrodotoxin/source/lexical/associations.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/token.hpp"
 
 namespace Tetrodotoxin::Environment {
 
@@ -34,7 +34,7 @@ namespace Tetrodotoxin::Environment {
 // and finalization decide when the entire island is complete enough for a
 // Terminal producer. A later editor snapshot can release this Workspace as one
 // lifetime and recompute dependents against the replacement source identities.
-class Workspace : public Ttx::Concept::Abstract {
+class Workspace : public Tetrodotoxin::Source::Abstract {
  public:
   class PackageSource {
    public:
@@ -72,7 +72,7 @@ class Workspace : public Ttx::Concept::Abstract {
         Perimortem::Core::View::Bytes package_root,
         Perimortem::Core::View::Bytes diagnostic_path,
         Perimortem::Core::View::Bytes source_text,
-        Ttx::Lexical::Anchor anchor)
+        Tetrodotoxin::Source::Lexical::Anchor anchor)
         : package_root(package_root),
           diagnostic_path(diagnostic_path),
           source_text(source_text),
@@ -91,13 +91,13 @@ class Workspace : public Ttx::Concept::Abstract {
       return source_text;
     }
 
-    constexpr auto get_anchor() const -> Ttx::Lexical::Anchor { return anchor; }
+    constexpr auto get_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor { return anchor; }
 
    private:
     Perimortem::Core::View::Bytes package_root;
     Perimortem::Core::View::Bytes diagnostic_path;
     Perimortem::Core::View::Bytes source_text;
-    Ttx::Lexical::Anchor anchor;
+    Tetrodotoxin::Source::Lexical::Anchor anchor;
   };
 
   Workspace(
@@ -111,7 +111,7 @@ class Workspace : public Ttx::Concept::Abstract {
   // Monograph. The optional result still reports full semantic completion, so
   // build callers and editor callers can share one operation safely.
   auto interpret_source(
-      Ttx::Lexical::Errors& errors,
+      Tetrodotoxin::Source::Lexical::Errors& errors,
       Perimortem::Core::View::Bytes semantic_name,
       Perimortem::Core::View::Bytes diagnostic_path,
       Perimortem::Core::View::Bytes contents)
@@ -121,7 +121,7 @@ class Workspace : public Ttx::Concept::Abstract {
   // external Types relative to each importer and terminates at
   // exact Package facts already supplied by the terminal.
   auto import_package(
-      Ttx::Lexical::Errors& errors,
+      Tetrodotoxin::Source::Lexical::Errors& errors,
       Perimortem::Core::View::Bytes package_root,
       Perimortem::Core::View::Bytes root_semantic_name,
       Perimortem::Core::View::Bytes root_logical_route)
@@ -139,15 +139,15 @@ class Workspace : public Ttx::Concept::Abstract {
   // transaction. Tooling can borrow the strongest identities interpretation
   // established even when later completion reports an error.
   auto get_associations(const Language::Monograph& monograph) const
-      -> Perimortem::Core::Option<const Ttx::Lexical::Associations&>;
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Lexical::Associations&>;
 
   auto get_associations(Perimortem::Core::View::Bytes diagnostic_path) const
-      -> Perimortem::Core::Option<const Ttx::Lexical::Associations&>;
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Lexical::Associations&>;
 
   auto get_associations(
       Perimortem::Core::View::Bytes package_root,
       Perimortem::Core::View::Bytes logical_route) const
-      -> Perimortem::Core::Option<const Ttx::Lexical::Associations&>;
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Lexical::Associations&>;
 
   auto get_monograph(Perimortem::Core::View::Bytes diagnostic_path) const
       -> Perimortem::Core::Option<const Language::Monograph&>;
@@ -177,7 +177,7 @@ class Workspace : public Ttx::Concept::Abstract {
   // products, and rebuild the Workspace without duplicating source parsing.
   constexpr auto get_pending_package_imports() const
       -> Perimortem::Core::View::Vector<
-          Ttx::Concept::Reference<Language::Import>> {
+          Tetrodotoxin::Source::Reference<Language::Import>> {
     return pending_package_imports;
   }
 
@@ -185,14 +185,14 @@ class Workspace : public Ttx::Concept::Abstract {
   // borrow the same lexical facts that built its semantic graph. That shared
   // view saves another tokenization pass and keeps source coordinates aligned.
   auto get_tokens(Perimortem::Core::View::Bytes diagnostic_path) const
-      -> Perimortem::Core::View::Vector<Ttx::Lexical::Token>;
+      -> Perimortem::Core::View::Vector<Tetrodotoxin::Source::Lexical::Token>;
 
   auto get_tokens(
       Perimortem::Core::View::Bytes package_root,
       Perimortem::Core::View::Bytes logical_route) const
-      -> Perimortem::Core::View::Vector<Ttx::Lexical::Token>;
+      -> Perimortem::Core::View::Vector<Tetrodotoxin::Source::Lexical::Token>;
 
-  auto find_authored_location(const Ttx::Concept::Abstract& semantic) const
+  auto find_authored_location(const Tetrodotoxin::Source::Abstract& semantic) const
       -> Perimortem::Core::Option<AuthoredLocation>;
 
   // Tooling may project a selected locator back to the physical input that
@@ -202,15 +202,15 @@ class Workspace : public Ttx::Concept::Abstract {
       Perimortem::Core::View::Bytes package_root,
       Perimortem::Core::View::Bytes logical_route,
       Count offset,
-      const Ttx::Concept::Abstract& semantic) const
+      const Tetrodotoxin::Source::Abstract& semantic) const
       -> Perimortem::Core::Option<AuthoredLocation>;
 
   auto get_name() const -> Perimortem::Core::View::Bytes override;
-  auto get_documentation() const -> const Ttx::Concept::Documentation& override;
-  auto resolve() const -> const Ttx::Concept::Abstract& override;
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override;
+  auto resolve() const -> const Tetrodotoxin::Source::Abstract& override;
   auto resolve_concept(Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract& override;
-  auto visit_concepts(Ttx::Concept::Abstract::Visitor visitor) const
+      -> const Tetrodotoxin::Source::Abstract& override;
+  auto visit_concepts(Tetrodotoxin::Source::Abstract::Visitor visitor) const
       -> void override;
 
  private:
@@ -239,8 +239,8 @@ class Workspace : public Ttx::Concept::Abstract {
     Perimortem::Memory::Dynamic::Record<Perimortem::Memory::Allocator::Arena>
         transaction;
     Language::Monograph& monograph;
-    Perimortem::Core::View::Vector<Ttx::Lexical::Token> tokens;
-    const Ttx::Lexical::Associations& associations;
+    Perimortem::Core::View::Vector<Tetrodotoxin::Source::Lexical::Token> tokens;
+    const Tetrodotoxin::Source::Lexical::Associations& associations;
     Bool completed;
   };
 
@@ -264,10 +264,10 @@ class Workspace : public Ttx::Concept::Abstract {
       restored_transactions;
   Perimortem::Memory::Dynamic::Map<
       Perimortem::Core::View::Bytes,
-      Ttx::Concept::Reference<Language::Monograph>>
+      Tetrodotoxin::Source::Reference<Language::Monograph>>
       retained_monographs;
   Perimortem::Memory::Managed::Vector<ImportedPackage> packages;
-  Perimortem::Memory::Dynamic::Vector<Ttx::Concept::Reference<Language::Import>>
+  Perimortem::Memory::Dynamic::Vector<Tetrodotoxin::Source::Reference<Language::Import>>
       pending_package_imports;
 };
 

@@ -27,8 +27,8 @@ class Real : public Tetrodotoxin::Library::Language::Constant {
 
   auto bind_interface(Perimortem::System::Uuid requested) const
       -> Perimortem::Utility::Result<
-          Ttx::Semantic::Binding,
-          Ttx::Semantic::Binding::Failure> override {
+          Ttx::Semantic::Negotiation::Binding,
+          Ttx::Semantic::Negotiation::Binding::Failure> override {
     using Contract = Tetrodotoxin::Library::Language::Value;
     if (requested == Contract::contract_id) {
       return Contract::scalar(*this);
@@ -40,7 +40,7 @@ class Real : public Tetrodotoxin::Library::Language::Constant {
       Perimortem::Memory::Allocator::Arena& domain,
       const Tetrodotoxin::Library::Language::Model::Types::Real& type,
       Value value,
-      Ttx::Lexical::Anchor anchor) -> Real& {
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> Real& {
     return Constant::create_authored<Real>(
         domain, anchor,
         [&](auto source) -> Real { return Real(domain, type, value, source); });
@@ -81,12 +81,12 @@ class Real : public Tetrodotoxin::Library::Language::Constant {
                      ? ::True
                      : ::False;
         },
-        [](const Ttx::Concept::Abstract&) { return ::False; });
+        [](const Tetrodotoxin::Source::Abstract&) { return ::False; });
   }
 
-  constexpr auto fits(const Ttx::Model::Type& target) const -> Bool override {
-    const Ttx::Concept::Abstract& source_type = get_type().resolve();
-    const Ttx::Concept::Abstract& target_type = target.resolve();
+  constexpr auto fits(const Tetrodotoxin::Source::Type& target) const -> Bool override {
+    const Tetrodotoxin::Source::Abstract& source_type = get_type().resolve();
+    const Tetrodotoxin::Source::Abstract& target_type = target.resolve();
     return source_type
                .is<Tetrodotoxin::Library::Language::Model::Types::Real>() &&
            target_type
@@ -99,7 +99,7 @@ class Real : public Tetrodotoxin::Library::Language::Constant {
       Perimortem::Memory::Allocator::Arena& domain,
       const Tetrodotoxin::Library::Language::Model::Types::Real& type,
       Value value,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor)
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor)
       : Tetrodotoxin::Library::Language::Constant(anchor),
         type(type),
         value(value),

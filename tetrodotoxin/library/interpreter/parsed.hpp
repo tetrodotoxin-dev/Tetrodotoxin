@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "ttx/concept/reference.hpp"
+#include "tetrodotoxin/source/reference.hpp"
 
 namespace Tetrodotoxin::Library::Interpreter {
 
@@ -40,7 +40,7 @@ class Parsed {
   }
 
  private:
-  Ttx::Concept::Reference<semantic_type> semantic;
+  Tetrodotoxin::Source::Reference<semantic_type> semantic;
   ParseState state;
 };
 

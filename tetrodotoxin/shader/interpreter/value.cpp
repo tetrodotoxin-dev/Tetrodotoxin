@@ -11,27 +11,27 @@
 #include "tetrodotoxin/shader/language/binding.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 using namespace Tetrodotoxin::Shader;
 
 auto Interpreter::Value::matches(
     const Tetrodotoxin::Language::Definition& definition,
     const Cursor& cursor) -> Bool {
-  Code::Type qualifier = definition.get_qualifier().get_code().get_type();
+  Code::Type qualifier = definition.get_authored().get_qualifier().get_code().get_type();
   if (qualifier == Code::Type::Type || qualifier == Code::Type::Assign) {
     return True;
   }
   View::Bytes name =
-      definition.get_qualifier().caculate_text(cursor.get_source_text());
+      definition.get_authored().get_qualifier().caculate_text(cursor.get_source_text());
   return name == "push"_view || name == "resource"_view;
 }
 
 static auto qualifier_name(
     const Tetrodotoxin::Language::Definition& definition,
     Cursor& cursor) -> View::Bytes {
-  return definition.get_qualifier().caculate_text(cursor.get_source_text());
+  return definition.get_authored().get_qualifier().caculate_text(cursor.get_source_text());
 }
 
 static auto retain_value(
@@ -67,7 +67,7 @@ static auto parse_library_value(
   auto field = member->get_semantic().select<Library::Language::Field>();
   if (!field) {
     cursor.create_expression_error(
-        definition.get_anchor(),
+        definition.get_authored().get_anchor(),
         "Shader value definitions create one Library Field."_view);
     return False;
   }
@@ -93,15 +93,15 @@ static auto parse_shader_value(
     Cursor& cursor,
     Tetrodotoxin::Language::Definition& definition,
     View::Bytes qualifier) -> Bool {
-  if (definition.get_name_token().get_code() != Code::Type::Addressable) {
+  if (definition.get_authored().get_name().get_code() != Code::Type::Addressable) {
     cursor.create_token_error(
-        definition.get_name_token(),
+        definition.get_authored().get_name(),
         "Shader storage definitions use one addressable name."_view);
     return False;
   }
-  if (!definition.get_modifiers().is_empty()) {
+  if (!definition.get_authored().get_modifiers().is_empty()) {
     cursor.create_token_error(
-        definition.get_modifiers().get_data()[0],
+        definition.get_authored().get_modifiers().get_data()[0],
         "Shader resource and push definitions do not accept evaluation modifiers."_view);
     return False;
   }
@@ -135,7 +135,7 @@ static auto parse_shader_value(
   auto type = Library::Interpreter::TypeReference::parse(program, cursor);
   if (!type) {
     cursor.create_expression_error(
-        definition.get_anchor(),
+        definition.get_authored().get_anchor(),
         "Shader storage requires one complete Library Type reference."_view);
     return False;
   }
@@ -176,16 +176,13 @@ static auto parse_shader_value(
   auto& field = Library::Language::Field::create_authored(
       cursor.get_arena(), definition, Library::Language::Writability::Full,
       *type, initializer);
-  Bool completed = definition.complete(qualifier_token, closing);
-  if (!completed) {
-    cursor.create_expression_error(
-        definition.get_anchor(),
-        "Shader storage could not complete its shared Definition."_view);
-    return False;
-  }
+  auto& authored = definition.get_authored();
+  authored.set_anchor(Anchor::create(
+      qualifier_token,
+      Span(authored.get_anchor().get_span().get_start(), closing)));
   Bool retained = retain_value(
       program, cursor, definition, field, kind, access, runtime_type,
-      completed);
+      True);
   return attributes_valid && retained;
 }
 

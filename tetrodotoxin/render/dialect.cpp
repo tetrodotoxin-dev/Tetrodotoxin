@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/render/dialect.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "tetrodotoxin/render/archive/reader.hpp"
 #include "tetrodotoxin/render/archive/writer.hpp"
 #include "tetrodotoxin/render/interpreter/source.hpp"
@@ -10,13 +12,13 @@
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 auto Render::Dialect::interpret(
     Cursor& cursor,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     const Anchor&,
     Abstract& context) -> Option<Tetrodotoxin::Language::Monograph&> {
   auto& monograph = Render::Language::Monograph::create(

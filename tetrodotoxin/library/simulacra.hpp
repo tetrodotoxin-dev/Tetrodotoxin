@@ -9,10 +9,10 @@
 #include "tetrodotoxin/language/import.hpp"
 #include "tetrodotoxin/library/language/initialization.hpp"
 #include "tetrodotoxin/library/language/value.hpp"
-#include "ttx/model/addressable.hpp"
-#include "ttx/model/callable.hpp"
-#include "ttx/model/type.hpp"
-#include "ttx/semantic/bound.hpp"
+#include "tetrodotoxin/source/addressable.hpp"
+#include "tetrodotoxin/source/callable.hpp"
+#include "tetrodotoxin/source/type.hpp"
+#include "tetrodotoxin/source/bound.hpp"
 
 namespace Tetrodotoxin::Library {
 
@@ -38,12 +38,12 @@ class Simulacra {
     0xb75c623dbd37ec5a,
   };
 
-  using Failure = Ttx::Semantic::Binding::Failure;
+  using Failure = Ttx::Semantic::Negotiation::Binding::Failure;
 
-  static auto project(Ttx::Concept::Abstract::Handle source)
+  static auto project(Ttx::Concept::Abstract source)
       -> Perimortem::Utility::Result<Simulacra, Failure>;
 
-  auto get_source() const -> Ttx::Concept::Abstract::Handle { return source; }
+  auto get_source() const -> Ttx::Concept::Abstract { return source; }
 
   auto get_import() const
       -> Perimortem::Core::Option<Tetrodotoxin::Language::Import::Handle> {
@@ -55,12 +55,12 @@ class Simulacra {
     return definition;
   }
 
-  auto get_type() const -> Perimortem::Core::Option<Ttx::Model::Type::Handle> {
+  auto get_type() const -> Perimortem::Core::Option<Tetrodotoxin::Source::Type::Handle> {
     return type;
   }
 
   auto get_callable() const
-      -> Perimortem::Core::Option<Ttx::Model::Callable::Handle> {
+      -> Perimortem::Core::Option<Tetrodotoxin::Source::Callable::Handle> {
     return callable;
   }
 
@@ -69,7 +69,7 @@ class Simulacra {
   }
 
   auto get_addressable() const
-      -> Perimortem::Core::Option<Ttx::Model::Addressable::Handle> {
+      -> Perimortem::Core::Option<Tetrodotoxin::Source::Addressable::Handle> {
     return addressable;
   }
 
@@ -82,29 +82,29 @@ class Simulacra {
   // that policy and supplies the root it is gathering, rather than knowing
   // the classes used by the Dialect's interpreter.
   struct Operations {
-    auto (*project)(const void*, Ttx::Concept::Abstract::Handle)
+    auto (*project)(const void*, Ttx::Concept::Abstract)
         -> Perimortem::Utility::Result<Simulacra, Failure>;
   };
 
-  class Handle : public Ttx::Semantic::Bound<Operations> {
+  class Handle : public Tetrodotoxin::Source::Bound<Operations> {
    public:
     using Bound::Bound;
 
-    auto project(Ttx::Concept::Abstract::Handle candidate) const
+    auto project(Ttx::Concept::Abstract candidate) const
         -> Perimortem::Utility::Result<Simulacra, Failure>;
   };
 
  private:
-  explicit Simulacra(Ttx::Concept::Abstract::Handle source) : source(source) {}
+  explicit Simulacra(Ttx::Concept::Abstract source) : source(source) {}
 
-  Ttx::Concept::Abstract::Handle source;
+  Ttx::Concept::Abstract source;
   Perimortem::Core::Option<Tetrodotoxin::Language::Import::Handle> dependency;
   Perimortem::Core::Option<Tetrodotoxin::Language::Definition::Handle>
       definition;
-  Perimortem::Core::Option<Ttx::Model::Type::Handle> type;
-  Perimortem::Core::Option<Ttx::Model::Callable::Handle> callable;
+  Perimortem::Core::Option<Tetrodotoxin::Source::Type::Handle> type;
+  Perimortem::Core::Option<Tetrodotoxin::Source::Callable::Handle> callable;
   Perimortem::Core::Option<Language::Value::Handle> value;
-  Perimortem::Core::Option<Ttx::Model::Addressable::Handle> addressable;
+  Perimortem::Core::Option<Tetrodotoxin::Source::Addressable::Handle> addressable;
   Perimortem::Core::Option<Language::Initialization::Handle> initialization;
 };
 

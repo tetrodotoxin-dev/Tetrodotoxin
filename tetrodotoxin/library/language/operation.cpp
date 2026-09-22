@@ -4,20 +4,20 @@
 #include "tetrodotoxin/library/language/operation.hpp"
 
 #include "tetrodotoxin/library/language/diagnostics.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
 using namespace Tetrodotoxin::Library;
 
 static auto retain_inputs(
     Memory::Allocator::Arena& domain,
-    Core::View::Vector<Ttx::Model::PackReference<Language::Model::Pack>>
+    Core::View::Vector<Tetrodotoxin::Source::PackReference<Language::Model::Pack>>
         expressions)
     -> Memory::Managed::Vector<
-        Ttx::Model::PackReference<Language::Model::Pack>> {
+        Tetrodotoxin::Source::PackReference<Language::Model::Pack>> {
   // Operation owns the mutable traversal inventory. Packs borrow the
   // completed view below. No operand edge is copied into another graph.
-  Memory::Managed::Vector<Ttx::Model::PackReference<Language::Model::Pack>>
+  Memory::Managed::Vector<Tetrodotoxin::Source::PackReference<Language::Model::Pack>>
       retained(domain);
   retained.reset(expressions.get_size());
   for (const auto& expression : expressions) {
@@ -28,24 +28,24 @@ static auto retain_inputs(
 
 Language::Operation::Operation(
     Memory::Allocator::Arena& domain,
-    Core::View::Vector<Ttx::Model::PackReference<Model::Pack>> expressions,
-    Core::Option<Ttx::Lexical::Anchor> anchor)
+    Core::View::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>> expressions,
+    Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor)
     : Expression(anchor),
       domain(domain),
       inputs(retain_inputs(domain, expressions)) {}
 
-auto Language::Operation::get_type() const -> const Ttx::Concept::Abstract& {
+auto Language::Operation::get_type() const -> const Tetrodotoxin::Source::Abstract& {
   return result_type.visit(
-      []() -> const Ttx::Concept::Abstract& {
-        return Ttx::Concept::Unknown::get_unknown();
+      []() -> const Tetrodotoxin::Source::Abstract& {
+        return Tetrodotoxin::Source::Unknown::get_unknown();
       },
-      [](const Ttx::Concept::Reference<const Language::Model::Type>& selected)
-          -> const Ttx::Concept::Abstract& { return selected.get(); });
+      [](const Tetrodotoxin::Source::Reference<const Language::Model::Type>& selected)
+          -> const Tetrodotoxin::Source::Abstract& { return selected.get(); });
 }
 
 auto Language::Operation::link(
-    Ttx::Lexical::Cursor& cursor,
-    const Ttx::Concept::Abstract& lexical_context,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
+    const Tetrodotoxin::Source::Abstract& lexical_context,
     Core::Option<const Abstract&> access_scope) -> Bool {
   Bool failed = False;
   auto source_anchor = get_anchor();
@@ -97,15 +97,15 @@ auto Language::Operation::link(
     return False;
   }
 
-  result_type = Ttx::Concept::Reference<const Language::Model::Type>(*selected);
+  result_type = Tetrodotoxin::Source::Reference<const Language::Model::Type>(*selected);
   return True;
 }
 
-auto Language::Operation::finalize(Ttx::Lexical::Cursor& cursor) -> void {
+auto Language::Operation::finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> void {
   // Operands are the canonical authored evaluation inventory. Finalize each
   // real producer in source order before asking this operation to cache its
   // own optional folded result.
-  for (Ttx::Model::PackReference<Model::Pack> input : inputs.get_view()) {
+  for (Tetrodotoxin::Source::PackReference<Model::Pack> input : inputs.get_view()) {
     input.get().finalize(cursor);
   }
   Expression::finalize(cursor);

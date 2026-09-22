@@ -17,11 +17,11 @@
 #include "perimortem/system/file.hpp"
 
 #include "tetrodotoxin/language/product.hpp"
-#include "ttx/model/context.hpp"
-#include "ttx/model/layouts/fluid.hpp"
+#include "tetrodotoxin/source/context.hpp"
+#include "tetrodotoxin/source/layouts/fluid.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Validation;
 
 static Harness PufferPublisher = {
@@ -37,8 +37,8 @@ static auto publish(
     Memory::Allocator::Arena& arena,
     Core::View::Bytes root,
     Core::View::Vector<Reference<const Abstract>> products) -> Bool {
-  Ttx::Model::Layouts::Fluid layout(products);
-  Ttx::Model::Context context(arena);
+  Tetrodotoxin::Source::Layouts::Fluid layout(products);
+  Tetrodotoxin::Source::Context context(arena);
   return Puffer::Publisher(root).publish(context.pack(layout));
 }
 

@@ -8,7 +8,7 @@
 #include "tetrodotoxin/library/interpreter/type_reference.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 
 auto Interpreter::Execution::Local::parse(

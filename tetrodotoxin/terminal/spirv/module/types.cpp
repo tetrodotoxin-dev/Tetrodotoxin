@@ -16,7 +16,7 @@
 #include "tetrodotoxin/terminal/spirv/layout.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin;
 using namespace Tetrodotoxin::Terminal::Spirv;
 
@@ -25,7 +25,7 @@ Module::Types::Types(Ids& ids)
 
 static auto sample_result(const Library::Language::Model::Type& type)
     -> Core::Option<const Library::Language::Model::Type&> {
-  for (const Ttx::Concept::Reference<Ttx::Concept::Abstract>& candidate :
+  for (const Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>& candidate :
        type.get_callables()) {
     auto function = candidate.get().select<Library::Language::Function>();
     if (!function) {
@@ -64,7 +64,7 @@ auto Module::Types::find_resource(const Library::Language::Model::Type& type)
 
 auto Module::Types::select(const Abstract& semantic)
     -> Core::Option<const Library::Language::Model::Type&> {
-  auto addressable = semantic.select<Ttx::Model::Addressable>();
+  auto addressable = semantic.select<Tetrodotoxin::Source::Addressable>();
   const Abstract& answer = addressable ? addressable->get_type() : semantic;
   auto direct = answer.select<Library::Language::Model::Type>();
   return direct ? direct
@@ -115,7 +115,7 @@ auto Module::Types::collect(const Library::Language::Model::Type& type)
   auto structure = type.select<Library::Language::Types::Structure>();
   BAIL_IF(!structure || structure->get_layout().is_empty());
   visiting.insert(&type);
-  const Ttx::Concept::Layout& layout = structure->get_layout();
+  const Tetrodotoxin::Source::Layout& layout = structure->get_layout();
   for (Count index = 0; index < layout.get_size(); index++) {
     auto semantic = layout.get_abstract(index);
     auto member = semantic
@@ -251,7 +251,7 @@ auto Module::Types::emit(Assembler::SpirV& assembler) const -> Bool {
     auto vector_components =
         Terminal::Spirv::Layout::get_vector_components(type);
     if (vector_components) {
-      const Ttx::Concept::Layout& layout = structure->get_layout();
+      const Tetrodotoxin::Source::Layout& layout = structure->get_layout();
       auto component_semantic = layout.get_abstract(0);
       auto component =
           component_semantic
@@ -280,7 +280,7 @@ auto Module::Types::emit(Assembler::SpirV& assembler) const -> Bool {
       continue;
     }
     Memory::Dynamic::Vector<U32> members;
-    const Ttx::Concept::Layout& layout = structure->get_layout();
+    const Tetrodotoxin::Source::Layout& layout = structure->get_layout();
     for (Count index = 0; index < layout.get_size(); index++) {
       auto semantic = layout.get_abstract(index);
       auto member = semantic

@@ -7,16 +7,16 @@
 
 #include "tetrodotoxin/language/definition.hpp"
 #include "tetrodotoxin/language/type_reference.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/model/addressable.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/addressable.hpp"
 
 namespace Tetrodotoxin::Render::Language {
 
 // Binding names one value required by a Render contract. It carries interface
 // meaning only. Executable initialization and mutation belong to the language
 // that supplies the value.
-class Binding : public Ttx::Model::Addressable {
+class Binding : public Tetrodotoxin::Source::Addressable {
  public:
   enum class Kind : U8 {
     Value,
@@ -33,7 +33,7 @@ class Binding : public Ttx::Model::Addressable {
     ReadWrite,
   };
 
-  TTX_CONTRACT(Binding, Ttx::Model::Addressable);
+  TTX_CONTRACT(Binding, Tetrodotoxin::Source::Addressable);
 
   static auto create_authored(
       Perimortem::Memory::Allocator::Arena& domain,
@@ -45,27 +45,27 @@ class Binding : public Ttx::Model::Addressable {
   static auto create_slot(
       Perimortem::Memory::Allocator::Arena& domain,
       Perimortem::Core::View::Bytes name,
-      const Ttx::Model::Type& type) -> Binding&;
+      const Tetrodotoxin::Source::Type& type) -> Binding&;
 
   static auto create_restored_slot(
       Perimortem::Memory::Allocator::Arena& domain,
       Perimortem::Core::View::Bytes name,
       Tetrodotoxin::Language::TypeReference type) -> Binding&;
 
-  auto link(Ttx::Lexical::Cursor& cursor, const Ttx::Concept::Abstract& context)
+  auto link(Tetrodotoxin::Source::Lexical::Cursor& cursor, const Tetrodotoxin::Source::Abstract& context)
       -> Bool;
 
-  auto link_restored(const Ttx::Concept::Abstract& context) -> Bool;
+  auto link_restored(const Tetrodotoxin::Source::Abstract& context) -> Bool;
 
   TTX_NAME(name);
 
-  auto get_documentation() const -> const Ttx::Concept::Documentation& override;
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override;
 
-  auto get_type() const -> const Ttx::Concept::Abstract& override;
+  auto get_type() const -> const Tetrodotoxin::Source::Abstract& override;
 
   constexpr auto is_linked() const -> Bool { return Bool(type); }
 
-  auto resolve() const -> const Ttx::Concept::Abstract& override;
+  auto resolve() const -> const Tetrodotoxin::Source::Abstract& override;
 
   constexpr auto get_kind() const -> Kind { return kind; }
 
@@ -103,7 +103,7 @@ class Binding : public Ttx::Model::Addressable {
       Access access,
       Perimortem::Core::Option<Tetrodotoxin::Language::TypeReference>
           type_reference,
-      Perimortem::Core::Option<Ttx::Concept::Reference<const Ttx::Model::Type>>
+      Perimortem::Core::Option<Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type>>
           type)
       : name(name),
         definition(definition),
@@ -118,7 +118,7 @@ class Binding : public Ttx::Model::Addressable {
   Access access;
   Perimortem::Core::Option<Tetrodotoxin::Language::TypeReference>
       type_reference;
-  Perimortem::Core::Option<Ttx::Concept::Reference<const Ttx::Model::Type>>
+  Perimortem::Core::Option<Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type>>
       type;
 };
 

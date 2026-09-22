@@ -14,7 +14,7 @@ using namespace Tetrodotoxin::Terminal;
 
 Tetrodotoxin::Terminal::Abi::Representation::Name::Name(
     Memory::Allocator::Arena& arena,
-    const Ttx::Concept::Abstract& semantic,
+    const Tetrodotoxin::Source::Abstract& semantic,
     Kind kind) {
   Memory::Managed::Bytes output(arena);
   switch (kind) {

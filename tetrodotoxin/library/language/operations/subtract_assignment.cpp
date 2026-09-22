@@ -6,14 +6,14 @@
 #include "tetrodotoxin/library/language/model/types/real.hpp"
 #include "tetrodotoxin/library/language/model/types/signed.hpp"
 #include "tetrodotoxin/library/language/model/types/unsigned.hpp"
-#include "ttx/model/layouts/fluid.hpp"
+#include "tetrodotoxin/source/layouts/fluid.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 
-static constexpr Ttx::Model::Layouts::Fluid assignment_layout;
+static constexpr Tetrodotoxin::Source::Layouts::Fluid assignment_layout;
 
 auto Language::Operations::SubtractAssignment::create_authored(
     Perimortem::Memory::Allocator::Arena& domain,

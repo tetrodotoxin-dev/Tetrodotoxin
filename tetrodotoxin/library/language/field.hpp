@@ -14,9 +14,9 @@
 #include "tetrodotoxin/library/language/type_reference.hpp"
 #include "tetrodotoxin/library/language/writability.hpp"
 #include "tetrodotoxin/source/declaration.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Language {
 
@@ -34,7 +34,7 @@ class Field : public Model::Memory {
       Writability writability,
       Perimortem::Core::Option<TypeReference> type_reference,
       Perimortem::Core::Option<Model::Pack&> initializer,
-      Perimortem::Core::Option<Ttx::Concept::Reference<const Model::Type>>
+      Perimortem::Core::Option<Tetrodotoxin::Source::Reference<const Model::Type>>
           type = {},
       Bool generated = False)
       : definition(definition),
@@ -51,17 +51,17 @@ class Field : public Model::Memory {
 
   auto bind_interface(Perimortem::System::Uuid requested) const
       -> Perimortem::Utility::Result<
-          Ttx::Semantic::Binding,
-          Ttx::Semantic::Binding::Failure> override {
+          Ttx::Semantic::Negotiation::Binding,
+          Ttx::Semantic::Negotiation::Binding::Failure> override {
     if (requested == Tetrodotoxin::Source::Declaration::contract_id) {
       return Tetrodotoxin::Source::Declaration::provide(*this);
     }
     if (requested == Tetrodotoxin::Language::Definition::contract_id) {
       return Tetrodotoxin::Language::Definition::provide(*this);
     }
-    if (requested == Ttx::Model::Addressable::contract_id) {
-      static const Ttx::Model::Addressable::Operations operations = {
-        [](const void* source) -> Ttx::Concept::Abstract::Handle {
+    if (requested == Tetrodotoxin::Source::Addressable::contract_id) {
+      static const Tetrodotoxin::Source::Addressable::Operations operations = {
+        [](const void* source) -> Ttx::Concept::Abstract {
           const auto& field = *static_cast<const Field*>(source);
           if (field.type_reference) {
             return field.type_reference->get_interface();
@@ -69,7 +69,7 @@ class Field : public Model::Memory {
           return field.get_type().get_interface();
         },
       };
-      return Ttx::Semantic::Binding::provide<Ttx::Model::Addressable>(
+      return Ttx::Semantic::Negotiation::Binding::provide<Tetrodotoxin::Source::Addressable>(
           this, operations);
     }
     return Model::Memory::bind_interface(requested);
@@ -112,16 +112,16 @@ class Field : public Model::Memory {
   // one real initializer edge without reparsing or copying the expression.
   auto retain_generated_initializer(const Field& requirement) -> Bool;
 
-  auto link_declaration_type(Ttx::Lexical::Cursor& cursor) -> Bool;
+  auto link_declaration_type(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool;
 
-  auto link_inferred_declaration_type(Ttx::Lexical::Cursor& cursor) -> Bool;
+  auto link_inferred_declaration_type(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool;
 
   Field(const Field&) = delete;
   Field(Field&&) = delete;
   auto operator=(const Field&) -> Field& = delete;
   auto operator=(Field&&) -> Field& = delete;
 
-  auto link_declaration_initializer(Ttx::Lexical::Cursor& cursor) -> Bool;
+  auto link_declaration_initializer(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool;
 
   auto link_restored_declaration_type() -> Bool;
 
@@ -129,12 +129,12 @@ class Field : public Model::Memory {
 
   // Const completion is a required link barrier. The initializer must reduce
   // to one exact constant Pack before any body can consume this Field.
-  auto link_declaration_constant(Ttx::Lexical::Cursor& cursor) const -> Bool;
+  auto link_declaration_constant(Tetrodotoxin::Source::Lexical::Cursor& cursor) const -> Bool;
 
   // Finalization visits the real initializer Pack after linking has frozen
   // its output Layout. Field remains the declaration owner. No Expression
   // side inventory is required merely to cache constant producers.
-  auto finalize_declaration(Ttx::Lexical::Cursor& cursor) -> Bool;
+  auto finalize_declaration(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool;
 
   constexpr auto contributes_to_instance_layout() const -> Bool override {
     return writability == Writability::Internal;
@@ -164,21 +164,26 @@ class Field : public Model::Memory {
     return definition;
   }
 
-  constexpr auto get_anchor() const -> Ttx::Lexical::Anchor {
-    return definition.get_anchor();
+  constexpr auto get_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor {
+    return definition.get_authored().get_anchor();
   }
 
   constexpr auto get_declaration_anchor() const
-      -> Perimortem::Core::Option<Ttx::Lexical::Anchor> {
-    return definition.get_declaration_anchor();
+      -> Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> {
+    const auto anchor = definition.get_authored().get_anchor();
+    if (!anchor.get_span()) {
+      return {};
+    }
+
+    return anchor;
   }
 
   auto resolve_concept(Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract& override;
+      -> const Tetrodotoxin::Source::Abstract& override;
 
-  auto resolve() const -> const Ttx::Concept::Abstract& override;
+  auto resolve() const -> const Tetrodotoxin::Source::Abstract& override;
 
-  auto get_type() const -> const Ttx::Concept::Abstract& override;
+  auto get_type() const -> const Tetrodotoxin::Source::Abstract& override;
 
   auto get_type_reference() const
       -> Perimortem::Core::Option<const TypeReference&> {
@@ -193,11 +198,11 @@ class Field : public Model::Memory {
   constexpr auto get_writability() const -> Writability { return writability; }
 
   auto get_type_anchor() const
-      -> Perimortem::Core::Option<Ttx::Lexical::Anchor> {
+      -> Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> {
     return type_reference.visit(
-        []() -> Perimortem::Core::Option<Ttx::Lexical::Anchor> { return {}; },
+        []() -> Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> { return {}; },
         [](const TypeReference& selected)
-            -> Perimortem::Core::Option<Ttx::Lexical::Anchor> {
+            -> Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> {
           return selected.get_anchor();
         });
   }
@@ -227,7 +232,7 @@ class Field : public Model::Memory {
 
   auto complete_source(
       Tetrodotoxin::Source::Declaration::Phase phase,
-      Ttx::Lexical::Cursor* cursor)
+      Tetrodotoxin::Source::Lexical::Cursor* cursor)
       -> Tetrodotoxin::Source::Declaration::Completion;
 
   enum class ConstantState : U8 {
@@ -239,16 +244,16 @@ class Field : public Model::Memory {
 
   auto cache_constant() const -> Bool;
 
-  auto validate_publication(Ttx::Lexical::Cursor& cursor) const -> Bool;
+  auto validate_publication(Tetrodotoxin::Source::Lexical::Cursor& cursor) const -> Bool;
 
   Tetrodotoxin::Language::Definition& definition;
   Perimortem::Memory::Allocator::Arena& domain;
   Writability writability;
   Perimortem::Core::Option<TypeReference> type_reference;
   Perimortem::Core::Option<Model::Pack&> initializer;
-  Perimortem::Core::Option<Ttx::Concept::Reference<const Model::Type>> type;
+  Perimortem::Core::Option<Tetrodotoxin::Source::Reference<const Model::Type>> type;
   Bool generated;
-  mutable Perimortem::Core::Option<Ttx::Model::PackReference<Model::Pack>>
+  mutable Perimortem::Core::Option<Tetrodotoxin::Source::PackReference<Model::Pack>>
       constant;
   mutable ConstantState constant_state = ConstantState::Unresolved;
   Bool initializer_linked;

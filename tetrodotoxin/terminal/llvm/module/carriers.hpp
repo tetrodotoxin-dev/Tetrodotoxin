@@ -13,11 +13,11 @@
 #include "tetrodotoxin/library/language/types/implementation.hpp"
 #include "tetrodotoxin/terminal/abi/representation/type.hpp"
 #include "tetrodotoxin/terminal/llvm/module/emission.hpp"
-#include "ttx/concept/layout.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/model/addressable.hpp"
-#include "ttx/model/pack.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/layout.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/addressable.hpp"
+#include "tetrodotoxin/source/pack.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 namespace Tetrodotoxin::Terminal::Llvm::Module {
 
@@ -31,82 +31,82 @@ class Carriers {
   // concrete declaration that contributed it.
   using Kind = Tetrodotoxin::Terminal::Abi::Representation::Type::Kind;
 
-  auto reserve(Emission& program, const Ttx::Model::Type& type, Kind kind) const
+  auto reserve(Emission& program, const Tetrodotoxin::Source::Type& type, Kind kind) const
       -> Perimortem::Core::Option<Bool>;
 
-  auto begin_completion(Emission& program, const Ttx::Model::Type& type) const
+  auto begin_completion(Emission& program, const Tetrodotoxin::Source::Type& type) const
       -> Perimortem::Core::Option<Bool>;
 
-  auto complete(Emission& program, const Ttx::Model::Type& type, Kind kind)
+  auto complete(Emission& program, const Tetrodotoxin::Source::Type& type, Kind kind)
       const -> Bool;
 
-  auto get_type(const Ttx::Model::Type& type) const
+  auto get_type(const Tetrodotoxin::Source::Type& type) const
       -> Perimortem::Core::Option<LLVMTypeRef>;
 
-  auto get_payload(const Ttx::Model::Type& type) const
+  auto get_payload(const Tetrodotoxin::Source::Type& type) const
       -> Perimortem::Core::Option<LLVMTypeRef>;
 
-  auto get_kind(const Ttx::Model::Type& type) const
+  auto get_kind(const Tetrodotoxin::Source::Type& type) const
       -> Perimortem::Core::Option<Kind>;
 
-  auto get_width(const Ttx::Model::Type& type) const
+  auto get_width(const Tetrodotoxin::Source::Type& type) const
       -> Perimortem::Core::Option<Count>;
 
-  auto get_element(const Ttx::Model::Type& type) const
-      -> Perimortem::Core::Option<const Ttx::Model::Type&>;
+  auto get_element(const Tetrodotoxin::Source::Type& type) const
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Type&>;
 
-  auto get_flag(const Ttx::Model::Type& type) const
-      -> Perimortem::Core::Option<const Ttx::Model::Type&>;
+  auto get_flag(const Tetrodotoxin::Source::Type& type) const
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Type&>;
 
-  auto get_error(const Ttx::Model::Type& type) const
-      -> Perimortem::Core::Option<const Ttx::Model::Type&>;
+  auto get_error(const Tetrodotoxin::Source::Type& type) const
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Type&>;
 
-  auto get_extent(const Ttx::Model::Type& type) const
+  auto get_extent(const Tetrodotoxin::Source::Type& type) const
       -> Perimortem::Core::Option<Count>;
 
-  auto get_fields(const Ttx::Model::Type& type) const
-      -> Perimortem::Core::Option<const Ttx::Concept::Layout&>;
+  auto get_fields(const Tetrodotoxin::Source::Type& type) const
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Layout&>;
 
-  auto get_field_index(const Ttx::Model::Addressable& field) const
+  auto get_field_index(const Tetrodotoxin::Source::Addressable& field) const
       -> Perimortem::Core::Option<Count>;
 
-  auto get_field_host(const Ttx::Model::Addressable& field) const
-      -> Perimortem::Core::Option<const Ttx::Model::Type&>;
+  auto get_field_host(const Tetrodotoxin::Source::Addressable& field) const
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Type&>;
 
-  auto is_real(const Ttx::Model::Type& type) const -> Bool;
+  auto is_real(const Tetrodotoxin::Source::Type& type) const -> Bool;
 
-  auto is_signed(const Ttx::Model::Type& type) const -> Bool;
+  auto is_signed(const Tetrodotoxin::Source::Type& type) const -> Bool;
 
-  auto is_flag(const Ttx::Model::Type& type) const -> Bool;
+  auto is_flag(const Tetrodotoxin::Source::Type& type) const -> Bool;
 
-  auto is_object(const Ttx::Model::Type& type) const -> Bool;
+  auto is_object(const Tetrodotoxin::Source::Type& type) const -> Bool;
 
-  auto zero(Emission& program, const Ttx::Model::Type& type) const
+  auto zero(Emission& program, const Tetrodotoxin::Source::Type& type) const
       -> Perimortem::Core::Option<LLVMValueRef>;
 
-  auto owns_resources(const Ttx::Model::Type& type) const -> Bool;
+  auto owns_resources(const Tetrodotoxin::Source::Type& type) const -> Bool;
 
-  auto retain(Emission& body, const Ttx::Model::Type& type, LLVMValueRef value)
+  auto retain(Emission& body, const Tetrodotoxin::Source::Type& type, LLVMValueRef value)
       const -> Bool;
 
-  auto release(Emission& body, const Ttx::Model::Type& type, LLVMValueRef value)
+  auto release(Emission& body, const Tetrodotoxin::Source::Type& type, LLVMValueRef value)
       const -> Bool;
 
   auto select_result(
       Emission& body,
-      const Ttx::Model::Type& type,
+      const Tetrodotoxin::Source::Type& type,
       LLVMValueRef value,
       Bool value_selected) const -> Perimortem::Core::Option<LLVMValueRef>;
 
   auto assemble(
       Emission& body,
-      const Ttx::Model::Type& type,
+      const Tetrodotoxin::Source::Type& type,
       Perimortem::Core::View::Vector<LLVMValueRef> elements) const
       -> Perimortem::Core::Option<LLVMValueRef>;
 
   auto fit_and_assemble(
       Emission& body,
-      const Ttx::Model::Type& type,
+      const Tetrodotoxin::Source::Type& type,
       const Tetrodotoxin::Library::Language::Model::Pack& source,
       Perimortem::Core::View::Vector<LLVMValueRef> elements) const
       -> Perimortem::Core::Option<LLVMValueRef>;
@@ -114,18 +114,18 @@ class Carriers {
   auto fit(
       Emission& body,
       const Tetrodotoxin::Library::Language::Model::Pack& source,
-      const Ttx::Concept::Layout& target,
+      const Tetrodotoxin::Source::Layout& target,
       Perimortem::Core::View::Vector<LLVMValueRef> values) const
       -> Perimortem::Core::Option<
           Perimortem::Memory::Dynamic::Vector<LLVMValueRef>>;
 
   auto construct(
       Emission& body,
-      const Ttx::Model::Type& type,
+      const Tetrodotoxin::Source::Type& type,
       Perimortem::Core::View::Vector<LLVMValueRef> values) const
       -> Perimortem::Core::Option<LLVMValueRef>;
 
-  auto get_object_descriptor(Emission& program, const Ttx::Model::Type& type)
+  auto get_object_descriptor(Emission& program, const Tetrodotoxin::Source::Type& type)
       const -> Perimortem::Core::Option<LLVMValueRef>;
 
  private:
@@ -158,69 +158,69 @@ class Carriers {
     Perimortem::Core::Option<LLVMTypeRef> payload;
     Perimortem::Core::Option<LLVMValueRef> finalizer;
     Perimortem::Core::Option<LLVMValueRef> descriptor;
-    Perimortem::Core::Option<const Ttx::Model::Type&> element;
-    Perimortem::Core::Option<const Ttx::Model::Type&> error;
-    Perimortem::Core::Option<const Ttx::Model::Type&> flag;
-    Perimortem::Core::Option<const Ttx::Concept::Layout&> fields;
+    Perimortem::Core::Option<const Tetrodotoxin::Source::Type&> element;
+    Perimortem::Core::Option<const Tetrodotoxin::Source::Type&> error;
+    Perimortem::Core::Option<const Tetrodotoxin::Source::Type&> flag;
+    Perimortem::Core::Option<const Tetrodotoxin::Source::Layout&> fields;
     Count extent = 0;
     U8 properties = 0;
     Count width = 0;
   };
 
-  auto publish(Emission& program, const Ttx::Model::Type& type, Carrier carrier)
+  auto publish(Emission& program, const Tetrodotoxin::Source::Type& type, Carrier carrier)
       const -> Perimortem::Core::Option<Bool>;
 
   auto select_completion(
       Emission& program,
-      const Ttx::Model::Type& type,
+      const Tetrodotoxin::Source::Type& type,
       Kind kind) const -> Perimortem::Core::Option<Carrier&>;
 
   auto complete_contiguous(
       Emission& program,
-      const Ttx::Model::Type& type,
-      const Ttx::Model::Type& element,
+      const Tetrodotoxin::Source::Type& type,
+      const Tetrodotoxin::Source::Type& element,
       Kind kind) const -> Bool;
 
   auto get_implementation_projection(
       Emission& program,
-      const Ttx::Model::Type& candidate) const
+      const Tetrodotoxin::Source::Type& candidate) const
       -> Perimortem::Core::Option<LLVMValueRef>;
 
   auto complete_aggregate(
       Emission& program,
-      const Ttx::Model::Type& type,
-      const Ttx::Concept::Layout& fields,
+      const Tetrodotoxin::Source::Type& type,
+      const Tetrodotoxin::Source::Layout& fields,
       Kind kind) const -> Bool;
 
   auto fit_values(
       Emission& body,
       const Tetrodotoxin::Library::Language::Model::Pack& source,
-      const Ttx::Concept::Layout& target,
+      const Tetrodotoxin::Source::Layout& target,
       Perimortem::Core::View::Vector<LLVMValueRef> values) const
       -> Perimortem::Core::Option<
           Perimortem::Memory::Dynamic::Vector<LLVMValueRef>>;
 
   auto assemble_result(
       Emission& body,
-      const Ttx::Model::Type& type,
-      const Ttx::Model::Type& alternative,
+      const Tetrodotoxin::Source::Type& type,
+      const Tetrodotoxin::Source::Type& alternative,
       Bool value_selected,
       Perimortem::Core::View::Vector<LLVMValueRef> elements) const
       -> Perimortem::Core::Option<LLVMValueRef>;
 
   auto owns_resources(
-      const Ttx::Model::Type& type,
+      const Tetrodotoxin::Source::Type& type,
       Perimortem::Memory::Dynamic::Vector<
-          Ttx::Concept::Reference<const Ttx::Model::Type>>& active) const
+          Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type>>& active) const
       -> Bool;
 
-  mutable Perimortem::Memory::Dynamic::Map<const Ttx::Model::Type*, Carrier>
+  mutable Perimortem::Memory::Dynamic::Map<const Tetrodotoxin::Source::Type*, Carrier>
       carriers;
   mutable Perimortem::Memory::Dynamic::
-      Map<const Ttx::Model::Addressable*, Count>
+      Map<const Tetrodotoxin::Source::Addressable*, Count>
           field_indices;
   mutable Perimortem::Memory::Dynamic::
-      Map<const Ttx::Model::Addressable*, const Ttx::Model::Type*>
+      Map<const Tetrodotoxin::Source::Addressable*, const Tetrodotoxin::Source::Type*>
           field_hosts;
 };
 

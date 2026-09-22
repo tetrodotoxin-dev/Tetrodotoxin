@@ -14,7 +14,7 @@
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 
 // It's easy to mistake Puffer as a "compiler driver", but really it's a
 // "toolchain driver". This actually lets Puffer be sneakily simple by design
@@ -79,7 +79,7 @@ S32 main(S32 argc, char** argv) {
   }
 
   // Run the toolchain and pass down an error accumulator.
-  Ttx::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Errors errors;
   auto processed = toolchain.process(source, errors);
 
   // Render out any error messages that were accumulated from processing.

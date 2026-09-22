@@ -13,12 +13,12 @@
 #include "llvm-c/Types.h"
 #include "tetrodotoxin/language/definition.hpp"
 #include "tetrodotoxin/terminal/llvm/module/emission.hpp"
-#include "ttx/concept/abstract.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/model/addressable.hpp"
-#include "ttx/model/callable.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/addressable.hpp"
+#include "tetrodotoxin/source/callable.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 namespace Tetrodotoxin::Terminal::Llvm::Module {
 
@@ -61,125 +61,125 @@ class Debug {
 
   auto finalize(Emission& program) -> Bool;
 
-  auto find_type(const Ttx::Model::Type& type) const
+  auto find_type(const Tetrodotoxin::Source::Type& type) const
       -> Perimortem::Core::Option<LLVMMetadataRef>;
 
-  auto publish_type(const Ttx::Model::Type& type, LLVMMetadataRef metadata)
+  auto publish_type(const Tetrodotoxin::Source::Type& type, LLVMMetadataRef metadata)
       -> Bool;
 
-  auto replace_type(const Ttx::Model::Type& type, LLVMMetadataRef metadata)
+  auto replace_type(const Tetrodotoxin::Source::Type& type, LLVMMetadataRef metadata)
       -> Bool;
 
-  auto find_payload(const Ttx::Model::Type& type) const
+  auto find_payload(const Tetrodotoxin::Source::Type& type) const
       -> Perimortem::Core::Option<LLVMMetadataRef>;
 
-  auto publish_payload(const Ttx::Model::Type& type, LLVMMetadataRef metadata)
+  auto publish_payload(const Tetrodotoxin::Source::Type& type, LLVMMetadataRef metadata)
       -> Bool;
 
-  auto replace_payload(const Ttx::Model::Type& type, LLVMMetadataRef metadata)
+  auto replace_payload(const Tetrodotoxin::Source::Type& type, LLVMMetadataRef metadata)
       -> Bool;
 
   auto publish_enumerator(
-      const Ttx::Model::Type& type,
+      const Tetrodotoxin::Source::Type& type,
       LLVMMetadataRef metadata) -> Bool;
 
-  auto get_enumerators(const Ttx::Model::Type& type) const
+  auto get_enumerators(const Tetrodotoxin::Source::Type& type) const
       -> Perimortem::Core::View::Vector<LLVMMetadataRef>;
 
-  auto find_scope(const Ttx::Model::Type& type) const
+  auto find_scope(const Tetrodotoxin::Source::Type& type) const
       -> Perimortem::Core::Option<LLVMMetadataRef>;
 
-  auto publish_scope(const Ttx::Model::Type& type, LLVMMetadataRef metadata)
+  auto publish_scope(const Tetrodotoxin::Source::Type& type, LLVMMetadataRef metadata)
       -> Bool;
 
-  auto replace_scope(const Ttx::Model::Type& type, LLVMMetadataRef metadata)
+  auto replace_scope(const Tetrodotoxin::Source::Type& type, LLVMMetadataRef metadata)
       -> Bool;
 
   auto get_scope_types() const -> Perimortem::Core::View::Vector<
-      Ttx::Concept::Reference<const Ttx::Model::Type>>;
+      Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type>>;
 
-  auto publish_member(const Ttx::Model::Type& type, LLVMMetadataRef metadata)
+  auto publish_member(const Tetrodotoxin::Source::Type& type, LLVMMetadataRef metadata)
       -> Bool;
 
-  auto get_members(const Ttx::Model::Type& type) const
+  auto get_members(const Tetrodotoxin::Source::Type& type) const
       -> Perimortem::Core::View::Vector<LLVMMetadataRef>;
 
   auto type(
-      const Ttx::Model::Type& type,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor) -> Bool;
+      const Tetrodotoxin::Source::Type& type,
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor) -> Bool;
 
-  auto field(const Ttx::Model::Addressable& field, Ttx::Lexical::Anchor anchor)
+  auto field(const Tetrodotoxin::Source::Addressable& field, Tetrodotoxin::Source::Lexical::Anchor anchor)
       -> Bool;
 
   auto signed_enumerator(
       Emission& program,
-      const Ttx::Model::Type& type,
-      const Ttx::Concept::Abstract& enumerator,
+      const Tetrodotoxin::Source::Type& type,
+      const Tetrodotoxin::Source::Abstract& enumerator,
       S64 value) -> Bool;
 
   auto unsigned_enumerator(
       Emission& program,
-      const Ttx::Model::Type& type,
-      const Ttx::Concept::Abstract& enumerator,
+      const Tetrodotoxin::Source::Type& type,
+      const Tetrodotoxin::Source::Abstract& enumerator,
       U64 value) -> Bool;
 
   auto global(
       Emission& program,
-      const Ttx::Model::Addressable& addressable,
+      const Tetrodotoxin::Source::Addressable& addressable,
       const Tetrodotoxin::Language::Definition& definition,
       Bool local,
       Bool defined) -> Bool;
 
   auto begin_function(
       Emission& body,
-      const Ttx::Model::Callable& callable,
+      const Tetrodotoxin::Source::Callable& callable,
       const Tetrodotoxin::Language::Definition& definition) -> Bool;
 
   auto parameter(
       Emission& body,
-      const Ttx::Model::Addressable& parameter,
-      Ttx::Lexical::Anchor anchor,
+      const Tetrodotoxin::Source::Addressable& parameter,
+      Tetrodotoxin::Source::Lexical::Anchor anchor,
       Count index) -> Bool;
 
   auto end_function(Emission& body) -> Bool;
 
   auto begin_block(
       Emission& body,
-      const Ttx::Concept::Abstract& block,
-      Ttx::Lexical::Anchor anchor) -> Bool;
+      const Tetrodotoxin::Source::Abstract& block,
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> Bool;
 
-  auto statement(Emission& body, Ttx::Lexical::Anchor anchor) -> Bool;
+  auto statement(Emission& body, Tetrodotoxin::Source::Lexical::Anchor anchor) -> Bool;
 
   auto local(
       Emission& body,
-      const Ttx::Model::Addressable& local,
-      Ttx::Lexical::Anchor anchor) -> Bool;
+      const Tetrodotoxin::Source::Addressable& local,
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> Bool;
 
   auto value(
       Emission& body,
-      const Ttx::Model::Addressable& local,
-      Ttx::Lexical::Anchor anchor,
+      const Tetrodotoxin::Source::Addressable& local,
+      Tetrodotoxin::Source::Lexical::Anchor anchor,
       LLVMValueRef value) -> Bool;
 
  private:
   Level level;
   Perimortem::Core::Option<LLVMOpaqueDIBuilder&> builder;
   Perimortem::Core::Option<LLVMOpaqueMetadata&> file;
-  Perimortem::Memory::Dynamic::Map<const Ttx::Model::Type*, LLVMMetadataRef>
+  Perimortem::Memory::Dynamic::Map<const Tetrodotoxin::Source::Type*, LLVMMetadataRef>
       types;
-  Perimortem::Memory::Dynamic::Map<const Ttx::Model::Type*, LLVMMetadataRef>
+  Perimortem::Memory::Dynamic::Map<const Tetrodotoxin::Source::Type*, LLVMMetadataRef>
       payloads;
   Perimortem::Memory::Dynamic::Map<
-      const Ttx::Model::Type*,
+      const Tetrodotoxin::Source::Type*,
       Perimortem::Memory::Dynamic::Vector<LLVMMetadataRef>>
       enumerators;
-  Perimortem::Memory::Dynamic::Map<const Ttx::Model::Type*, LLVMMetadataRef>
+  Perimortem::Memory::Dynamic::Map<const Tetrodotoxin::Source::Type*, LLVMMetadataRef>
       scopes;
   Perimortem::Memory::Dynamic::Vector<
-      Ttx::Concept::Reference<const Ttx::Model::Type>>
+      Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type>>
       scope_types;
   Perimortem::Memory::Dynamic::Map<
-      const Ttx::Model::Type*,
+      const Tetrodotoxin::Source::Type*,
       Perimortem::Memory::Dynamic::Vector<LLVMMetadataRef>>
       members;
 };

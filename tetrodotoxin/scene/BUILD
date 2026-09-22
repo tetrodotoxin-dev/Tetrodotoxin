@@ -19,6 +19,6 @@ cc_library(
         "//tetrodotoxin/scene/interpreter",
         "//tetrodotoxin/scene/language",
         "//ttx:concept",
-        "//ttx:lexical",
+        "//tetrodotoxin/source:lexical",
     ],
 )

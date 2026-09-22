@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "perimortem/core/view/bytes.h"
 #include "perimortem/core/data.hpp"
 #include "perimortem/core/math.hpp"
 
@@ -33,6 +34,15 @@ class Bytes {
 
   constexpr Bytes(const U8* source, Count source_size)
       : source_block(source), size(source_size) {}
+
+  // Crossing the C boundary copies the borrowed descriptor. The byte owner
+  // still determines its lifetime, including when either view is retained.
+  constexpr Bytes(perimortem_view_bytes view)
+      : source_block(view.data), size(view.size) {}
+
+  constexpr operator perimortem_view_bytes() const {
+    return {source_block, size};
+  }
 
   constexpr auto operator==(const View::Bytes& rhs) const -> Bool {
     return rhs.size == size &&

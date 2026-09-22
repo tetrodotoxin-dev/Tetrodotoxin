@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/package/dialect.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 
 #include "perimortem/memory/managed/vector.hpp"
 
@@ -12,12 +14,12 @@
 #include "tetrodotoxin/language/parser/import.hpp"
 #include "tetrodotoxin/library/interpreter/member.hpp"
 #include "tetrodotoxin/package/language/monograph.hpp"
-#include "ttx/lexical/lexicon.hpp"
+#include "tetrodotoxin/source/lexical/lexicon.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 static auto parse_quoted(Cursor& cursor) -> Option<View::Bytes> {
@@ -90,7 +92,7 @@ static auto parse_coordinate(
 
 auto Package::Dialect::interpret(
     Cursor& cursor,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     const Anchor& source_anchor,
     Abstract& context) -> Option<Tetrodotoxin::Language::Monograph&> {
   Allocator::Arena& transaction = cursor.get_arena();
@@ -101,7 +103,7 @@ auto Package::Dialect::interpret(
   Managed::Vector<Tetrodotoxin::Language::Import::Description> imports(
       transaction);
   while (Tetrodotoxin::Language::Parser::Import::is_next(cursor)) {
-    const Documentation& import_documentation =
+    const Tetrodotoxin::Source::Documentation& import_documentation =
         Tetrodotoxin::Language::Parser::Comment::parse(cursor);
     auto import = Tetrodotoxin::Language::Parser::Import::parse(
         cursor, import_documentation);
@@ -117,7 +119,7 @@ auto Package::Dialect::interpret(
       context, library);
   auto& root = monograph.edit_library().get_source();
   while (!cursor.matches(Code::Type::Terminal)) {
-    const Documentation& declaration_documentation =
+    const Tetrodotoxin::Source::Documentation& declaration_documentation =
         Tetrodotoxin::Language::Parser::Comment::parse(cursor);
     auto definition = Tetrodotoxin::Language::Definition::parse(
         cursor, declaration_documentation, root);
@@ -129,7 +131,7 @@ auto Package::Dialect::interpret(
     if (!member || member->get_category() !=
                        Library::Language::Types::Composite::Category::Type) {
       cursor.create_expression_error(
-          definition->get_anchor(),
+          definition->get_authored().get_anchor(),
           "Package sources contain only Library Type definitions."_view,
           "Import source or Package roots with Alias declarations, then publish Types or namespaces."_view);
       cursor.recover_to_statement();

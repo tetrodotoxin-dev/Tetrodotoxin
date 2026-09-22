@@ -17,18 +17,18 @@
 #include "tetrodotoxin/library/language/signature.hpp"
 #include "tetrodotoxin/library/language/type_reference.hpp"
 #include "tetrodotoxin/source/declaration.hpp"
-#include "ttx/concept/abstract.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Language {
 
 // Foreign is the one external declaration context owned by a Library Source.
 // It keeps block grammar, ABI agreement, lookup, and closure together while
 // the parent Source remains the lexical context for declaration Type routes.
-class Foreign final : public Ttx::Concept::Abstract {
+class Foreign final : public Tetrodotoxin::Source::Abstract {
  public:
   // State Types settle before Function signatures may consume them. Finalize is
   // a publication barrier only because bodyless declarations add no later graph
@@ -48,22 +48,22 @@ class Foreign final : public Ttx::Concept::Abstract {
 
     auto bind_interface(Perimortem::System::Uuid requested) const
         -> Perimortem::Utility::Result<
-            Ttx::Semantic::Binding,
-            Ttx::Semantic::Binding::Failure> override {
+            Ttx::Semantic::Negotiation::Binding,
+            Ttx::Semantic::Negotiation::Binding::Failure> override {
       if (requested == Tetrodotoxin::Source::Declaration::contract_id) {
         return Tetrodotoxin::Source::Declaration::provide(*this);
       }
       if (requested == Tetrodotoxin::Language::Definition::contract_id) {
         return Tetrodotoxin::Language::Definition::provide(*this);
       }
-      if (requested == Ttx::Model::Addressable::contract_id) {
-        static const Ttx::Model::Addressable::Operations operations = {
-          [](const void* source) -> Ttx::Concept::Abstract::Handle {
+      if (requested == Tetrodotoxin::Source::Addressable::contract_id) {
+        static const Tetrodotoxin::Source::Addressable::Operations operations = {
+          [](const void* source) -> Ttx::Concept::Abstract {
             return static_cast<const State*>(source)
                 ->type_reference.get_interface();
           },
         };
-        return Ttx::Semantic::Binding::provide<Ttx::Model::Addressable>(
+        return Ttx::Semantic::Negotiation::Binding::provide<Tetrodotoxin::Source::Addressable>(
             this, operations);
       }
       return Model::Memory::bind_interface(requested);
@@ -90,7 +90,7 @@ class Foreign final : public Ttx::Concept::Abstract {
     auto operator=(const State&) -> State& = delete;
     auto operator=(State&&) -> State& = delete;
 
-    auto link(Ttx::Lexical::Cursor& cursor) -> Bool;
+    auto link(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool;
 
     auto link_restored_declaration_type() -> Bool;
 
@@ -102,18 +102,23 @@ class Foreign final : public Ttx::Concept::Abstract {
       return definition;
     }
 
-    constexpr auto get_anchor() const -> Ttx::Lexical::Anchor {
-      return definition.get_anchor();
+    constexpr auto get_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor {
+      return definition.get_authored().get_anchor();
     }
 
     constexpr auto get_declaration_anchor() const
-        -> Perimortem::Core::Option<Ttx::Lexical::Anchor> {
-      return definition.get_declaration_anchor();
+        -> Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> {
+      const auto anchor = definition.get_authored().get_anchor();
+      if (!anchor.get_span()) {
+        return {};
+      }
+
+      return anchor;
     }
 
-    auto resolve() const -> const Ttx::Concept::Abstract& override;
+    auto resolve() const -> const Tetrodotoxin::Source::Abstract& override;
 
-    auto get_type() const -> const Ttx::Concept::Abstract& override;
+    auto get_type() const -> const Tetrodotoxin::Source::Abstract& override;
 
     constexpr auto permits_write_from(const Model::Type&) const
         -> Bool override {
@@ -137,7 +142,7 @@ class Foreign final : public Ttx::Concept::Abstract {
 
     auto complete_source(
         Tetrodotoxin::Source::Declaration::Phase phase,
-        Ttx::Lexical::Cursor* cursor)
+        Tetrodotoxin::Source::Lexical::Cursor* cursor)
         -> Tetrodotoxin::Source::Declaration::Completion {
       using Phase = Tetrodotoxin::Source::Declaration::Phase;
       if (phase == Phase::Type) {
@@ -158,7 +163,7 @@ class Foreign final : public Ttx::Concept::Abstract {
     Tetrodotoxin::Language::Definition& definition;
     TypeReference type_reference;
     Perimortem::Core::View::Bytes abi;
-    Perimortem::Core::Option<Ttx::Concept::Reference<const Model::Type>> type;
+    Perimortem::Core::Option<Tetrodotoxin::Source::Reference<const Model::Type>> type;
   };
 
   // Function is one bodyless external Callable. Target owners consume the
@@ -169,8 +174,8 @@ class Foreign final : public Ttx::Concept::Abstract {
 
     auto bind_interface(Perimortem::System::Uuid requested) const
         -> Perimortem::Utility::Result<
-            Ttx::Semantic::Binding,
-            Ttx::Semantic::Binding::Failure> override {
+            Ttx::Semantic::Negotiation::Binding,
+            Ttx::Semantic::Negotiation::Binding::Failure> override {
       if (requested == Tetrodotoxin::Language::Definition::contract_id) {
         return Tetrodotoxin::Language::Definition::provide(*this);
       }
@@ -194,7 +199,7 @@ class Foreign final : public Ttx::Concept::Abstract {
     auto operator=(const Function&) -> Function& = delete;
     auto operator=(Function&&) -> Function& = delete;
 
-    auto link(Ttx::Lexical::Cursor& cursor) -> Bool;
+    auto link(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool;
 
     auto link_restored_declaration_signature() -> Bool override;
 
@@ -206,26 +211,31 @@ class Foreign final : public Ttx::Concept::Abstract {
       return definition;
     }
 
-    constexpr auto get_anchor() const -> Ttx::Lexical::Anchor {
-      return definition.get_anchor();
+    constexpr auto get_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor {
+      return definition.get_authored().get_anchor();
     }
 
     constexpr auto get_declaration_anchor() const
-        -> Perimortem::Core::Option<Ttx::Lexical::Anchor> override {
-      return definition.get_declaration_anchor();
+        -> Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> override {
+      const auto anchor = definition.get_authored().get_anchor();
+      if (!anchor.get_span()) {
+        return {};
+      }
+
+      return anchor;
     }
 
-    auto resolve() const -> const Ttx::Concept::Abstract& override;
+    auto resolve() const -> const Tetrodotoxin::Source::Abstract& override;
 
     auto resolve_concept(Perimortem::Core::View::Bytes) const
-        -> const Ttx::Concept::Abstract& override;
+        -> const Tetrodotoxin::Source::Abstract& override;
 
     constexpr auto get_parameters() const
-        -> const Ttx::Concept::Layout& override {
+        -> const Tetrodotoxin::Source::Layout& override {
       return signature.get_parameters();
     }
 
-    constexpr auto get_results() const -> const Ttx::Concept::Layout& override {
+    constexpr auto get_results() const -> const Tetrodotoxin::Source::Layout& override {
       return signature.get_results();
     }
 
@@ -256,14 +266,14 @@ class Foreign final : public Ttx::Concept::Abstract {
 
   Foreign(
       Perimortem::Memory::Allocator::Arena& domain,
-      Ttx::Concept::Abstract& parent);
+      Tetrodotoxin::Source::Abstract& parent);
 
   Foreign(const Foreign&) = delete;
   Foreign(Foreign&&) = delete;
   auto operator=(const Foreign&) -> Foreign& = delete;
   auto operator=(Foreign&&) -> Foreign& = delete;
 
-  TTX_CONTRACT(Foreign, Ttx::Concept::Abstract);
+  TTX_CONTRACT(Foreign, Tetrodotoxin::Source::Abstract);
   TTX_NAME("foreign"_view);
   TTX_DOCUMENTATION(*documentation);
 
@@ -271,18 +281,18 @@ class Foreign final : public Ttx::Concept::Abstract {
   // parser validates repetition and ABI agreement before this model operation
   // changes the retained context.
   auto retain_block(
-      const Ttx::Concept::Documentation& block_documentation,
+      const Tetrodotoxin::Source::Documentation& block_documentation,
       Perimortem::Core::View::Bytes selected_abi,
-      Perimortem::Core::View::Vector<Ttx::Concept::Reference<State>> states,
-      Perimortem::Core::View::Vector<Ttx::Concept::Reference<Function>>
+      Perimortem::Core::View::Vector<Tetrodotoxin::Source::Reference<State>> states,
+      Perimortem::Core::View::Vector<Tetrodotoxin::Source::Reference<Function>>
           functions,
       Perimortem::Core::View::Vector<
-          Ttx::Concept::Reference<Ttx::Concept::Abstract>> declarations)
+          Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>> declarations)
       -> Bool;
 
-  auto link_types(Ttx::Lexical::Cursor& cursor) -> Bool;
-  auto link_callables(Ttx::Lexical::Cursor& cursor) -> Bool;
-  auto finalize(Ttx::Lexical::Cursor& cursor) -> Bool;
+  auto link_types(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool;
+  auto link_callables(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool;
+  auto finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool;
 
   auto link_restored() -> Bool;
 
@@ -303,25 +313,25 @@ class Foreign final : public Ttx::Concept::Abstract {
 
   constexpr auto get_declarations() const { return declarations.get_view(); }
 
-  auto resolve() const -> const Ttx::Concept::Abstract& override;
+  auto resolve() const -> const Tetrodotoxin::Source::Abstract& override;
 
   auto resolve_concept(Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract& override;
+      -> const Tetrodotoxin::Source::Abstract& override;
 
  private:
   auto retain_documentation(
-      const Ttx::Concept::Documentation& block_documentation) -> void;
+      const Tetrodotoxin::Source::Documentation& block_documentation) -> void;
 
   Perimortem::Memory::Allocator::Arena& domain;
-  Ttx::Concept::Abstract& parent;
+  Tetrodotoxin::Source::Abstract& parent;
   Access::Static& static_authority;
-  const Ttx::Concept::Documentation* documentation;
+  const Tetrodotoxin::Source::Documentation* documentation;
   Perimortem::Core::Option<Perimortem::Core::View::Bytes> abi;
-  Perimortem::Memory::Managed::Vector<Ttx::Concept::Reference<State>> states;
-  Perimortem::Memory::Managed::Vector<Ttx::Concept::Reference<Function>>
+  Perimortem::Memory::Managed::Vector<Tetrodotoxin::Source::Reference<State>> states;
+  Perimortem::Memory::Managed::Vector<Tetrodotoxin::Source::Reference<Function>>
       functions;
   Perimortem::Memory::Managed::Vector<
-      Ttx::Concept::Reference<Ttx::Concept::Abstract>>
+      Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>>
       declarations;
   Stage stage = Stage::Authored;
 };

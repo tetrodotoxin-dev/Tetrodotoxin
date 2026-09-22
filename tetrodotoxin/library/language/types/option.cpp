@@ -16,13 +16,13 @@ static auto select_option_constant(Model::Pack& source)
     return *direct;
   }
 
-  const Ttx::Concept::Layout& layout = source.get_layout();
+  const Tetrodotoxin::Source::Layout& layout = source.get_layout();
   BAIL_IF(layout.get_size() != 1);
   return layout.get_abstract(0).visit(
       []() -> Option<Constants::Option&> { return {}; },
-      [](const Ttx::Concept::Abstract& selected) -> Option<Constants::Option&> {
+      [](const Tetrodotoxin::Source::Abstract& selected) -> Option<Constants::Option&> {
         auto pack =
-            Model::Pack::from(const_cast<Ttx::Concept::Abstract&>(selected));
+            Model::Pack::from(const_cast<Tetrodotoxin::Source::Abstract&>(selected));
         return pack ? pack->select_identity<Constants::Option>()
                     : Option<Constants::Option&>();
       });
@@ -58,7 +58,7 @@ auto Types::Option::create_fitted(
                 : Perimortem::Core::Option<Model::Pack&>();
 }
 
-auto Types::Option::validate_layout(Ttx::Lexical::Cursor& cursor) const
+auto Types::Option::validate_layout(Tetrodotoxin::Source::Lexical::Cursor& cursor) const
     -> Bool {
   if (!element.get_layout().is_empty()) {
     return True;

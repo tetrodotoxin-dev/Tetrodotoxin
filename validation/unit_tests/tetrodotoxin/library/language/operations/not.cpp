@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/library/language/operations/not.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "validation/unit_test.hpp"
 #include "validation/unit_tests/tetrodotoxin/library/language/fixture.hpp"
 
@@ -16,15 +18,15 @@
 #include "tetrodotoxin/library/language/constants/true.hpp"
 #include "tetrodotoxin/library/language/types/bool.hpp"
 #include "tetrodotoxin/library/language/types/s8.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Utility;
 using namespace Tetrodotoxin::Library::Language;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Validation;
 
 static Harness LibraryNot = {
@@ -34,10 +36,10 @@ static Harness LibraryNot = {
 static auto link_operation(Operation& operation, const Abstract& context)
     -> Bool {
   Allocator::Arena transaction;
-  Ttx::Lexical::Errors errors;
-  Ttx::Lexical::Tokenizer tokenizer(transaction, {}, "<operation>"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
-  Ttx::Lexical::Cursor cursor(tokenizer, errors, associations);
+  Tetrodotoxin::Source::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Tokenizer tokenizer(transaction, {}, "<operation>"_view);
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Cursor cursor(tokenizer, errors, associations);
   return operation.link(cursor, context);
 }
 
@@ -47,8 +49,8 @@ class NotExpression : public Expression {
       : Expression({}), name(name), type(type) {}
 
   auto get_name() const -> View::Bytes override { return name; }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
   auto get_type() const -> const Abstract& override { return type; }
 
@@ -118,7 +120,7 @@ PERIMORTEM_UNIT_TEST(LibraryNot, flag_protocol) {
   auto& active = Constants::True::create_synthetic(domain, protocol);
   auto& inactive = Constants::False::create_synthetic(domain, protocol);
   auto& other_active = Constants::True::create_synthetic(domain, other_storage);
-  Static::Vector<Ttx::Model::PackReference<Model::Pack>, 2> entries{
+  Static::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>, 2> entries{
     {active, inactive}};
   auto& folded = Model::Pack::create_folded(domain, entries);
   auto active_validity = protocol.get_validity(folded);

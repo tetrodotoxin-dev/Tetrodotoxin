@@ -4,17 +4,17 @@
 #include "tetrodotoxin/library/language/constant.hpp"
 
 #include "ttx/concept/domain.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using Ttx::Semantic::Binding;
+using namespace Tetrodotoxin::Source;
+using Ttx::Semantic::Negotiation::Binding;
 using namespace Tetrodotoxin::Library;
 
 auto Language::Constant::bind_interface(Perimortem::System::Uuid requested)
     const -> Utility::Result<Binding, Binding::Failure> {
-  if (requested == Domain::contract_id) {
-    static const Domain::Operations operations = {
+  if (requested == Ttx::Concept::Domain::contract_id) {
+    static const Ttx::Concept::Domain::Operations operations = {
       [](const void* source, ttx_abstract* result) -> ttx_binding_status {
         const auto& value = *static_cast<const Constant*>(source);
         *result = value.get_type().get_interface().get_abi();
@@ -23,14 +23,14 @@ auto Language::Constant::bind_interface(Perimortem::System::Uuid requested)
     };
     return Binding::provide<Domain>(this, operations);
   }
-  return Ttx::Concept::Constant::bind_interface(requested);
+  return Tetrodotoxin::Source::Constant::bind_interface(requested);
 }
 
 auto Language::Constant::get_value_type(Count index) const
-    -> const Ttx::Concept::Abstract& {
-  return index == 0 ? static_cast<const Ttx::Concept::Abstract&>(get_type())
-                    : static_cast<const Ttx::Concept::Abstract&>(
-                          Ttx::Concept::Unknown::get_unknown());
+    -> const Tetrodotoxin::Source::Abstract& {
+  return index == 0 ? static_cast<const Tetrodotoxin::Source::Abstract&>(get_type())
+                    : static_cast<const Tetrodotoxin::Source::Abstract&>(
+                          Tetrodotoxin::Source::Unknown::get_unknown());
 }
 
 auto Language::Constant::have_equal_values(

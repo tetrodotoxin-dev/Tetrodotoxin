@@ -14,15 +14,15 @@
 #include "tetrodotoxin/app/language/transition.hpp"
 #include "tetrodotoxin/library/language/generic.hpp"
 #include "tetrodotoxin/scene/language/signal.hpp"
-#include "ttx/lexical/lexicon.hpp"
-#include "ttx/lexical/tokenizer.hpp"
-#include "ttx/model/callable.hpp"
+#include "tetrodotoxin/source/lexical/lexicon.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/callable.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Serialization;
 using namespace Puffer;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 
 enum SemanticToken : S64 {
   SemanticNamespace,
@@ -145,7 +145,7 @@ static auto source_dialect(View::Vector<Token> tokens, View::Bytes source)
 }
 
 static auto associated_semantic(Token token, const Associations* associations)
-    -> Option<const Ttx::Concept::Abstract&> {
+    -> Option<const Tetrodotoxin::Source::Abstract&> {
   BAIL_IF(!associations);
   for (const Associations::Entry& entry : associations->get_entries()) {
     Token focus = entry.get_anchor().get_token();
@@ -170,7 +170,7 @@ static auto contextual_semantic_token(
   if (semantic) {
     if (semantic->is<Tetrodotoxin::Library::Language::Generic>()) {
       return SemanticGeneric;
-    } else if (semantic->is<Ttx::Model::Callable>()) {
+    } else if (semantic->is<Tetrodotoxin::Source::Callable>()) {
       return SemanticFunction;
     } else if (
         semantic->is<Tetrodotoxin::App::Language::Runtime>() ||

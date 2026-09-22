@@ -7,9 +7,9 @@
 #include "perimortem/core/view/vector.hpp"
 #include "perimortem/core/option.hpp"
 
-#include "ttx/concept/abstract.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 namespace Tetrodotoxin::Terminal::Abi {
 
@@ -21,11 +21,11 @@ class Unit {
   class Binding {
    public:
     constexpr Binding(
-        const Ttx::Concept::Abstract& semantic,
+        const Tetrodotoxin::Source::Abstract& semantic,
         Perimortem::Core::View::Bytes symbol)
         : semantic(semantic), symbol(symbol) {}
 
-    constexpr auto get_semantic() const -> const Ttx::Concept::Abstract& {
+    constexpr auto get_semantic() const -> const Tetrodotoxin::Source::Abstract& {
       return semantic.get();
     }
 
@@ -34,7 +34,7 @@ class Unit {
     }
 
    private:
-    Ttx::Concept::Reference<const Ttx::Concept::Abstract> semantic;
+    Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Abstract> semantic;
     Perimortem::Core::View::Bytes symbol;
   };
 
@@ -44,13 +44,13 @@ class Unit {
   class TypeBinding {
    public:
     constexpr TypeBinding(
-        const Ttx::Model::Type& semantic,
+        const Tetrodotoxin::Source::Type& semantic,
         Perimortem::Core::View::Bytes package,
         Perimortem::Core::View::Bytes member,
         Perimortem::Core::View::Bytes route)
         : semantic(semantic), package(package), member(member), route(route) {}
 
-    constexpr auto get_semantic() const -> const Ttx::Model::Type& {
+    constexpr auto get_semantic() const -> const Tetrodotoxin::Source::Type& {
       return semantic.get();
     }
 
@@ -67,7 +67,7 @@ class Unit {
     }
 
    private:
-    Ttx::Concept::Reference<const Ttx::Model::Type> semantic;
+    Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type> semantic;
     Perimortem::Core::View::Bytes package;
     Perimortem::Core::View::Bytes member;
     Perimortem::Core::View::Bytes route;
@@ -82,7 +82,7 @@ class Unit {
       Perimortem::Core::View::Vector<Perimortem::Core::View::Bytes> headers =
           {},
       Perimortem::Core::Option<
-          Ttx::Concept::Reference<const Ttx::Concept::Abstract>> local = {},
+          Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Abstract>> local = {},
       Perimortem::Core::View::Bytes c_header = {},
       Perimortem::Core::View::Bytes cpp_header = {})
       : package(package),
@@ -95,10 +95,10 @@ class Unit {
         c_header(c_header),
         cpp_header(cpp_header) {}
 
-  constexpr auto bind(const Ttx::Concept::Abstract& semantic) const -> Unit {
+  constexpr auto bind(const Tetrodotoxin::Source::Abstract& semantic) const -> Unit {
     return Unit(
         package, member, artifact, external, types, headers,
-        Ttx::Concept::Reference<const Ttx::Concept::Abstract>(semantic),
+        Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Abstract>(semantic),
         c_header, cpp_header);
   }
 
@@ -109,7 +109,7 @@ class Unit {
         cpp_header);
   }
 
-  constexpr auto owns(const Ttx::Concept::Abstract& semantic) const -> Bool {
+  constexpr auto owns(const Tetrodotoxin::Source::Abstract& semantic) const -> Bool {
     return local && &local->get() == &semantic;
   }
 
@@ -129,7 +129,7 @@ class Unit {
     return !package.is_empty() && !member.is_empty() && !artifact.is_empty();
   }
 
-  auto find(const Ttx::Concept::Abstract& semantic) const
+  auto find(const Tetrodotoxin::Source::Abstract& semantic) const
       -> Perimortem::Core::Option<Perimortem::Core::View::Bytes> {
     for (const Binding& binding : external) {
       if (&binding.get_semantic() == &semantic) {
@@ -139,7 +139,7 @@ class Unit {
     return {};
   }
 
-  auto find_type(const Ttx::Model::Type& semantic) const
+  auto find_type(const Tetrodotoxin::Source::Type& semantic) const
       -> Perimortem::Core::Option<const TypeBinding&> {
     for (Count index = 0; index < types.get_size(); index++) {
       const TypeBinding& binding = types.get_data()[index];
@@ -180,7 +180,7 @@ class Unit {
   Perimortem::Core::View::Vector<TypeBinding> types;
   Perimortem::Core::View::Vector<Perimortem::Core::View::Bytes> headers;
   Perimortem::Core::Option<
-      Ttx::Concept::Reference<const Ttx::Concept::Abstract>>
+      Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Abstract>>
       local;
   Perimortem::Core::View::Bytes c_header;
   Perimortem::Core::View::Bytes cpp_header;

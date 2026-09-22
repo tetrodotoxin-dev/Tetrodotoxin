@@ -24,7 +24,7 @@ cc_library(
         "//tetrodotoxin/library:language",
         "//tetrodotoxin/scene/language",
         "//ttx:concept",
-        "//ttx:lexical",
-        "//ttx:model",
+        "//tetrodotoxin/source:lexical",
+        "//tetrodotoxin/source",
     ],
 )

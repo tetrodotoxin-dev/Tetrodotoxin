@@ -11,12 +11,12 @@
 
 #include "tetrodotoxin/language/attribute.hpp"
 #include "tetrodotoxin/library/language/type_reference.hpp"
-#include "ttx/concept/layout.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/lexical/cursor.hpp"
-#include "ttx/model/addressable.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/layout.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/addressable.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 namespace Tetrodotoxin::Library::Language::Model {
 
@@ -31,7 +31,7 @@ namespace Tetrodotoxin::Library::Language::Model {
 // Function resolution enforces that boundary. Registration before link derives
 // receiver role from declares_self() without pretending an unresolved shape is
 // empty value flow.
-class Layout final : public Ttx::Concept::Layout {
+class Layout final : public Tetrodotoxin::Source::Layout {
  public:
   // Slot is the retained source description for one Layout entry. Its Type
   // route and Anchor are model facts while interpretation alone decides how
@@ -40,7 +40,7 @@ class Layout final : public Ttx::Concept::Layout {
    public:
     constexpr Slot(
         Perimortem::Core::Option<TypeReference> type_reference,
-        Ttx::Lexical::Anchor anchor,
+        Tetrodotoxin::Source::Lexical::Anchor anchor,
         Perimortem::Core::View::Bytes name,
         Perimortem::Core::View::Vector<Tetrodotoxin::Language::Attribute>
             attributes = {})
@@ -49,7 +49,7 @@ class Layout final : public Ttx::Concept::Layout {
           name(name),
           attributes(attributes) {}
 
-    constexpr auto get_type_anchor() const -> Ttx::Lexical::Anchor {
+    constexpr auto get_type_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor {
       return type_reference.visit(
           [&]() { return anchor; },
           [](const TypeReference& reference) {
@@ -77,25 +77,25 @@ class Layout final : public Ttx::Concept::Layout {
     friend class Layout;
 
     Perimortem::Core::Option<TypeReference> type_reference;
-    Ttx::Lexical::Anchor anchor;
+    Tetrodotoxin::Source::Lexical::Anchor anchor;
     Perimortem::Core::View::Bytes name;
     Perimortem::Core::View::Vector<Tetrodotoxin::Language::Attribute>
         attributes;
     Perimortem::Core::Option<
-        Ttx::Concept::Reference<const Ttx::Concept::Abstract>>
+        Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Abstract>>
         edge;
   };
 
   static auto create_authored(
       Perimortem::Memory::Allocator::Arena& domain,
       Perimortem::Memory::Managed::Vector<Slot> slots,
-      Ttx::Lexical::Anchor anchor,
+      Tetrodotoxin::Source::Lexical::Anchor anchor,
       Bool parameters) -> Layout&;
 
   static auto create(
       Perimortem::Memory::Allocator::Arena& domain,
       Perimortem::Memory::Managed::Vector<Slot> slots,
-      Ttx::Lexical::Anchor anchor,
+      Tetrodotoxin::Source::Lexical::Anchor anchor,
       Bool parameters) -> Layout&;
 
   // Shader inherits Stage signatures after neighboring Render contracts have
@@ -117,9 +117,9 @@ class Layout final : public Ttx::Concept::Layout {
   auto retain_generated_edge(Count index, const Type& type) -> Bool;
 
   auto link_restored(
-      const Ttx::Concept::Abstract& host,
+      const Tetrodotoxin::Source::Abstract& host,
       Bool parameters,
-      Perimortem::Core::Option<const Ttx::Model::Addressable&> self = {})
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Addressable&> self = {})
       -> Bool;
 
   Layout(const Layout&) = delete;
@@ -133,42 +133,42 @@ class Layout final : public Ttx::Concept::Layout {
   // Every authored Type slot must provide a value. Only `[]` carries an empty
   // descriptor.
   auto link_parameters(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& host) -> Bool;
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& host) -> Bool;
 
   auto link_types(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& host,
-      Perimortem::Core::Option<const Ttx::Model::Addressable&> self = {})
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& host,
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Addressable&> self = {})
       -> Bool;
 
   // Named lookup returns the exact semantic entry retained by this Layout.
   // Positional, incomplete, or missing selections resolve Unknown.
   auto resolve_named(
       Perimortem::Core::View::Bytes route,
-      Perimortem::Core::Option<const Ttx::Concept::Abstract&> host = {}) const
-      -> const Ttx::Concept::Abstract&;
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&> host = {}) const
+      -> const Tetrodotoxin::Source::Abstract&;
 
   // Publication remains beside the authored routes and final edges it checks.
   auto validate_publication(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& host) const -> Bool;
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& host) const -> Bool;
 
   auto declares_self() const -> Bool;
   auto is_linked() const -> Bool;
 
   auto get_size() const -> Count override;
 
-  auto get_interface() const -> Ttx::Concept::Layout::Handle override;
+  auto get_interface() const -> Tetrodotoxin::Source::Layout::Handle override;
 
   auto get_abstract(Count index) const
-      -> Perimortem::Core::Option<const Ttx::Concept::Abstract&> override;
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&> override;
 
   auto get_name(Count index) const
       -> Perimortem::Core::Option<Perimortem::Core::View::Bytes> override;
 
   auto get_slot_anchor(Count index) const
-      -> Perimortem::Core::Option<Ttx::Lexical::Anchor>;
+      -> Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor>;
 
   auto get_slot_attributes(Count index) const
       -> Perimortem::Core::View::Vector<Tetrodotoxin::Language::Attribute>;
@@ -179,46 +179,46 @@ class Layout final : public Ttx::Concept::Layout {
   auto get_declared_name(Count index) const -> Perimortem::Core::View::Bytes;
 
   auto fits_entry(
-      const Ttx::Concept::Layout& target,
+      const Tetrodotoxin::Source::Layout& target,
       Count source_index,
       Count target_index) const -> Bool override;
 
-  auto fits_at(const Ttx::Concept::Layout& target, Count target_offset) const
+  auto fits_at(const Tetrodotoxin::Source::Layout& target, Count target_offset) const
       -> Bool override;
 
   auto get_fitted_at(
-      const Ttx::Concept::Layout& target,
+      const Tetrodotoxin::Source::Layout& target,
       Count target_offset,
       Count target_index) const
       -> Perimortem::Utility::Result<
-          const Ttx::Concept::Abstract&,
-          Ttx::Concept::Layout::Errors> override;
+          const Tetrodotoxin::Source::Abstract&,
+          Tetrodotoxin::Source::Layout::Errors> override;
 
  private:
   Layout(
       Perimortem::Memory::Allocator::Arena& domain,
       Perimortem::Memory::Managed::Vector<Slot> slots,
-      Ttx::Lexical::Anchor anchor,
+      Tetrodotoxin::Source::Lexical::Anchor anchor,
       Bool parameters)
       : domain(domain), slots(slots), anchor(anchor), parameters(parameters) {}
 
   auto link(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& host,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& host,
       Bool parameters,
-      Perimortem::Core::Option<const Ttx::Model::Addressable&> self) -> Bool;
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Addressable&> self) -> Bool;
 
   auto is_named() const -> Bool;
   auto get_slot(Count index) const -> Perimortem::Core::Option<const Slot&>;
   auto fits_value(
-      const Ttx::Concept::Layout& target,
+      const Tetrodotoxin::Source::Layout& target,
       Count source_index,
       Count target_index) const -> Bool;
   auto has_unique_names() const -> Bool;
 
   Perimortem::Memory::Allocator::Arena& domain;
   Perimortem::Memory::Managed::Vector<Slot> slots;
-  Ttx::Lexical::Anchor anchor;
+  Tetrodotoxin::Source::Lexical::Anchor anchor;
   Bool parameters;
 };
 

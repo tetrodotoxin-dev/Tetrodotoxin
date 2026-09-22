@@ -8,13 +8,13 @@
 #include "tetrodotoxin/library/interpreter/type_reference.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 
 static auto parse_writability(
     const Tetrodotoxin::Language::Definition& definition,
     Cursor& cursor) -> Option<Language::Writability> {
-  auto modifiers = definition.get_modifiers();
+  auto modifiers = definition.get_authored().get_modifiers();
   if (modifiers.get_size() > 1) {
     cursor.create_token_error(
         modifiers.get_data()[1],
@@ -43,7 +43,7 @@ static auto parse_writability(
   if (visibility == Tetrodotoxin::Language::Visibility::Exposed &&
       writability != Language::Writability::Internal) {
     cursor.create_token_error(
-        definition.get_visibility_token(),
+        definition.get_authored().get_visibility(),
         "Library `expose` Fields require the `state` evaluation policy."_view);
     return {};
   }
@@ -60,9 +60,9 @@ auto Interpreter::Declarations::Field::parse(
 
   auto writability = parse_writability(definition, cursor);
   BAIL_IF(!writability);
-  if (definition.get_name_token().get_code() != Code::Type::Addressable) {
+  if (definition.get_authored().get_name().get_code() != Code::Type::Addressable) {
     cursor.create_token_error(
-        definition.get_name_token(),
+        definition.get_authored().get_name(),
         "Library Fields require an addressable name."_view);
     return {};
   }
@@ -126,8 +126,10 @@ auto Interpreter::Declarations::Field::parse(
   if (!terminator) {
     return retain(ParseState::Incomplete);
   }
-  return retain(
-      definition.complete(definition.get_name_token(), terminator)
-          ? ParseState::Accepted
-          : ParseState::Rejected);
+
+  auto& authored = definition.get_authored();
+  authored.set_anchor(Anchor::create(
+      authored.get_name(),
+      Span(authored.get_anchor().get_span().get_start(), terminator)));
+  return retain(ParseState::Accepted);
 }

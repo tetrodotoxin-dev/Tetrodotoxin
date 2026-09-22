@@ -28,7 +28,7 @@ class Header {
       const Tetrodotoxin::Terminal::Abi::Unit& unit,
       Perimortem::Core::View::Vector<Tetrodotoxin::Terminal::Abi::Export>
           exports,
-      Perimortem::Core::View::Vector<Ttx::Concept::Reference<
+      Perimortem::Core::View::Vector<Tetrodotoxin::Source::Reference<
           const Tetrodotoxin::Library::Language::Model::Type>> roots = {})
       -> Perimortem::Core::Option<Header>;
 

@@ -11,7 +11,7 @@
 #include "tetrodotoxin/library/language/model/types/unsigned.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library::Language;
 
 auto Model::Types::Value::accepts(const Model::Pack& source) const -> Bool {
@@ -29,10 +29,10 @@ auto Model::Types::Value::is_equivalent(const Value& selected) const -> Bool {
 }
 
 auto Model::Types::Value::create_supplied(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     Model::Pack& source,
     Option<const Abstract&>,
-    Option<Ttx::Lexical::Anchor> anchor) const -> Option<Model::Pack&> {
+    Option<Tetrodotoxin::Source::Lexical::Anchor> anchor) const -> Option<Model::Pack&> {
   if (accepts(source)) {
     return source;
   }

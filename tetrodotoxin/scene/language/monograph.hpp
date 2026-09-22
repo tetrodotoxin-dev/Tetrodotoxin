@@ -15,7 +15,7 @@
 #include "tetrodotoxin/scene/language/emission.hpp"
 #include "tetrodotoxin/scene/language/lifecycle.hpp"
 #include "tetrodotoxin/scene/language/signal.hpp"
-#include "ttx/concept/reference.hpp"
+#include "tetrodotoxin/source/reference.hpp"
 
 namespace Tetrodotoxin::Scene::Language {
 
@@ -30,19 +30,19 @@ class Monograph : public Tetrodotoxin::Language::Monograph {
 
   static auto create(
       Perimortem::Memory::Allocator::Arena& domain,
-      const Ttx::Concept::Documentation& documentation,
-      const Ttx::Concept::Abstract& language,
-      Ttx::Concept::Abstract& context,
+      const Tetrodotoxin::Source::Documentation& documentation,
+      const Tetrodotoxin::Source::Abstract& language,
+      Tetrodotoxin::Source::Abstract& context,
       Tetrodotoxin::Library::Language::Monograph& library,
       Tetrodotoxin::Library::Language::Types::Object& instance) -> Monograph&;
 
-  auto retain_signal(Signal& signal, Ttx::Lexical::Cursor& cursor) -> Bool;
+  auto retain_signal(Signal& signal, Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool;
   auto retain_restored_signal(Signal& signal) -> Bool;
   auto retain_emission(Emission& emission) -> Bool;
   auto retain_lifecycle(
       Lifecycle role,
       Tetrodotoxin::Library::Language::Function& function,
-      Ttx::Lexical::Cursor& cursor) -> Bool;
+      Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool;
   auto retain_restored_lifecycle(
       Lifecycle role,
       Tetrodotoxin::Library::Language::Function& function) -> Bool;
@@ -80,12 +80,12 @@ class Monograph : public Tetrodotoxin::Language::Monograph {
     return instance;
   }
 
-  auto get_layer(const Ttx::Concept::Abstract& requested) const
+  auto get_layer(const Tetrodotoxin::Source::Abstract& requested) const
       -> Perimortem::Core::Option<
           const Tetrodotoxin::Language::Monograph&> override;
 
-  auto link(Ttx::Lexical::Cursor& cursor) -> Bool override;
-  auto finalize(Ttx::Lexical::Cursor& cursor) -> Bool override;
+  auto link(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
+  auto finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
 
   auto link_restored() -> Bool override;
   auto finalize_restored() -> Bool override;
@@ -93,29 +93,29 @@ class Monograph : public Tetrodotoxin::Language::Monograph {
   TTX_NAME("Scene"_view);
 
   auto resolve_concept(Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract& override;
+      -> const Tetrodotoxin::Source::Abstract& override;
 
   auto resolve_lexical_context(Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract& override;
+      -> const Tetrodotoxin::Source::Abstract& override;
 
   auto retain_import(
       const Tetrodotoxin::Language::Import::Description& description,
-      Perimortem::Core::Option<Ttx::Lexical::Associations&> associations = {})
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Associations&> associations = {})
       -> Bool override {
     return library.retain_import(description, associations);
   }
 
   constexpr auto get_imports() const -> Perimortem::Core::View::Vector<
-      Ttx::Concept::Reference<Tetrodotoxin::Language::Import>> override {
+      Tetrodotoxin::Source::Reference<Tetrodotoxin::Language::Import>> override {
     return library.get_imports();
   }
 
  private:
   Monograph(
       Perimortem::Memory::Allocator::Arena& domain,
-      const Ttx::Concept::Documentation& documentation,
-      const Ttx::Concept::Abstract& language,
-      Ttx::Concept::Abstract& context,
+      const Tetrodotoxin::Source::Documentation& documentation,
+      const Tetrodotoxin::Source::Abstract& language,
+      Tetrodotoxin::Source::Abstract& context,
       Tetrodotoxin::Library::Language::Monograph& library,
       Tetrodotoxin::Library::Language::Types::Object& instance)
       : Tetrodotoxin::Language::Monograph(
@@ -128,7 +128,7 @@ class Monograph : public Tetrodotoxin::Language::Monograph {
         signals(domain),
         emissions(domain) {}
 
-  auto validate_lifecycle(Ttx::Lexical::Cursor& cursor) const -> Bool;
+  auto validate_lifecycle(Tetrodotoxin::Source::Lexical::Cursor& cursor) const -> Bool;
   auto validate_lifecycle_restored() const -> Bool;
 
   enum class Stage : U8 {
@@ -139,8 +139,8 @@ class Monograph : public Tetrodotoxin::Language::Monograph {
 
   Tetrodotoxin::Library::Language::Monograph& library;
   Tetrodotoxin::Library::Language::Types::Object& instance;
-  Perimortem::Memory::Managed::Vector<Ttx::Concept::Reference<Signal>> signals;
-  Perimortem::Memory::Managed::Vector<Ttx::Concept::Reference<Emission>>
+  Perimortem::Memory::Managed::Vector<Tetrodotoxin::Source::Reference<Signal>> signals;
+  Perimortem::Memory::Managed::Vector<Tetrodotoxin::Source::Reference<Emission>>
       emissions;
   Perimortem::Core::Static::Vector<
       Perimortem::Core::Option<Tetrodotoxin::Library::Language::Function&>,

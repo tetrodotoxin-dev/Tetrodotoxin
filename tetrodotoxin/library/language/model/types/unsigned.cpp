@@ -6,7 +6,7 @@
 #include "tetrodotoxin/library/language/constants/unsigned.hpp"
 
 using namespace Tetrodotoxin::Library::Language;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 
 auto Model::Types::Unsigned::accepts_constant(const Abstract& value) const
     -> Bool {

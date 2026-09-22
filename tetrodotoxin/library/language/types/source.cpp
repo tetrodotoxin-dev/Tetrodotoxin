@@ -3,26 +3,28 @@
 
 #include "tetrodotoxin/library/language/types/source.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "perimortem/core/diagnostics/log.hpp"
 
 #include "tetrodotoxin/language/import.hpp"
 #include "tetrodotoxin/library/language/model/memory.hpp"
 #include "tetrodotoxin/library/language/model/callable.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library::Language;
 
 using Tetrodotoxin::Language::Visibility;
 
 auto Types::Source::create_synthetic(
     Allocator::Arena& domain,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     Abstract& host,
     const Anchor& source_anchor) -> Source& {
   // The root has no instance state, so its empty Layout exists before any
@@ -285,7 +287,7 @@ auto Types::Source::retain_binding(
     // it contributes storage so Field does not inspect its concrete host.
     if (addressable->contributes_to_instance_layout()) {
       cursor.create_token_error(
-          definition.get_name_token(),
+          definition.get_authored().get_name(),
           "Library Source rejects instance state Fields."_view,
           "Use an ordinary Static Field or move state into a Structure or "
           "Object."_view);
@@ -297,7 +299,7 @@ auto Types::Source::retain_binding(
     auto callable = binding.select<Model::Callable>();
     BAIL_IF(!callable);
     if (callable->declares_self()) {
-      Token name = definition.get_name_token();
+      Token name = definition.get_authored().get_name();
       cursor.create_expression_error(
           name ? Option<Anchor>(Anchor::create(Span(name))) : Option<Anchor>(),
           "A top level Library Function cannot receive `self`."_view,
@@ -308,7 +310,8 @@ auto Types::Source::retain_binding(
 
   BAIL_IF(!can_bind_static(binding, category));
   publish_binding(binding, category, definition.is_published());
-  cursor.get_associations().create(definition.get_name_anchor(), binding);
+  cursor.get_associations().create(
+      Anchor::create(Span(definition.get_authored().get_name())), binding);
   return True;
 }
 

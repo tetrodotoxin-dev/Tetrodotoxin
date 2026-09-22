@@ -9,7 +9,7 @@
 #include "tetrodotoxin/library/language/monograph.hpp"
 #include "tetrodotoxin/shader/language/bridge.hpp"
 #include "tetrodotoxin/shader/language/program.hpp"
-#include "ttx/concept/reference.hpp"
+#include "tetrodotoxin/source/reference.hpp"
 
 namespace Tetrodotoxin::Shader::Language {
 
@@ -23,54 +23,54 @@ class Monograph : public Tetrodotoxin::Language::Monograph {
 
   static auto create(
       Perimortem::Memory::Allocator::Arena& domain,
-      const Ttx::Concept::Abstract& language,
-      const Ttx::Concept::Documentation& documentation,
-      Ttx::Concept::Abstract& context,
+      const Tetrodotoxin::Source::Abstract& language,
+      const Tetrodotoxin::Source::Documentation& documentation,
+      Tetrodotoxin::Source::Abstract& context,
       Tetrodotoxin::Library::Language::Monograph& library) -> Monograph&;
 
   auto retain_program(Program& program) -> Bool;
   auto retain_bridge(Bridge& bridge) -> Bool;
 
-  auto compose(Ttx::Lexical::Cursor& cursor) -> Bool override;
-  auto link(Ttx::Lexical::Cursor& cursor) -> Bool override;
-  auto finalize(Ttx::Lexical::Cursor& cursor) -> Bool override;
+  auto compose(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
+  auto link(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
+  auto finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
 
   auto compose_restored() -> Bool override;
   auto link_restored() -> Bool override;
   auto finalize_restored() -> Bool override;
 
-  auto get_layer(const Ttx::Concept::Abstract& requested) const
+  auto get_layer(const Tetrodotoxin::Source::Abstract& requested) const
       -> Perimortem::Core::Option<
           const Tetrodotoxin::Language::Monograph&> override;
 
   auto resolve_concept(Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract& override;
+      -> const Tetrodotoxin::Source::Abstract& override;
 
-  auto visit_concepts(Ttx::Concept::Abstract::Visitor visitor) const
+  auto visit_concepts(Tetrodotoxin::Source::Abstract::Visitor visitor) const
       -> void override;
 
   auto resolve_lexical_context(Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract& override;
+      -> const Tetrodotoxin::Source::Abstract& override;
 
   auto retain_import(
       const Tetrodotoxin::Language::Import::Description& description,
-      Perimortem::Core::Option<Ttx::Lexical::Associations&> associations = {})
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Associations&> associations = {})
       -> Bool override {
     return library.retain_import(description, associations);
   }
 
   constexpr auto get_imports() const -> Perimortem::Core::View::Vector<
-      Ttx::Concept::Reference<Tetrodotoxin::Language::Import>> override {
+      Tetrodotoxin::Source::Reference<Tetrodotoxin::Language::Import>> override {
     return library.get_imports();
   }
 
   constexpr auto get_programs() const
-      -> Perimortem::Core::View::Vector<Ttx::Concept::Reference<Program>> {
+      -> Perimortem::Core::View::Vector<Tetrodotoxin::Source::Reference<Program>> {
     return programs;
   }
 
   constexpr auto get_bridges() const
-      -> Perimortem::Core::View::Vector<Ttx::Concept::Reference<Bridge>> {
+      -> Perimortem::Core::View::Vector<Tetrodotoxin::Source::Reference<Bridge>> {
     return bridges;
   }
 
@@ -92,17 +92,17 @@ class Monograph : public Tetrodotoxin::Language::Monograph {
   // scope. A separate lookup subject preserves that precedence without a
   // static route leading back to the Monograph. It borrows the existing
   // collections instead of maintaining another registry of their members.
-  class Authority : public Ttx::Concept::Abstract {
+  class Authority : public Tetrodotoxin::Source::Abstract {
    public:
     constexpr explicit Authority(const Monograph& owner) : owner(owner) {}
 
-    TTX_CONTRACT(Authority, Ttx::Concept::Abstract);
+    TTX_CONTRACT(Authority, Tetrodotoxin::Source::Abstract);
     TTX_NAME("static"_view);
     TTX_EMPTY_DOCUMENTATION();
 
     auto resolve_concept(Perimortem::Core::View::Bytes name) const
-        -> const Ttx::Concept::Abstract& override;
-    auto visit_concepts(Ttx::Concept::Abstract::Visitor visitor) const
+        -> const Tetrodotoxin::Source::Abstract& override;
+    auto visit_concepts(Tetrodotoxin::Source::Abstract::Visitor visitor) const
         -> void override;
 
    private:
@@ -111,9 +111,9 @@ class Monograph : public Tetrodotoxin::Language::Monograph {
 
   Monograph(
       Perimortem::Memory::Allocator::Arena& domain,
-      const Ttx::Concept::Abstract& language,
-      const Ttx::Concept::Documentation& documentation,
-      Ttx::Concept::Abstract& context,
+      const Tetrodotoxin::Source::Abstract& language,
+      const Tetrodotoxin::Source::Documentation& documentation,
+      Tetrodotoxin::Source::Abstract& context,
       Tetrodotoxin::Library::Language::Monograph& library)
       : Tetrodotoxin::Language::Monograph(
             domain,
@@ -127,9 +127,9 @@ class Monograph : public Tetrodotoxin::Language::Monograph {
 
   Authority static_scope;
   Tetrodotoxin::Library::Language::Monograph& library;
-  Perimortem::Memory::Managed::Vector<Ttx::Concept::Reference<Program>>
+  Perimortem::Memory::Managed::Vector<Tetrodotoxin::Source::Reference<Program>>
       programs;
-  Perimortem::Memory::Managed::Vector<Ttx::Concept::Reference<Bridge>> bridges;
+  Perimortem::Memory::Managed::Vector<Tetrodotoxin::Source::Reference<Bridge>> bridges;
   Bool linked = False;
   Bool finalized = False;
 };

@@ -6,9 +6,9 @@
 #include "tetrodotoxin/library/language/diagnostics.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
 auto Language::Flow::Return::create_authored(
@@ -20,7 +20,7 @@ auto Language::Flow::Return::create_authored(
 }
 
 auto Language::Flow::Return::link(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& lexical_context,
     const Language::Model::Type& access_scope,
     const Layout& results) -> Bool {

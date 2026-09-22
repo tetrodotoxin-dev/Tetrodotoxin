@@ -4,7 +4,7 @@
 #include "tetrodotoxin/library/interpreter/execution/loop_control.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 
 auto Interpreter::Execution::LoopControl::parse(

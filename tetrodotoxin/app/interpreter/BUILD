@@ -16,6 +16,6 @@ cc_library(
         "//tetrodotoxin/app/language",
         "//tetrodotoxin/language",
         "//ttx:concept",
-        "//ttx:lexical",
+        "//tetrodotoxin/source:lexical",
     ],
 )

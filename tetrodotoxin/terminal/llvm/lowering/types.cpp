@@ -28,23 +28,23 @@ using namespace Tetrodotoxin::Library::Language;
 
 static auto reserve_value(
     Llvm::Module::Program& program,
-    const Ttx::Concept::Abstract& answer) -> Bool;
+    const Tetrodotoxin::Source::Abstract& answer) -> Bool;
 
 static auto complete_value(
     Llvm::Module::Program& program,
-    const Ttx::Concept::Abstract& answer) -> Bool;
+    const Tetrodotoxin::Source::Abstract& answer) -> Bool;
 
 static auto reserve_layout(
     Llvm::Module::Program& program,
-    const Ttx::Concept::Layout& layout) -> Bool;
+    const Tetrodotoxin::Source::Layout& layout) -> Bool;
 
 static auto complete_layout(
     Llvm::Module::Program& program,
-    const Ttx::Concept::Layout& layout) -> Bool;
+    const Tetrodotoxin::Source::Layout& layout) -> Bool;
 
 static auto reserve_value(
     Llvm::Module::Program& program,
-    const Ttx::Concept::Abstract& answer) -> Bool {
+    const Tetrodotoxin::Source::Abstract& answer) -> Bool {
   auto selected = answer.select<Model::Type>();
   if (!selected) {
     selected = answer.resolve().select<Model::Type>();
@@ -96,7 +96,7 @@ static auto reserve_value(
     auto interface =
         implementation->get_requirement().resolve().select<Types::Interface>();
     if (interface) {
-      for (const Ttx::Concept::Reference<Ttx::Concept::Abstract>& candidate :
+      for (const Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>& candidate :
            interface->get_addressables(
                Tetrodotoxin::Language::Visibility::Public)) {
         auto addressable = candidate.get().select<Model::Memory>();
@@ -113,7 +113,7 @@ static auto reserve_value(
   }
   auto composite = type.select<Types::Composite>();
   if (composite) {
-    for (const Ttx::Concept::Reference<Ttx::Concept::Abstract>& candidate :
+    for (const Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>& candidate :
          composite->get_addressables()) {
       auto addressable = candidate.get().select<Model::Memory>();
       if (addressable && addressable->contributes_to_instance_layout() &&
@@ -127,7 +127,7 @@ static auto reserve_value(
 
 static auto complete_value(
     Llvm::Module::Program& program,
-    const Ttx::Concept::Abstract& answer) -> Bool {
+    const Tetrodotoxin::Source::Abstract& answer) -> Bool {
   auto selected = answer.select<Model::Type>();
   if (!selected) {
     selected = answer.resolve().select<Model::Type>();
@@ -179,7 +179,7 @@ static auto complete_value(
     auto interface =
         implementation->get_requirement().resolve().select<Types::Interface>();
     if (interface) {
-      for (const Ttx::Concept::Reference<Ttx::Concept::Abstract>& candidate :
+      for (const Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>& candidate :
            interface->get_addressables(
                Tetrodotoxin::Language::Visibility::Public)) {
         auto addressable = candidate.get().select<Model::Memory>();
@@ -196,7 +196,7 @@ static auto complete_value(
   }
   auto composite = type.select<Types::Composite>();
   if (composite) {
-    for (const Ttx::Concept::Reference<Ttx::Concept::Abstract>& candidate :
+    for (const Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>& candidate :
          composite->get_addressables()) {
       auto addressable = candidate.get().select<Model::Memory>();
       if (addressable && addressable->contributes_to_instance_layout() &&
@@ -212,12 +212,12 @@ static auto complete_value(
 
 static auto reserve_layout(
     Llvm::Module::Program& program,
-    const Ttx::Concept::Layout& layout) -> Bool {
+    const Tetrodotoxin::Source::Layout& layout) -> Bool {
   for (Count index = 0; index < layout.get_size(); index++) {
     auto entry = layout.get_abstract(index);
     BAIL_IF(!entry);
-    auto addressable = entry->select<Ttx::Model::Addressable>();
-    const Ttx::Concept::Abstract& answer =
+    auto addressable = entry->select<Tetrodotoxin::Source::Addressable>();
+    const Tetrodotoxin::Source::Abstract& answer =
         addressable ? addressable->get_type() : *entry;
     BAIL_IF(!reserve_value(program, answer));
   }
@@ -226,12 +226,12 @@ static auto reserve_layout(
 
 static auto complete_layout(
     Llvm::Module::Program& program,
-    const Ttx::Concept::Layout& layout) -> Bool {
+    const Tetrodotoxin::Source::Layout& layout) -> Bool {
   for (Count index = 0; index < layout.get_size(); index++) {
     auto entry = layout.get_abstract(index);
     BAIL_IF(!entry);
-    auto addressable = entry->select<Ttx::Model::Addressable>();
-    const Ttx::Concept::Abstract& answer =
+    auto addressable = entry->select<Tetrodotoxin::Source::Addressable>();
+    const Tetrodotoxin::Source::Abstract& answer =
         addressable ? addressable->get_type() : *entry;
     BAIL_IF(!complete_value(program, answer));
   }
@@ -246,26 +246,26 @@ auto Llvm::Lowering::Types::prepare(
 
 auto Llvm::Lowering::Types::prepare(
     Llvm::Module::Program& program,
-    const Ttx::Model::Addressable& addressable) -> Bool {
+    const Tetrodotoxin::Source::Addressable& addressable) -> Bool {
   return reserve(program, addressable) && complete(program, addressable);
 }
 
 auto Llvm::Lowering::Types::reserve(
     Llvm::Module::Program& program,
-    const Ttx::Model::Addressable& addressable) -> Bool {
+    const Tetrodotoxin::Source::Addressable& addressable) -> Bool {
   return reserve_value(program, addressable.get_type());
 }
 
 auto Llvm::Lowering::Types::complete(
     Llvm::Module::Program& program,
-    const Ttx::Model::Addressable& addressable) -> Bool {
+    const Tetrodotoxin::Source::Addressable& addressable) -> Bool {
   BAIL_IF(!complete_value(program, addressable.get_type()));
-  Core::Option<Ttx::Lexical::Anchor> anchor;
+  Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor;
   addressable.bind<Tetrodotoxin::Source::Declaration>().visit(
       [&](const Tetrodotoxin::Source::Declaration::Handle& declaration) {
         anchor = declaration.get_anchor();
       },
-      [](Ttx::Semantic::Binding::Failure) {});
+      [](Ttx::Semantic::Negotiation::Binding::Failure) {});
   return !anchor || program.get_debug().field(addressable, *anchor);
 }
 
@@ -306,7 +306,7 @@ auto Llvm::Lowering::Types::complete_declaration(
   auto storage = enumeration->get_storage_type();
   BAIL_IF(!storage);
   for (Count index = 0; index < enumeration->get_case_count(); index++) {
-    const Ttx::Concept::Abstract& declaration =
+    const Tetrodotoxin::Source::Abstract& declaration =
         enumeration->get_cases().get_data()[index].get();
     auto value = enumeration->get_case_value(index);
     BAIL_IF(!value);

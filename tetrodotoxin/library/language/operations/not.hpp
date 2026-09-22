@@ -6,7 +6,7 @@
 #include "perimortem/core/option.hpp"
 
 #include "tetrodotoxin/library/language/operation.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Language::Operations {
 
@@ -20,7 +20,7 @@ class Not : public Operation {
   static auto create_authored(
       Perimortem::Memory::Allocator::Arena& domain,
       Model::Pack& operand,
-      Ttx::Lexical::Anchor anchor) -> Not&;
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> Not&;
   static auto create_synthetic(
       Perimortem::Memory::Allocator::Arena& domain,
       Model::Pack& operand) -> Not&;
@@ -32,13 +32,13 @@ class Not : public Operation {
       -> Perimortem::Utility::Result<
           Perimortem::Core::Option<Tetrodotoxin::Library::Language::Constant&>,
           Expression::Error> override;
-  auto select_type(const Ttx::Concept::Abstract& context) const
+  auto select_type(const Tetrodotoxin::Source::Abstract& context) const
       -> Perimortem::Core::Option<const Model::Type&> override;
 
  private:
   Not(Perimortem::Memory::Allocator::Arena& domain,
       Model::Pack& operand,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor);
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor);
 };
 
 }  // namespace Tetrodotoxin::Library::Language::Operations

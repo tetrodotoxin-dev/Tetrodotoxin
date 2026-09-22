@@ -7,7 +7,7 @@
 
 #include "tetrodotoxin/library/language/constant.hpp"
 #include "tetrodotoxin/library/language/types/result.hpp"
-#include "ttx/concept/reference.hpp"
+#include "tetrodotoxin/source/reference.hpp"
 
 namespace Tetrodotoxin::Library::Language::Constants {
 
@@ -55,7 +55,7 @@ class Result : public Tetrodotoxin::Library::Language::Constant {
       const Types::Result& type,
       Types::Result::Kind kind,
       Model::Pack& payload,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor);
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor);
 
   static auto create(
       Perimortem::Memory::Allocator::Arena& domain,
@@ -65,7 +65,7 @@ class Result : public Tetrodotoxin::Library::Language::Constant {
 
   const Types::Result& type;
   Types::Result::Kind kind;
-  Ttx::Model::PackReference<Model::Pack> payload;
+  Tetrodotoxin::Source::PackReference<Model::Pack> payload;
   Perimortem::Memory::Managed::Bytes name;
 };
 

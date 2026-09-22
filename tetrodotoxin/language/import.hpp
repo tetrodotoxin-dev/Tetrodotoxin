@@ -10,13 +10,13 @@
 
 #include "tetrodotoxin/language/visibility.hpp"
 #include "tetrodotoxin/source/declaration.hpp"
-#include "ttx/concept/abstract.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
 #include "ttx/concept/domain.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/lexical/cursor.hpp"
-#include "ttx/model/type.hpp"
-#include "ttx/semantic/bound.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/type.hpp"
+#include "tetrodotoxin/source/bound.hpp"
 
 namespace Tetrodotoxin::Language {
 
@@ -30,7 +30,7 @@ namespace Tetrodotoxin::Language {
 // visitation use that same path, allowing an import policy to restrict a name
 // without discovery exposing the fallback answer. Acquisition borrows a native
 // Type in this implementation, and the source owner keeps that Type alive.
-class Import : public Ttx::Concept::Abstract {
+class Import : public Tetrodotoxin::Source::Abstract {
  public:
   static constexpr Perimortem::System::Uuid contract_id{
     0x01a084b0c85e7fd8,
@@ -55,7 +55,7 @@ class Import : public Ttx::Concept::Abstract {
         -> Perimortem::Core::Option<Perimortem::Core::View::Bytes>;
   };
 
-  class Handle : public Ttx::Semantic::Bound<Operations> {
+  class Handle : public Tetrodotoxin::Source::Bound<Operations> {
    public:
     using Bound::Bound;
 
@@ -81,22 +81,22 @@ class Import : public Ttx::Concept::Abstract {
 
   auto bind_interface(Perimortem::System::Uuid requested) const
       -> Perimortem::Utility::Result<
-          Ttx::Semantic::Binding,
-          Ttx::Semantic::Binding::Failure> override;
+          Ttx::Semantic::Negotiation::Binding,
+          Ttx::Semantic::Negotiation::Binding::Failure> override;
 
   class Description {
    public:
     constexpr Description(
         Perimortem::Core::View::Bytes name,
-        const Ttx::Concept::Documentation& documentation,
+        const Tetrodotoxin::Source::Documentation& documentation,
         Visibility visibility,
         Kind kind,
         Perimortem::Core::View::Bytes locator,
         Perimortem::System::Version version,
         Perimortem::Core::View::Bytes route,
-        Ttx::Lexical::Anchor declaration_anchor,
-        Ttx::Lexical::Anchor expression_anchor,
-        Ttx::Lexical::Anchor route_anchor)
+        Tetrodotoxin::Source::Lexical::Anchor declaration_anchor,
+        Tetrodotoxin::Source::Lexical::Anchor expression_anchor,
+        Tetrodotoxin::Source::Lexical::Anchor route_anchor)
         : name(name),
           documentation(documentation),
           visibility(visibility),
@@ -112,7 +112,7 @@ class Import : public Ttx::Concept::Abstract {
       return name;
     }
     constexpr auto get_documentation() const
-        -> const Ttx::Concept::Documentation& {
+        -> const Tetrodotoxin::Source::Documentation& {
       return documentation;
     }
     constexpr auto get_visibility() const -> Visibility { return visibility; }
@@ -126,27 +126,27 @@ class Import : public Ttx::Concept::Abstract {
     constexpr auto get_route() const -> Perimortem::Core::View::Bytes {
       return route;
     }
-    constexpr auto get_declaration_anchor() const -> Ttx::Lexical::Anchor {
+    constexpr auto get_declaration_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor {
       return declaration_anchor;
     }
-    constexpr auto get_expression_anchor() const -> Ttx::Lexical::Anchor {
+    constexpr auto get_expression_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor {
       return expression_anchor;
     }
-    constexpr auto get_route_anchor() const -> Ttx::Lexical::Anchor {
+    constexpr auto get_route_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor {
       return route_anchor;
     }
 
    private:
     Perimortem::Core::View::Bytes name;
-    const Ttx::Concept::Documentation& documentation;
+    const Tetrodotoxin::Source::Documentation& documentation;
     Visibility visibility;
     Kind kind;
     Perimortem::Core::View::Bytes locator;
     Perimortem::System::Version version;
     Perimortem::Core::View::Bytes route;
-    Ttx::Lexical::Anchor declaration_anchor;
-    Ttx::Lexical::Anchor expression_anchor;
-    Ttx::Lexical::Anchor route_anchor;
+    Tetrodotoxin::Source::Lexical::Anchor declaration_anchor;
+    Tetrodotoxin::Source::Lexical::Anchor expression_anchor;
+    Tetrodotoxin::Source::Lexical::Anchor route_anchor;
   };
 
   constexpr Import(
@@ -164,7 +164,7 @@ class Import : public Ttx::Concept::Abstract {
         expression_anchor(description.get_expression_anchor()),
         route_anchor(description.get_route_anchor()) {}
 
-  TTX_CONTRACT(Import, Ttx::Concept::Abstract);
+  TTX_CONTRACT(Import, Tetrodotoxin::Source::Abstract);
 
   TTX_NAME(name);
 
@@ -179,39 +179,39 @@ class Import : public Ttx::Concept::Abstract {
   constexpr auto get_route() const -> Perimortem::Core::View::Bytes {
     return route;
   }
-  constexpr auto get_declaration_anchor() const -> Ttx::Lexical::Anchor {
+  constexpr auto get_declaration_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor {
     return declaration_anchor;
   }
-  constexpr auto get_expression_anchor() const -> Ttx::Lexical::Anchor {
+  constexpr auto get_expression_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor {
     return expression_anchor;
   }
 
-  auto acquire(const Ttx::Model::Type& root) -> Bool;
+  auto acquire(const Tetrodotoxin::Source::Type& root) -> Bool;
 
   auto get_acquired() const
-      -> Perimortem::Core::Option<const Ttx::Model::Type&>;
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Type&>;
 
-  auto validate(Ttx::Lexical::Cursor& cursor) -> Bool;
+  auto validate(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool;
   auto validate_restored() -> Bool;
 
-  auto resolve() const -> const Ttx::Concept::Abstract& override;
+  auto resolve() const -> const Tetrodotoxin::Source::Abstract& override;
 
   // The native compiler needs the selected Type even while that Type is still
   // completing. This factual edge belongs to Import, so obtaining it does not
   // redefine resolve or make the dependency subject disappear.
-  auto get_type() const -> const Ttx::Concept::Abstract& override;
+  auto get_type() const -> const Tetrodotoxin::Source::Abstract& override;
   auto resolve_concept(Perimortem::Core::View::Bytes name) const
-      -> const Ttx::Concept::Abstract& override;
-  auto visit_concepts(Ttx::Concept::Abstract::Visitor visitor) const
+      -> const Tetrodotoxin::Source::Abstract& override;
+  auto visit_concepts(Tetrodotoxin::Source::Abstract::Visitor visitor) const
       -> void override;
 
-  auto get_documentation() const -> const Ttx::Concept::Documentation& override;
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override;
 
  private:
   friend class Tetrodotoxin::Source::Declaration;
   auto complete_source(
       Tetrodotoxin::Source::Declaration::Phase phase,
-      Ttx::Lexical::Cursor* cursor)
+      Tetrodotoxin::Source::Lexical::Cursor* cursor)
       -> Tetrodotoxin::Source::Declaration::Completion {
     using Phase = Tetrodotoxin::Source::Declaration::Phase;
     if (phase == Phase::Type) {
@@ -223,23 +223,23 @@ class Import : public Ttx::Concept::Abstract {
     return True;
   }
 
-  auto select_target(Perimortem::Core::Option<Ttx::Lexical::Cursor&> cursor)
-      const -> const Ttx::Concept::Abstract&;
+  auto select_target(Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Cursor&> cursor)
+      const -> const Tetrodotoxin::Source::Abstract&;
 
   Perimortem::Core::View::Bytes name;
   Perimortem::Memory::Allocator::Arena& domain;
-  const Ttx::Concept::Documentation& local_documentation;
-  Perimortem::Core::Option<const Ttx::Concept::Documentation&>
+  const Tetrodotoxin::Source::Documentation& local_documentation;
+  Perimortem::Core::Option<const Tetrodotoxin::Source::Documentation&>
       visible_documentation;
   Visibility visibility;
   Kind kind;
   Perimortem::Core::View::Bytes locator;
   Perimortem::System::Version version;
   Perimortem::Core::View::Bytes route;
-  Ttx::Lexical::Anchor declaration_anchor;
-  Ttx::Lexical::Anchor expression_anchor;
-  Ttx::Lexical::Anchor route_anchor;
-  Perimortem::Core::Option<Ttx::Concept::Reference<const Ttx::Model::Type>>
+  Tetrodotoxin::Source::Lexical::Anchor declaration_anchor;
+  Tetrodotoxin::Source::Lexical::Anchor expression_anchor;
+  Tetrodotoxin::Source::Lexical::Anchor route_anchor;
+  Perimortem::Core::Option<Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type>>
       acquired;
 
   // An Import can preserve its boundary around a domain answer only after
@@ -247,7 +247,7 @@ class Import : public Ttx::Concept::Abstract {
   // with its subject lets repeated calls use the same policy without another
   // lookup or negotiation. The source transaction retains both providers.
   struct DomainBinding {
-    Ttx::Concept::Abstract::Handle subject;
+    Ttx::Concept::Abstract subject;
     Ttx::Concept::Domain::Handle domain;
   };
   mutable Perimortem::Core::Option<DomainBinding> domain_binding;

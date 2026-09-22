@@ -6,9 +6,9 @@
 #include "perimortem/core/option.hpp"
 
 #include "tetrodotoxin/app/language/runtime.hpp"
-#include "ttx/concept/abstract.hpp"
-#include "ttx/concept/documentation.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/documentation.hpp"
 
 namespace Tetrodotoxin::App::Interpreter {
 
@@ -19,9 +19,9 @@ class Runtime {
   Runtime() = delete;
 
   static auto parse(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Documentation& documentation,
-      Ttx::Concept::Abstract& context)
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Documentation& documentation,
+      Tetrodotoxin::Source::Abstract& context)
       -> Perimortem::Core::Option<Tetrodotoxin::App::Language::Runtime&>;
 };
 

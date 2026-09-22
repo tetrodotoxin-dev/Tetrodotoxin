@@ -6,7 +6,7 @@
 #include "perimortem/core/option.hpp"
 
 #include "tetrodotoxin/app/language/route.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::App::Interpreter {
 
@@ -16,7 +16,7 @@ class Route {
  public:
   Route() = delete;
 
-  static auto parse(Ttx::Lexical::Cursor& cursor)
+  static auto parse(Tetrodotoxin::Source::Lexical::Cursor& cursor)
       -> Perimortem::Core::Option<Language::Route>;
 };
 

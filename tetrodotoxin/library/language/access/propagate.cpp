@@ -5,12 +5,12 @@
 
 #include "tetrodotoxin/library/language/diagnostics.hpp"
 #include "tetrodotoxin/library/language/flow/scope.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
 auto Language::Access::Propagate::create_authored(
@@ -25,7 +25,7 @@ auto Language::Access::Propagate::create_authored(
 }
 
 auto Language::Access::Propagate::link(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& lexical_context,
     Core::Option<const Abstract&> access_scope) -> Bool {
   BAIL_IF(!receiver.link(cursor, lexical_context, access_scope));
@@ -61,9 +61,9 @@ auto Language::Access::Propagate::link(
       ErrorEscape& created = Expression::create_synthetic<ErrorEscape>(
           cursor.get_arena(),
           [&](Core::Option<Anchor>) { return ErrorEscape(*propagated_error); });
-      escape = Ttx::Model::PackReference<Model::Pack>(created);
+      escape = Tetrodotoxin::Source::PackReference<Model::Pack>(created);
       error_type =
-          Ttx::Concept::Reference<const Model::Type>(*propagated_error);
+          Tetrodotoxin::Source::Reference<const Model::Type>(*propagated_error);
     }
   } else if (error_type) {
     cursor.create_expression_error(

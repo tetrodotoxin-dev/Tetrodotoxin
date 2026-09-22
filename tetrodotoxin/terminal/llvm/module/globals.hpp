@@ -12,9 +12,9 @@
 #include "llvm-c/Types.h"
 #include "tetrodotoxin/library/language/model/pack.hpp"
 #include "tetrodotoxin/terminal/llvm/module/emission.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/model/addressable.hpp"
-#include "ttx/model/pack.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/addressable.hpp"
+#include "tetrodotoxin/source/pack.hpp"
 
 namespace Tetrodotoxin::Terminal::Llvm::Module {
 
@@ -22,40 +22,40 @@ class Globals {
  public:
   auto reserve_static(
       Emission& program,
-      const Ttx::Model::Addressable& addressable) const
+      const Tetrodotoxin::Source::Addressable& addressable) const
       -> Perimortem::Core::Option<Bool>;
 
   auto reserve_foreign(
       Emission& program,
-      const Ttx::Model::Addressable& addressable,
+      const Tetrodotoxin::Source::Addressable& addressable,
       Perimortem::Core::View::Bytes abi,
       Perimortem::Core::View::Bytes symbol,
       Bool writable) const -> Perimortem::Core::Option<Bool>;
 
-  auto complete(Emission& program, const Ttx::Model::Addressable& addressable)
+  auto complete(Emission& program, const Tetrodotoxin::Source::Addressable& addressable)
       const -> Bool;
 
   auto begin_initializer(
       Emission& program,
-      const Ttx::Model::Addressable& addressable) const
+      const Tetrodotoxin::Source::Addressable& addressable) const
       -> Perimortem::Core::Option<LLVMValueRef>;
 
   auto end_initializer(
       Emission& body,
-      const Ttx::Model::Addressable& addressable,
+      const Tetrodotoxin::Source::Addressable& addressable,
       const Tetrodotoxin::Library::Language::Model::Pack& value) const -> Bool;
 
-  auto find_address(const Ttx::Model::Addressable& addressable) const
+  auto find_address(const Tetrodotoxin::Source::Addressable& addressable) const
       -> Perimortem::Core::Option<LLVMValueRef>;
 
-  auto find_symbol(const Ttx::Model::Addressable& addressable) const
+  auto find_symbol(const Tetrodotoxin::Source::Addressable& addressable) const
       -> Perimortem::Core::Option<Perimortem::Core::View::Bytes>;
 
-  auto permits_foreign_write(const Ttx::Model::Addressable& addressable) const
+  auto permits_foreign_write(const Tetrodotoxin::Source::Addressable& addressable) const
       -> Bool;
 
   auto get_foreign_addressables() const -> Perimortem::Core::View::Vector<
-      Ttx::Concept::Reference<const Ttx::Model::Addressable>>;
+      Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Addressable>>;
 
  private:
   class Record {
@@ -95,14 +95,14 @@ class Globals {
 
   auto reserve(
       Emission& program,
-      const Ttx::Model::Addressable& addressable,
+      const Tetrodotoxin::Source::Addressable& addressable,
       Record record) const -> Perimortem::Core::Option<Bool>;
 
   mutable Perimortem::Memory::Dynamic::
-      Map<const Ttx::Model::Addressable*, Record>
+      Map<const Tetrodotoxin::Source::Addressable*, Record>
           records;
   mutable Perimortem::Memory::Dynamic::Vector<
-      Ttx::Concept::Reference<const Ttx::Model::Addressable>>
+      Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Addressable>>
       foreign_addressables;
 };
 

@@ -7,7 +7,7 @@
 
 #include "tetrodotoxin/language/import.hpp"
 #include "tetrodotoxin/package/archive/graph_import.hpp"
-#include "ttx/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
 
 using namespace Perimortem;
 using namespace Tetrodotoxin;
@@ -117,7 +117,7 @@ auto Puffer::Dependencies::acquire_source(
 auto Puffer::Dependencies::restore(Environment::Workspace& workspace) const
     -> Bool {
   for (const auto& source : sources.get_view()) {
-    Ttx::Lexical::Errors errors;
+    Tetrodotoxin::Source::Lexical::Errors errors;
     if (!workspace.import_package(
             errors, source.root, source.identity, "package.ttx"_view)) {
       return False;
@@ -140,13 +140,13 @@ auto Puffer::Dependencies::discover(
   for (Count pass = 0; pass < maximum_passes; pass++) {
     Environment::Workspace inspection(toolchain, snapshots);
     BAIL_IF(!restore(inspection));
-    Ttx::Lexical::Errors errors;
+    Tetrodotoxin::Source::Lexical::Errors errors;
     if (inspection.import_package(errors, root, semantic_name, route)) {
       return True;
     }
 
     Count retained = archives.get_size() + sources.get_size();
-    for (const Ttx::Concept::Reference<Language::Import>& pending :
+    for (const Tetrodotoxin::Source::Reference<Language::Import>& pending :
          inspection.get_pending_package_imports()) {
       Bool acquired =
           compile_sources

@@ -91,10 +91,13 @@ cc_binary(
             "unit_tests/perimortem/**/*.cpp",
             "unit_tests/process/**/*.cpp",
             "unit_tests/puffer/**/*.cpp",
-            "unit_tests/ttx/**/*.cpp",
             "unit_tests/tetrodotoxin/**/*.cpp",
         ],
-    ) + ["unit_test.cpp"],
+    ) + [
+        "unit_test.cpp",
+        "//validation/unit_tests/tetrodotoxin/source:sources",
+        "//validation/unit_tests/ttx/concept:sentinels.cpp",
+    ],
     data = glob(
         ["data/**/*.ttx"],
         exclude = ["data/ttx/shader_artifact/**"],

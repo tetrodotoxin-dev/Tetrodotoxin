@@ -13,9 +13,9 @@
 #include "tetrodotoxin/library/language/model/pack.hpp"
 #include "tetrodotoxin/library/language/type_reference.hpp"
 #include "tetrodotoxin/library/language/writability.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Language::Flow {
 
@@ -32,36 +32,36 @@ class Local : public Model::Memory {
   static auto create_authored(
       Perimortem::Memory::Allocator::Arena& domain,
       Block& host,
-      Ttx::Lexical::Token name_token,
+      Tetrodotoxin::Source::Lexical::Token name_token,
       Perimortem::Core::View::Bytes name,
       Writability writability,
       Perimortem::Core::Option<TypeReference> type_reference,
       Perimortem::Core::Option<Model::Pack&> initializer,
-      Ttx::Lexical::Anchor anchor) -> Local&;
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> Local&;
 
   Local(const Local&) = delete;
   Local(Local&&) = delete;
   auto operator=(const Local&) -> Local& = delete;
   auto operator=(Local&&) -> Local& = delete;
 
-  auto link(Ttx::Lexical::Cursor& cursor, const Model::Type& access_scope)
+  auto link(Tetrodotoxin::Source::Lexical::Cursor& cursor, const Model::Type& access_scope)
       -> Bool;
 
-  auto finalize(Ttx::Lexical::Cursor& cursor) -> void;
+  auto finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> void;
 
   TTX_NAME(name);
 
-  auto get_documentation() const -> const Ttx::Concept::Documentation& override;
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override;
 
-  auto resolve() const -> const Ttx::Concept::Abstract& override;
+  auto resolve() const -> const Tetrodotoxin::Source::Abstract& override;
 
-  auto get_type() const -> const Ttx::Concept::Abstract& override;
+  auto get_type() const -> const Tetrodotoxin::Source::Abstract& override;
 
   constexpr auto get_linked_type() const
       -> Perimortem::Core::Option<const Model::Type&> {
     return type.visit(
         []() -> Perimortem::Core::Option<const Model::Type&> { return {}; },
-        [](const Ttx::Concept::Reference<const Model::Type>& selected)
+        [](const Tetrodotoxin::Source::Reference<const Model::Type>& selected)
             -> Perimortem::Core::Option<const Model::Type&> {
           return selected.get();
         });
@@ -83,7 +83,7 @@ class Local : public Model::Memory {
     return writability == Writability::Full;
   }
 
-  constexpr auto get_anchor() const -> Ttx::Lexical::Anchor { return anchor; }
+  constexpr auto get_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor { return anchor; }
 
   constexpr auto get_initializer() const
       -> Perimortem::Core::Option<const Model::Pack&> {
@@ -105,18 +105,18 @@ class Local : public Model::Memory {
     Failed,
   };
 
-  auto link_constant(Ttx::Lexical::Cursor& cursor) const -> Bool;
+  auto link_constant(Tetrodotoxin::Source::Lexical::Cursor& cursor) const -> Bool;
   auto cache_constant() const -> Bool;
 
   constexpr Local(
       Perimortem::Memory::Allocator::Arena& domain,
       Block& host,
-      Ttx::Lexical::Token name_token,
+      Tetrodotoxin::Source::Lexical::Token name_token,
       Perimortem::Core::View::Bytes name,
       Writability writability,
       Perimortem::Core::Option<TypeReference> type_reference,
       Perimortem::Core::Option<Model::Pack&> initializer,
-      Ttx::Lexical::Anchor anchor)
+      Tetrodotoxin::Source::Lexical::Anchor anchor)
       : domain(domain),
         host(host),
         name_token(name_token),
@@ -129,16 +129,16 @@ class Local : public Model::Memory {
 
   Perimortem::Memory::Allocator::Arena& domain;
   Block& host;
-  Ttx::Lexical::Token name_token;
+  Tetrodotoxin::Source::Lexical::Token name_token;
   Perimortem::Core::View::Bytes name;
   Writability writability;
   Perimortem::Core::Option<TypeReference> type_reference;
   Perimortem::Core::Option<Model::Pack&> initializer;
-  Perimortem::Core::Option<Ttx::Concept::Reference<const Model::Type>> type;
-  mutable Perimortem::Core::Option<Ttx::Model::PackReference<Model::Pack>>
+  Perimortem::Core::Option<Tetrodotoxin::Source::Reference<const Model::Type>> type;
+  mutable Perimortem::Core::Option<Tetrodotoxin::Source::PackReference<Model::Pack>>
       constant;
   mutable ConstantState constant_state = ConstantState::Unresolved;
-  Ttx::Lexical::Anchor anchor;
+  Tetrodotoxin::Source::Lexical::Anchor anchor;
   Bool initializer_linked;
 };
 

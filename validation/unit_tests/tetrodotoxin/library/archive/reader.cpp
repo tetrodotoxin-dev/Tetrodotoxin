@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/library/archive/reader.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "validation/unit_test.hpp"
 
 #include "perimortem/memory/dynamic/bytes.hpp"
@@ -17,7 +19,7 @@
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Tetrodotoxin::Library;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Validation;
 
 static Harness ReaderTests = {
@@ -108,8 +110,8 @@ static auto archive(View::Bytes record) -> Dynamic::Bytes {
 static auto context(Allocator::Arena& arena, Abstract& language)
     -> Language::Monograph& {
   return Language::Monograph::create(
-      arena, Documentation::get_empty(),
-      Ttx::Lexical::Anchor::create(Ttx::Lexical::Span()), language, language);
+      arena, Tetrodotoxin::Source::Documentation::get_empty(),
+      Tetrodotoxin::Source::Lexical::Anchor::create(Tetrodotoxin::Source::Lexical::Span()), language, language);
 }
 
 PERIMORTEM_UNIT_TEST(ReaderTests, nested_source) {

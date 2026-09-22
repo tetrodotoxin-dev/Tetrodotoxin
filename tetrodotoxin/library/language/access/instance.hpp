@@ -6,9 +6,9 @@
 #include "perimortem/memory/allocator/arena.hpp"
 #include "perimortem/memory/managed/map.hpp"
 
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 namespace Tetrodotoxin::Library::Language::Access {
 
@@ -19,23 +19,23 @@ namespace Tetrodotoxin::Library::Language::Access {
 // * Any Callables that take [self] as a parameter.
 //
 // Instance access then follow whenever you have `addressable (access op) X`.
-class Instance : public Ttx::Concept::Abstract {
+class Instance : public Tetrodotoxin::Source::Abstract {
  public:
   constexpr explicit Instance(Perimortem::Memory::Allocator::Arena& arena)
       : bindings(arena) {}
 
-  TTX_CONTRACT(Instance, Ttx::Concept::Abstract);
+  TTX_CONTRACT(Instance, Tetrodotoxin::Source::Abstract);
   TTX_NAME("instance"_view);
   TTX_EMPTY_DOCUMENTATION();
 
-  auto can_bind(const Ttx::Concept::Abstract& binding) const -> Bool;
-  auto bind(Ttx::Concept::Abstract& binding, Bool published) -> Bool;
-  auto is_published(const Ttx::Concept::Abstract& binding) const -> Bool;
+  auto can_bind(const Tetrodotoxin::Source::Abstract& binding) const -> Bool;
+  auto bind(Tetrodotoxin::Source::Abstract& binding, Bool published) -> Bool;
+  auto is_published(const Tetrodotoxin::Source::Abstract& binding) const -> Bool;
   auto resolve_published(Perimortem::Core::View::Bytes name) const
-      -> const Ttx::Concept::Abstract&;
+      -> const Tetrodotoxin::Source::Abstract&;
   auto resolve_concept(Perimortem::Core::View::Bytes name) const
-      -> const Ttx::Concept::Abstract& override;
-  auto visit_concepts(Ttx::Concept::Abstract::Visitor visitor) const
+      -> const Tetrodotoxin::Source::Abstract& override;
+  auto visit_concepts(Tetrodotoxin::Source::Abstract::Visitor visitor) const
       -> void override;
 
   constexpr auto complete() -> void { completed = True; }
@@ -43,10 +43,10 @@ class Instance : public Ttx::Concept::Abstract {
  private:
   class Binding {
    public:
-    constexpr Binding(Ttx::Concept::Abstract& semantic, Bool published)
+    constexpr Binding(Tetrodotoxin::Source::Abstract& semantic, Bool published)
         : semantic(semantic), published(published) {}
 
-    Ttx::Concept::Reference<Ttx::Concept::Abstract> semantic;
+    Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract> semantic;
     Bool published;
   };
 

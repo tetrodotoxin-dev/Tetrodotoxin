@@ -3,15 +3,17 @@
 
 #include "tetrodotoxin/library/dialect.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "tetrodotoxin/library/interpreter/source/library.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
 #include "tetrodotoxin/library/simulacra.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using Ttx::Semantic::Binding;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using Ttx::Semantic::Negotiation::Binding;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 auto Library::Dialect::bind_interface(Perimortem::System::Uuid requested) const
@@ -32,7 +34,7 @@ auto Library::Dialect::bind_interface(Perimortem::System::Uuid requested) const
 
 auto Library::Dialect::interpret(
     Cursor& cursor,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     const Anchor& source_anchor,
     Abstract& context) -> Option<Tetrodotoxin::Language::Monograph&> {
   auto& monograph = Language::Monograph::create_authored(
@@ -50,7 +52,7 @@ auto Library::Dialect::encode(const Abstract& monograph) const
 auto Library::Dialect::decode(
     Allocator::Arena& arena,
     View::Bytes payload,
-    Abstract& context) -> Option<Ttx::Concept::Abstract&> {
+    Abstract& context) -> Option<Tetrodotoxin::Source::Abstract&> {
   // The source reconstruction format is not the stored Library contract.
   return {};
 }

@@ -3,12 +3,14 @@
 
 #include "tetrodotoxin/scene/interpreter/signal.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "tetrodotoxin/library/interpreter/type_reference.hpp"
 #include "tetrodotoxin/scene/language/signal.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 auto Scene::Interpreter::Signal::is_next(const Cursor& cursor) -> Bool {
@@ -20,7 +22,7 @@ auto Scene::Interpreter::Signal::is_next(const Cursor& cursor) -> Bool {
 auto Scene::Interpreter::Signal::parse(
     Language::Monograph& monograph,
     Cursor& cursor,
-    const Documentation& documentation) -> Bool {
+    const Tetrodotoxin::Source::Documentation& documentation) -> Bool {
   BAIL_IF(!is_next(cursor));
   Token opening = cursor.consume();
   Token name = cursor.require(

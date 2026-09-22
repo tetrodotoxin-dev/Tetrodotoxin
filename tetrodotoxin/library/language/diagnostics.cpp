@@ -5,17 +5,17 @@
 
 #include "tetrodotoxin/library/language/model/memory.hpp"
 #include "tetrodotoxin/library/language/model/type.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
 auto Language::Diagnostics::write_type(
-    Ttx::Lexical::Errors::Report& report,
+    Tetrodotoxin::Source::Lexical::Errors::Report& report,
     const Abstract& abstract) -> void {
   const Abstract& resolved = abstract.is<Language::Model::Type>() ||
-                                     abstract.is<Ttx::Model::Addressable>()
+                                     abstract.is<Tetrodotoxin::Source::Addressable>()
                                  ? abstract
                                  : abstract.resolve();
   const Language::Model::Type* type = nullptr;
@@ -23,7 +23,7 @@ auto Language::Diagnostics::write_type(
   if (direct) {
     type = &*direct;
   } else {
-    auto addressable = resolved.select<Ttx::Model::Addressable>();
+    auto addressable = resolved.select<Tetrodotoxin::Source::Addressable>();
     if (addressable && !addressable->resolve().is<Unknown>()) {
       auto selected = addressable->get_type().select<Language::Model::Type>();
       if (selected) {
@@ -52,7 +52,7 @@ auto Language::Diagnostics::write_type(
 }
 
 auto Language::Diagnostics::write_layout(
-    Ttx::Lexical::Errors::Report& report,
+    Tetrodotoxin::Source::Lexical::Errors::Report& report,
     const Layout& layout) -> void {
   report << "["_view;
   for (Count index = 0; index < layout.get_size(); index++) {
@@ -73,7 +73,7 @@ auto Language::Diagnostics::write_layout(
 }
 
 auto Language::Diagnostics::write_pack(
-    Ttx::Lexical::Errors::Report& report,
+    Tetrodotoxin::Source::Lexical::Errors::Report& report,
     const Model::Pack& pack) -> void {
   const Layout& layout = pack.get_layout();
   report << "["_view;

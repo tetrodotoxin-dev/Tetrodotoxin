@@ -15,7 +15,7 @@ auto Generics::Implementation::create(
   BAIL_IF(arguments.get_size() != 1);
   const Generic::SemanticType* selected =
       arguments.get_data()[0].find<Generic::SemanticType>();
-  const Ttx::Model::Type* requirement = selected ? &selected->get() : nullptr;
+  const Tetrodotoxin::Source::Type* requirement = selected ? &selected->get() : nullptr;
   BAIL_IF(!requirement);
 
   auto& arena = get_domain();

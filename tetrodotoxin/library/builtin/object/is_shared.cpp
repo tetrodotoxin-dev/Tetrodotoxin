@@ -10,8 +10,8 @@ auto Builtin::Object::IsShared::create(
     Memory::Allocator::Arena& domain,
     const Language::Model::Type& receiver,
     const Language::Model::Type& result) -> IsShared& {
-  Ttx::Model::Layouts::Addressable& self =
-      Ttx::Model::Layouts::Addressable::create_synthetic(
+  Tetrodotoxin::Source::Layouts::Addressable& self =
+      Tetrodotoxin::Source::Layouts::Addressable::create_synthetic(
           domain, "self"_view, receiver);
   return domain.construct_from<IsShared>(
       [&]() -> IsShared { return IsShared(self, result); });

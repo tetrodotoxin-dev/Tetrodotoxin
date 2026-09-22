@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/scene/interpreter/source.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "tetrodotoxin/language/definition.hpp"
 #include "tetrodotoxin/language/parser/comment.hpp"
 #include "tetrodotoxin/library/interpreter/member.hpp"
@@ -11,8 +13,8 @@
 #include "tetrodotoxin/scene/interpreter/lifecycle.hpp"
 #include "tetrodotoxin/scene/interpreter/signal.hpp"
 
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 auto Scene::Interpreter::Source::parse(
@@ -21,7 +23,7 @@ auto Scene::Interpreter::Source::parse(
   auto& source = monograph.edit_library().get_source();
   auto& instance = monograph.edit_instance();
   while (!cursor.matches(Code::Type::Terminal)) {
-    const Documentation& documentation =
+    const Tetrodotoxin::Source::Documentation& documentation =
         Tetrodotoxin::Language::Parser::Comment::parse(cursor);
 
     if (cursor.matches(Code::Type::Using)) {

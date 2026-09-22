@@ -56,12 +56,12 @@ auto Module::Interface::prepare(const Shader::Language::Program& program)
   // merely because it shares the Program context.
   auto contract = program.get_contract();
   BAIL_IF(!contract);
-  for (const Ttx::Concept::Reference<Ttx::Concept::Abstract>& requirement :
+  for (const Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>& requirement :
        contract->get_callables()) {
     auto render_stage = requirement.get().select<Render::Language::Stage>();
     BAIL_IF(!render_stage);
     Core::Option<const Library::Language::Function&> function;
-    for (const Ttx::Concept::Reference<Ttx::Concept::Abstract>& candidate :
+    for (const Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>& candidate :
          program.get_callables()) {
       auto selected = candidate.get().select<Library::Language::Function>();
       if (selected && selected->get_name() == render_stage->get_name()) {
@@ -130,7 +130,7 @@ auto Module::Interface::prepare_bindings(
 }
 
 auto Module::Interface::is_resource(
-    const Ttx::Concept::Abstract& semantic) const -> Bool {
+    const Tetrodotoxin::Source::Abstract& semantic) const -> Bool {
   for (const Variable& binding : bindings.get_view()) {
     if (&binding.semantic.get() == &semantic &&
         binding.storage == Assembler::SpirV::StorageClass::UniformConstant) {

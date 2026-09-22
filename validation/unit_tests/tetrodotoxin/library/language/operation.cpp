@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/library/language/operation.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "validation/unit_test.hpp"
 #include "validation/unit_tests/tetrodotoxin/library/language/fixture.hpp"
 
@@ -15,15 +17,15 @@
 #include "tetrodotoxin/library/language/constants/unsigned.hpp"
 #include "tetrodotoxin/library/language/types/u64.hpp"
 #include "tetrodotoxin/library/language/types/u8.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Utility;
 using namespace Tetrodotoxin::Library::Language;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Validation;
 
 static Harness LibraryOperation = {
@@ -32,18 +34,18 @@ static Harness LibraryOperation = {
 
 class OperationExpression : public Expression {
  public:
-  OperationExpression(View::Bytes name, const Ttx::Model::Type& type)
+  OperationExpression(View::Bytes name, const Tetrodotoxin::Source::Type& type)
       : Expression({}), name(name), type(type) {}
 
   auto get_name() const -> View::Bytes override { return name; }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
-  auto get_type() const -> const Ttx::Model::Type& override { return type; }
+  auto get_type() const -> const Tetrodotoxin::Source::Type& override { return type; }
 
  private:
   View::Bytes name;
-  const Ttx::Model::Type& type;
+  const Tetrodotoxin::Source::Type& type;
 };
 
 class TestOperation : public Operation {
@@ -52,7 +54,7 @@ class TestOperation : public Operation {
       Allocator::Arena& domain,
       View::Bytes name,
       const Model::Type& type,
-      View::Vector<Ttx::Model::PackReference<Model::Pack>> inputs,
+      View::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>> inputs,
       Tetrodotoxin::Library::Language::Constant& result,
       Bool fails = False,
       Bool skips_after_first = False)
@@ -64,8 +66,8 @@ class TestOperation : public Operation {
         skips_after_first(skips_after_first) {}
 
   auto get_name() const -> View::Bytes override { return name; }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
   auto get_evaluations() const -> Count { return evaluations; }
   auto input_is(Count index, const Model::Pack& expected) const -> Bool {
@@ -112,10 +114,10 @@ class TestOperation : public Operation {
 static auto link_operation(Operation& operation, const Abstract& context)
     -> Bool {
   Allocator::Arena transaction;
-  Ttx::Lexical::Errors errors;
-  Ttx::Lexical::Tokenizer tokenizer(transaction, {}, "<operation>"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
-  Ttx::Lexical::Cursor cursor(tokenizer, errors, associations);
+  Tetrodotoxin::Source::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Tokenizer tokenizer(transaction, {}, "<operation>"_view);
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Cursor cursor(tokenizer, errors, associations);
   return operation.link(cursor, context);
 }
 
@@ -159,7 +161,7 @@ PERIMORTEM_UNIT_TEST(LibraryOperation, dynamic_inputs) {
   Types::U64 type;
   OperationExpression ordinary("ordinary"_view, type);
   auto& constant = Constants::Unsigned::create_synthetic(domain, type, 1);
-  Static::Vector<Ttx::Model::PackReference<Model::Pack>, 2> inputs = {
+  Static::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>, 2> inputs = {
     {ordinary, constant}};
   TestOperation operation(domain, "partial"_view, type, inputs, constant);
 
@@ -187,10 +189,10 @@ PERIMORTEM_UNIT_TEST(LibraryOperation, partial_fold) {
   OperationExpression ordinary("ordinary"_view, type);
   auto& input = Constants::Unsigned::create_synthetic(domain, type, 1);
   auto& folded = Constants::Unsigned::create_synthetic(domain, type, 2);
-  Static::Vector<Ttx::Model::PackReference<Model::Pack>, 1> child_inputs = {
+  Static::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>, 1> child_inputs = {
     {input}};
   TestOperation child(domain, "child"_view, type, child_inputs, folded);
-  Static::Vector<Ttx::Model::PackReference<Model::Pack>, 2> parent_inputs = {
+  Static::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>, 2> parent_inputs = {
     {child, ordinary}};
   TestOperation parent(domain, "parent"_view, type, parent_inputs, folded);
 
@@ -216,7 +218,7 @@ PERIMORTEM_UNIT_TEST(LibraryOperation, stable_result) {
   auto& first_input = Constants::Unsigned::create_synthetic(domain, type, 1);
   auto& second_input = Constants::Unsigned::create_synthetic(domain, type, 2);
   auto& folded = Constants::Unsigned::create_synthetic(domain, type, 3);
-  Static::Vector<Ttx::Model::PackReference<Model::Pack>, 2> inputs = {{
+  Static::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>, 2> inputs = {{
     first_input,
     second_input,
   }};
@@ -241,10 +243,10 @@ PERIMORTEM_UNIT_TEST(LibraryOperation, child_failure) {
   Types::U64 type;
   OperationExpression ordinary("ordinary"_view, type);
   auto& input = Constants::Unsigned::create_synthetic(domain, type, 1);
-  Static::Vector<Ttx::Model::PackReference<Model::Pack>, 1> child_inputs = {
+  Static::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>, 1> child_inputs = {
     {input}};
   TestOperation child(domain, "child"_view, type, child_inputs, input, True);
-  Static::Vector<Ttx::Model::PackReference<Model::Pack>, 2> parent_inputs = {
+  Static::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>, 2> parent_inputs = {
     {child, ordinary}};
   TestOperation parent(domain, "parent"_view, type, parent_inputs, input);
 
@@ -272,7 +274,7 @@ PERIMORTEM_UNIT_TEST(LibraryOperation, changed_result) {
   auto& input = Constants::Unsigned::create_synthetic(domain, expected_type, 1);
   auto& changed =
       Constants::Unsigned::create_synthetic(domain, changed_type, 1);
-  Static::Vector<Ttx::Model::PackReference<Model::Pack>, 1> inputs = {{input}};
+  Static::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>, 1> inputs = {{input}};
   TestOperation operation(
       domain, "changed"_view, expected_type, inputs, changed);
 
@@ -294,7 +296,7 @@ PERIMORTEM_UNIT_TEST(LibraryOperation, retryable_query) {
   Types::U64 type;
   auto& input = Constants::Unsigned::create_synthetic(domain, type, 1);
   auto& folded = Constants::Unsigned::create_synthetic(domain, type, 2);
-  Static::Vector<Ttx::Model::PackReference<Model::Pack>, 1> inputs = {{input}};
+  Static::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>, 1> inputs = {{input}};
   TestOperation operation(domain, "retry"_view, type, inputs, folded);
 
   auto before = operation.fold();
@@ -315,11 +317,11 @@ PERIMORTEM_UNIT_TEST(LibraryOperation, reachability) {
   OperationExpression dynamic("dynamic"_view, type);
   auto& input = Constants::Unsigned::create_synthetic(domain, type, 1);
   auto& folded = Constants::Unsigned::create_synthetic(domain, type, 2);
-  Static::Vector<Ttx::Model::PackReference<Model::Pack>, 1> child_inputs = {
+  Static::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>, 1> child_inputs = {
     {input}};
   TestOperation failing(
       domain, "failing"_view, type, child_inputs, folded, True);
-  Static::Vector<Ttx::Model::PackReference<Model::Pack>, 2> inputs = {
+  Static::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>, 2> inputs = {
     {dynamic, failing}};
   TestOperation parent(
       domain, "parent"_view, type, inputs, folded, False, True);
@@ -332,11 +334,11 @@ PERIMORTEM_UNIT_TEST(LibraryOperation, reachability) {
   EXPECT(failing.get_evaluations() == 1);
 
   auto& first = Constants::Unsigned::create_synthetic(domain, type, 1);
-  Static::Vector<Ttx::Model::PackReference<Model::Pack>, 1> skipped_inputs = {
+  Static::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>, 1> skipped_inputs = {
     {first}};
   TestOperation unreachable(
       domain, "unreachable"_view, type, skipped_inputs, folded, True);
-  Static::Vector<Ttx::Model::PackReference<Model::Pack>, 2> skipping_inputs = {
+  Static::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>, 2> skipping_inputs = {
     {first, unreachable}};
   TestOperation skipping(
       domain, "skipping"_view, type, skipping_inputs, folded, False, True);

@@ -16,14 +16,14 @@ class Emission final
  public:
   constexpr Emission(Language::Monograph& monograph) : monograph(monograph) {}
 
-  auto matches(const Ttx::Lexical::Cursor& cursor) const -> Bool override;
+  auto matches(const Tetrodotoxin::Source::Lexical::Cursor& cursor) const -> Bool override;
 
   auto parse(
-      Ttx::Lexical::Cursor& cursor,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
       Tetrodotoxin::Library::Language::Flow::Block& block,
       Tetrodotoxin::Library::Language::Model::Callable& function,
       const Tetrodotoxin::Library::Language::Model::Type& access_scope,
-      const Ttx::Concept::Documentation& documentation) const
+      const Tetrodotoxin::Source::Documentation& documentation) const
       -> Perimortem::Core::Option<
           Tetrodotoxin::Library::Language::Statement> override;
 

@@ -6,8 +6,8 @@
 #include "perimortem/core/option.hpp"
 
 #include "tetrodotoxin/library/language/import.hpp"
-#include "ttx/concept/documentation.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/documentation.hpp"
 
 namespace Tetrodotoxin::Library::Interpreter::Source {
 
@@ -19,8 +19,8 @@ class Import {
   Import() = delete;
 
   static auto parse(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Documentation& documentation)
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Documentation& documentation)
       -> Perimortem::Core::Option<Language::Import>;
 };
 

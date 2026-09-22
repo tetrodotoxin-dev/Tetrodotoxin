@@ -16,10 +16,10 @@
 #include "tetrodotoxin/library/language/access/static.hpp"
 #include "tetrodotoxin/library/language/model/pack.hpp"
 #include "tetrodotoxin/source/declaration.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/cursor.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 namespace Tetrodotoxin::Library::Language::Model {
 
@@ -27,23 +27,23 @@ namespace Tetrodotoxin::Library::Language::Model {
 // It owns the Library operations that every concrete Library Type must answer
 // without placing those operations on TTX or manufacturing an operation
 // Abstract.
-class Type : public Ttx::Model::Type {
+class Type : public Tetrodotoxin::Source::Type {
  public:
   using CallableBindings = Perimortem::Core::View::Vector<
-      Ttx::Concept::Reference<Ttx::Concept::Abstract>>;
+      Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>>;
   using Callables = Perimortem::Core::View::Selection<CallableBindings>;
 
-  TTX_CONTRACT(Type, Ttx::Model::Type);
+  TTX_CONTRACT(Type, Tetrodotoxin::Source::Type);
 
   auto bind_interface(Perimortem::System::Uuid requested) const
       -> Perimortem::Utility::Result<
-          Ttx::Semantic::Binding,
-          Ttx::Semantic::Binding::Failure> override;
+          Ttx::Semantic::Negotiation::Binding,
+          Ttx::Semantic::Negotiation::Binding::Failure> override;
 
   auto resolve_concept(Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract& override;
+      -> const Tetrodotoxin::Source::Abstract& override;
 
-  auto visit_concepts(Ttx::Concept::Abstract::Visitor visitor) const
+  auto visit_concepts(Tetrodotoxin::Source::Abstract::Visitor visitor) const
       -> void override;
 
   // Every completed nonempty Library Type owns one total semantic default.
@@ -81,12 +81,12 @@ class Type : public Ttx::Model::Type {
   // Iteration is selected by the exact input Type. The loop supplies its real
   // binding Layout and input Pack, while each iterable Type owns admission and
   // exposes its semantic contents to a terminal producer.
-  virtual auto accepts_iteration(const Ttx::Concept::Layout&) const -> Bool {
+  virtual auto accepts_iteration(const Tetrodotoxin::Source::Layout&) const -> Bool {
     return False;
   }
 
   virtual constexpr auto get_declaration_anchor() const
-      -> Perimortem::Core::Option<Ttx::Lexical::Anchor> {
+      -> Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> {
     return {};
   }
 
@@ -96,10 +96,10 @@ class Type : public Ttx::Model::Type {
   // and completed value Pack. The Anchor keeps rejection on the authored
   // expression without retaining parser state in the Type.
   virtual auto create_supplied(
-      Ttx::Lexical::Cursor& cursor,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
       Pack&,
-      Perimortem::Core::Option<const Ttx::Concept::Abstract&>,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor) const
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&>,
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor) const
       -> Perimortem::Core::Option<Pack&> {
     cursor.create_expression_error(
         anchor,
@@ -111,7 +111,7 @@ class Type : public Ttx::Model::Type {
   virtual auto create_supplied_restored(
       Perimortem::Memory::Allocator::Arena&,
       Pack&,
-      Perimortem::Core::Option<const Ttx::Concept::Abstract&>) const
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&>) const
       -> Perimortem::Core::Option<Pack&> {
     return {};
   }
@@ -142,29 +142,29 @@ class Type : public Ttx::Model::Type {
   // Types keep the neutral behavior because they own no delayed graph edges.
   virtual auto link_aliases() -> Count { return 0; }
 
-  virtual auto validate_aliases(Ttx::Lexical::Cursor&) const -> Bool {
+  virtual auto validate_aliases(Tetrodotoxin::Source::Lexical::Cursor&) const -> Bool {
     return True;
   }
 
-  virtual auto link_types(Ttx::Lexical::Cursor&) -> Bool { return True; }
+  virtual auto link_types(Tetrodotoxin::Source::Lexical::Cursor&) -> Bool { return True; }
 
-  virtual auto link_callable_signatures(Ttx::Lexical::Cursor&) -> Bool {
+  virtual auto link_callable_signatures(Tetrodotoxin::Source::Lexical::Cursor&) -> Bool {
     return True;
   }
 
-  virtual auto link_fields(Ttx::Lexical::Cursor&) -> Bool { return True; }
+  virtual auto link_fields(Tetrodotoxin::Source::Lexical::Cursor&) -> Bool { return True; }
 
-  virtual auto validate_layout(Ttx::Lexical::Cursor&) const -> Bool {
+  virtual auto validate_layout(Tetrodotoxin::Source::Lexical::Cursor&) const -> Bool {
     return True;
   }
 
-  virtual auto link_initializers(Ttx::Lexical::Cursor&) -> Bool { return True; }
+  virtual auto link_initializers(Tetrodotoxin::Source::Lexical::Cursor&) -> Bool { return True; }
 
-  virtual auto link_callable_bodies(Ttx::Lexical::Cursor&) -> Bool {
+  virtual auto link_callable_bodies(Tetrodotoxin::Source::Lexical::Cursor&) -> Bool {
     return True;
   }
 
-  virtual auto finalize(Ttx::Lexical::Cursor&) -> Bool { return True; }
+  virtual auto finalize(Tetrodotoxin::Source::Lexical::Cursor&) -> Bool { return True; }
 
   virtual auto link_restored_types() -> Bool { return True; }
 
@@ -187,7 +187,7 @@ class Type : public Ttx::Model::Type {
   // returns to ordinary public lookup. Types without authored declarations use
   // the ordinary context query unchanged.
   virtual auto resolve_lexical_context(Perimortem::Core::View::Bytes route)
-      const -> const Ttx::Concept::Abstract& {
+      const -> const Tetrodotoxin::Source::Abstract& {
     return resolve_concept(route);
   }
 
@@ -217,12 +217,12 @@ class Type : public Ttx::Model::Type {
   // Concrete Type construction publishes every authored or generated Callable
   // into this one surface. The Callable parameter Layout remains the only
   // Static or Self role authority.
-  auto can_publish_callable(const Ttx::Concept::Abstract& callable) const
+  auto can_publish_callable(const Tetrodotoxin::Source::Abstract& callable) const
       -> Bool;
 
   auto publish_callable(
       Perimortem::Memory::Allocator::Arena& domain,
-      Ttx::Concept::Abstract& callable,
+      Tetrodotoxin::Source::Abstract& callable,
       Bool published) -> void;
 
   auto get_callable_bindings(
@@ -234,21 +234,21 @@ class Type : public Ttx::Model::Type {
   friend class Tetrodotoxin::Source::Declaration;
   auto complete_source(
       Tetrodotoxin::Source::Declaration::Phase phase,
-      Ttx::Lexical::Cursor* cursor)
+      Tetrodotoxin::Source::Lexical::Cursor* cursor)
       -> Tetrodotoxin::Source::Declaration::Completion;
 
   auto initialize_authorities(Perimortem::Memory::Allocator::Arena& domain)
       -> void;
 
-  Perimortem::Core::Option<Ttx::Concept::Reference<Access::Static>>
+  Perimortem::Core::Option<Tetrodotoxin::Source::Reference<Access::Static>>
       static_authority;
-  Perimortem::Core::Option<Ttx::Concept::Reference<Access::Instance>>
+  Perimortem::Core::Option<Tetrodotoxin::Source::Reference<Access::Instance>>
       instance_authority;
   Perimortem::Core::Option<Perimortem::Memory::Managed::Vector<
-      Ttx::Concept::Reference<Ttx::Concept::Abstract>>>
+      Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>>>
       callables;
   Perimortem::Core::Option<Perimortem::Memory::Managed::Vector<
-      Ttx::Concept::Reference<Ttx::Concept::Abstract>>>
+      Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>>>
       published_callables;
 };
 

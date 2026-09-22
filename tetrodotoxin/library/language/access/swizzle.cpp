@@ -3,18 +3,20 @@
 
 #include "tetrodotoxin/library/language/access/swizzle.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "tetrodotoxin/library/language/access/address.hpp"
 #include "tetrodotoxin/library/language/model/memory.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/model/layouts/fluid.hpp"
-#include "ttx/model/layouts/named.hpp"
-#include "ttx/model/layouts/value.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/layouts/fluid.hpp"
+#include "tetrodotoxin/source/layouts/named.hpp"
+#include "tetrodotoxin/source/layouts/value.hpp"
 
 using namespace Perimortem;
 using namespace Tetrodotoxin::Library;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 
 static auto select_type(const Abstract& output)
     -> Core::Option<const Language::Model::Type&> {
@@ -60,8 +62,8 @@ static auto create_layout(
     Memory::Allocator::Arena& domain,
     const Language::Access::Swizzle& source,
     const Language::Model::Pack& receiver,
-    Core::View::Vector<Count> selections) -> const Ttx::Concept::Layout& {
-  class Layout final : public Ttx::Concept::Layout {
+    Core::View::Vector<Count> selections) -> const Tetrodotoxin::Source::Layout& {
+  class Layout final : public Tetrodotoxin::Source::Layout {
    public:
     constexpr Layout(
         const Language::Access::Swizzle& source,
@@ -80,7 +82,7 @@ static auto create_layout(
     }
 
     auto fits_entry(
-        const Ttx::Concept::Layout& target,
+        const Tetrodotoxin::Source::Layout& target,
         Count source_index,
         Count target_index) const -> Bool override {
       BAIL_IF(source_index >= get_size() || target_index >= target.get_size());
@@ -94,12 +96,12 @@ static auto create_layout(
       // standard identity free Layout values create no producer or retained
       // mapping beside the selected source index.
       Core::View::Bytes slot_names[] = {*source_name};
-      Ttx::Model::Layouts::Value target_value(*target_entry);
-      Ttx::Model::Layouts::Named target_slot(target_value, slot_names);
+      Tetrodotoxin::Source::Layouts::Value target_value(*target_entry);
+      Tetrodotoxin::Source::Layouts::Named target_slot(target_value, slot_names);
       return receiver.fits_entry(target_slot, selected, 0);
     }
 
-    auto fits_at(const Ttx::Concept::Layout& target, Count target_offset) const
+    auto fits_at(const Tetrodotoxin::Source::Layout& target, Count target_offset) const
         -> Bool override {
       BAIL_IF(!has_target_segment(target, target_offset));
       for (Count index = 0; index < get_size(); index++) {
@@ -109,7 +111,7 @@ static auto create_layout(
     }
 
     auto get_fitted_at(
-        const Ttx::Concept::Layout& target,
+        const Tetrodotoxin::Source::Layout& target,
         Count target_offset,
         Count target_index) const
         -> Utility::Result<const Abstract&, Errors> override {
@@ -147,7 +149,7 @@ auto Language::Access::Swizzle::create_authored(
 }
 
 auto Language::Access::Swizzle::link(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& lexical_context,
     Core::Option<const Abstract&> access_scope) -> Bool {
   BAIL_IF(!receiver.link(cursor, lexical_context, access_scope));
@@ -160,7 +162,7 @@ auto Language::Access::Swizzle::link(
     return False;
   }
 
-  const Ttx::Concept::Layout& receiver_layout = receiver.get_layout();
+  const Tetrodotoxin::Source::Layout& receiver_layout = receiver.get_layout();
   Bool direct_selection = names.is_empty() || is_named(receiver_layout);
   auto receiver_expression = receiver.select_identity<Expression>();
   Memory::Managed::Vector<Count> selected_indices(domain);
@@ -271,14 +273,14 @@ auto Language::Access::Swizzle::link(
       projections.insert(projection);
     }
     output =
-        domain.construct<Ttx::Model::Layouts::Fluid>(projections.get_view());
+        domain.construct<Tetrodotoxin::Source::Layouts::Fluid>(projections.get_view());
   }
   return True;
 }
 
 auto Language::Access::Swizzle::get_documentation() const
-    -> const Documentation& {
-  return Documentation::get_empty();
+    -> const Tetrodotoxin::Source::Documentation& {
+  return Tetrodotoxin::Source::Documentation::get_empty();
 }
 
 auto Language::Access::Swizzle::get_type() const -> const Abstract& {
@@ -305,7 +307,7 @@ auto Language::Access::Swizzle::get_value_type(Count index) const
 }
 
 auto Language::Access::Swizzle::get_layout() const
-    -> const Ttx::Concept::Layout& {
+    -> const Tetrodotoxin::Source::Layout& {
   return *output;
 }
 

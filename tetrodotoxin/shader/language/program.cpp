@@ -3,12 +3,14 @@
 
 #include "tetrodotoxin/shader/language/program.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "tetrodotoxin/shader/language/contract.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 using namespace Tetrodotoxin::Shader;
 
@@ -86,9 +88,9 @@ auto Shader::Language::Program::initialize_runtime_surface() -> Bool {
 
   auto& parameters_definition =
       Tetrodotoxin::Language::Definition::create_synthetic(
-          domain, Documentation::get_empty(), *this, "Parameters"_view,
+          domain, Tetrodotoxin::Source::Documentation::get_empty(), *this, "Parameters"_view,
           Tetrodotoxin::Language::Visibility::Public,
-          get_definition().get_anchor());
+          get_definition().get_authored().get_anchor());
   auto& parameters_type = Library::Language::Types::Structure::create_authored(
       domain, parameters_definition);
   BAIL_IF(!retain_definition(parameters_type, Category::Type, True));
@@ -96,9 +98,9 @@ auto Shader::Language::Program::initialize_runtime_surface() -> Bool {
 
   auto& instance_definition =
       Tetrodotoxin::Language::Definition::create_synthetic(
-          domain, Documentation::get_empty(), *this, "Material"_view,
+          domain, Tetrodotoxin::Source::Documentation::get_empty(), *this, "Material"_view,
           Tetrodotoxin::Language::Visibility::Public,
-          get_definition().get_anchor());
+          get_definition().get_authored().get_anchor());
   auto& instance_type = Library::Language::Types::Object::create_synthetic(
       domain, instance_definition);
   BAIL_IF(!retain_definition(instance_type, Category::Type, True));
@@ -106,7 +108,7 @@ auto Shader::Language::Program::initialize_runtime_surface() -> Bool {
 
   auto& program_field_definition =
       Tetrodotoxin::Language::Definition::create_synthetic(
-          domain, Documentation::get_empty(), *this, "parameters"_view,
+          domain, Tetrodotoxin::Source::Documentation::get_empty(), *this, "parameters"_view,
           Tetrodotoxin::Language::Visibility::Public, Anchor::create(Span()));
   auto& program_field = Library::Language::Field::create(
       domain, program_field_definition, Library::Language::Writability::Full,
@@ -116,7 +118,7 @@ auto Shader::Language::Program::initialize_runtime_surface() -> Bool {
 
   auto& instance_field_definition =
       Tetrodotoxin::Language::Definition::create_synthetic(
-          domain, Documentation::get_empty(), instance_type, "parameters"_view,
+          domain, Tetrodotoxin::Source::Documentation::get_empty(), instance_type, "parameters"_view,
           Tetrodotoxin::Language::Visibility::Public, Anchor::create(Span()));
   auto& instance_field = Library::Language::Field::create(
       domain, instance_field_definition,
@@ -237,7 +239,7 @@ auto Shader::Language::Program::project_binding(
 
 auto Shader::Language::Program::project_type(const Abstract& requirement) const
     -> Option<const Library::Language::Model::Type&> {
-  auto exact = requirement.select<Ttx::Model::Type>();
+  auto exact = requirement.select<Tetrodotoxin::Source::Type>();
   BAIL_IF(!exact);
   auto direct = exact->select<Library::Language::Model::Type>();
   if (direct) {

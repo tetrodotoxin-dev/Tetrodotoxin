@@ -8,14 +8,14 @@
 #include "tetrodotoxin/library/language/expressions/initializer.hpp"
 #include "tetrodotoxin/library/language/field.hpp"
 #include "tetrodotoxin/library/language/model/pack.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/model/layouts/fluid.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/layouts/fluid.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Model;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library::Language;
 
 static auto select_accessible_field(
@@ -161,7 +161,7 @@ auto Types::Object::create_supplied(
   // A fitted supplied value wins, then the declaration initializer, then the
   // exact Field Type default. Const and Static facts never enter this inventory
   // and therefore cannot become construction inputs by accident.
-  Managed::Vector<Ttx::Model::PackReference<Model::Pack>> values(arena);
+  Managed::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>> values(arena);
   values.reset(get_layout().get_size());
   for (const Reference<Abstract>& selected : get_addressables()) {
     auto field = selected.get().select<Field>();
@@ -218,7 +218,7 @@ auto Types::Object::create_supplied_restored(
     return Expressions::Initializer::create_provider(arena, *this, arguments);
   }
 
-  Managed::Vector<Ttx::Model::PackReference<Model::Pack>> values(arena);
+  Managed::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>> values(arena);
   values.reset(get_layout().get_size());
   for (const Reference<Abstract>& selected : get_addressables()) {
     auto field = selected.get().select<Field>();

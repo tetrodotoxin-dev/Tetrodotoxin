@@ -8,12 +8,12 @@
 
 #include "llvm-c/Types.h"
 #include "tetrodotoxin/terminal/llvm/module/body.hpp"
-#include "ttx/concept/layout.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/model/addressable.hpp"
-#include "ttx/model/callable.hpp"
-#include "ttx/model/pack.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/layout.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/addressable.hpp"
+#include "tetrodotoxin/source/callable.hpp"
+#include "tetrodotoxin/source/pack.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 namespace Tetrodotoxin::Terminal::Llvm::Emission {
 
@@ -50,30 +50,30 @@ class Computation {
 
   auto arithmetic(
       Arithmetic operation,
-      const Ttx::Model::Type& carrier,
-      const Ttx::Model::Pack& result,
-      const Ttx::Model::Pack& left,
-      const Ttx::Model::Pack& right) const -> Bool;
+      const Tetrodotoxin::Source::Type& carrier,
+      const Tetrodotoxin::Source::Pack& result,
+      const Tetrodotoxin::Source::Pack& left,
+      const Tetrodotoxin::Source::Pack& right) const -> Bool;
   auto negate(
-      const Ttx::Model::Type& carrier,
-      const Ttx::Model::Pack& result,
-      const Ttx::Model::Pack& operand) const -> Bool;
+      const Tetrodotoxin::Source::Type& carrier,
+      const Tetrodotoxin::Source::Pack& result,
+      const Tetrodotoxin::Source::Pack& operand) const -> Bool;
   auto convert(
-      const Ttx::Model::Type& source_carrier,
-      const Ttx::Model::Type& target_carrier,
-      const Ttx::Model::Pack& result,
-      const Ttx::Model::Pack& source) const -> Bool;
+      const Tetrodotoxin::Source::Type& source_carrier,
+      const Tetrodotoxin::Source::Type& target_carrier,
+      const Tetrodotoxin::Source::Pack& result,
+      const Tetrodotoxin::Source::Pack& source) const -> Bool;
   auto compare(
       Comparison operation,
-      const Ttx::Model::Type& carrier,
-      const Ttx::Model::Pack& result,
-      const Ttx::Model::Pack& left,
-      const Ttx::Model::Pack& right) const -> Bool;
+      const Tetrodotoxin::Source::Type& carrier,
+      const Tetrodotoxin::Source::Pack& result,
+      const Tetrodotoxin::Source::Pack& left,
+      const Tetrodotoxin::Source::Pack& right) const -> Bool;
   auto compare_bytes(
       Comparison operation,
-      const Ttx::Model::Pack& result,
-      const Ttx::Model::Pack& left,
-      const Ttx::Model::Pack& right) const -> Bool;
+      const Tetrodotoxin::Source::Pack& result,
+      const Tetrodotoxin::Source::Pack& left,
+      const Tetrodotoxin::Source::Pack& right) const -> Bool;
 
  private:
   Module::Body& body;

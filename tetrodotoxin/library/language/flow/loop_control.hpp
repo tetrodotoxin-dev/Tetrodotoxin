@@ -8,30 +8,30 @@
 #include "perimortem/memory/allocator/arena.hpp"
 
 #include "tetrodotoxin/library/language/flow/block.hpp"
-#include "ttx/concept/abstract.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Language::Flow {
 
 // LoopControl owns one authored `break` or `continue` statement. It retains the
 // nearest enclosing loop identity so nested Blocks never reduce that semantic
 // relationship to parser depth or a later lowering decision.
-class LoopControl : public Ttx::Concept::Abstract {
+class LoopControl : public Tetrodotoxin::Source::Abstract {
  public:
   enum class Kind : U8 {
     Break,
     Continue,
   };
 
-  TTX_CONTRACT(LoopControl, Ttx::Concept::Abstract);
+  TTX_CONTRACT(LoopControl, Tetrodotoxin::Source::Abstract);
 
   static auto create_authored(
       Perimortem::Memory::Allocator::Arena& domain,
       Kind kind,
-      const Ttx::Concept::Abstract& target,
-      Ttx::Lexical::Anchor anchor) -> LoopControl&;
+      const Tetrodotoxin::Source::Abstract& target,
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> LoopControl&;
 
   LoopControl(const LoopControl&) = delete;
   LoopControl(LoopControl&&) = delete;
@@ -43,22 +43,22 @@ class LoopControl : public Ttx::Concept::Abstract {
 
   constexpr auto get_kind() const -> Kind { return kind; }
 
-  constexpr auto get_target() const -> const Ttx::Concept::Abstract& {
+  constexpr auto get_target() const -> const Tetrodotoxin::Source::Abstract& {
     return target.get();
   }
 
-  constexpr auto get_anchor() const -> Ttx::Lexical::Anchor { return anchor; }
+  constexpr auto get_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor { return anchor; }
 
  private:
   constexpr LoopControl(
       Kind kind,
-      const Ttx::Concept::Abstract& target,
-      Ttx::Lexical::Anchor anchor)
+      const Tetrodotoxin::Source::Abstract& target,
+      Tetrodotoxin::Source::Lexical::Anchor anchor)
       : kind(kind), target(target), anchor(anchor) {}
 
   Kind kind;
-  Ttx::Concept::Reference<const Ttx::Concept::Abstract> target;
-  Ttx::Lexical::Anchor anchor;
+  Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Abstract> target;
+  Tetrodotoxin::Source::Lexical::Anchor anchor;
 };
 
 }  // namespace Tetrodotoxin::Library::Language::Flow

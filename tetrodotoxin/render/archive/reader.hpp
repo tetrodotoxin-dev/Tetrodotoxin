@@ -25,9 +25,9 @@ class Reader {
   static auto restore(
       Perimortem::Memory::Allocator::Arena& arena,
       Perimortem::Core::View::Bytes payload,
-      const Ttx::Concept::Abstract& language,
-      Ttx::Concept::Abstract& context)
-      -> Perimortem::Core::Option<Ttx::Concept::Abstract&>;
+      const Tetrodotoxin::Source::Abstract& language,
+      Tetrodotoxin::Source::Abstract& context)
+      -> Perimortem::Core::Option<Tetrodotoxin::Source::Abstract&>;
 
  private:
   class Record {
@@ -49,7 +49,7 @@ class Reader {
   class Definition {
    public:
     constexpr Definition(
-        const Ttx::Concept::Documentation& documentation,
+        const Tetrodotoxin::Source::Documentation& documentation,
         Perimortem::Core::View::Vector<Tetrodotoxin::Language::Attribute>
             attributes,
         Perimortem::Core::View::Bytes name,
@@ -61,7 +61,7 @@ class Reader {
 
     auto create(
         Perimortem::Memory::Allocator::Arena& arena,
-        Ttx::Concept::Abstract& host) const
+        Tetrodotoxin::Source::Abstract& host) const
         -> Tetrodotoxin::Language::Definition&;
 
     constexpr auto get_attributes() const { return attributes; }
@@ -69,7 +69,7 @@ class Reader {
     constexpr auto get_visibility() const { return visibility; }
 
    private:
-    const Ttx::Concept::Documentation& documentation;
+    const Tetrodotoxin::Source::Documentation& documentation;
     Perimortem::Core::View::Vector<Tetrodotoxin::Language::Attribute>
         attributes;
     Perimortem::Core::View::Bytes name;
@@ -85,7 +85,7 @@ class Reader {
   class Entry {
    public:
     constexpr Entry(
-        Ttx::Concept::Abstract& semantic,
+        Tetrodotoxin::Source::Abstract& semantic,
         Category category,
         Tetrodotoxin::Language::Visibility visibility,
         Bool instance)
@@ -94,7 +94,7 @@ class Reader {
           visibility(visibility),
           instance(instance) {}
 
-    Ttx::Concept::Abstract& semantic;
+    Tetrodotoxin::Source::Abstract& semantic;
     Category category;
     Tetrodotoxin::Language::Visibility visibility;
     Bool instance;
@@ -115,7 +115,7 @@ class Reader {
   auto read_r64() -> Perimortem::Core::Option<R64>;
   auto read_bytes() -> Perimortem::Core::Option<Perimortem::Core::View::Bytes>;
   auto read_documentation(Perimortem::Memory::Allocator::Arena& arena)
-      -> Perimortem::Core::Option<const Ttx::Concept::Documentation&>;
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Documentation&>;
   auto read_attributes(Perimortem::Memory::Allocator::Arena& arena)
       -> Perimortem::Core::Option<
           Perimortem::Core::View::Vector<Tetrodotoxin::Language::Attribute>>;
@@ -127,7 +127,7 @@ class Reader {
       -> Perimortem::Core::Option<Tetrodotoxin::Render::Language::Layout&>;
   auto read_entry(
       Perimortem::Memory::Allocator::Arena& arena,
-      Ttx::Concept::Abstract& host) -> Perimortem::Core::Option<Entry>;
+      Tetrodotoxin::Source::Abstract& host) -> Perimortem::Core::Option<Entry>;
   auto read_entries(
       Perimortem::Memory::Allocator::Arena& arena,
       Tetrodotoxin::Render::Language::Monograph& monograph) -> Bool;

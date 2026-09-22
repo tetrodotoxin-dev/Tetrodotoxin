@@ -45,7 +45,7 @@ static auto get_target(Llvm::Module::Emission& program)
 static auto is_local_definition(
     const Tetrodotoxin::Terminal::Abi::Unit& unit,
     const Tetrodotoxin::Language::Definition& definition) -> Bool {
-  Ttx::Concept::Reference<const Ttx::Concept::Abstract> current(
+  Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Abstract> current(
       definition.get_host());
   while (true) {
     auto source =
@@ -109,7 +109,7 @@ static auto create_void_function(Llvm::Module::Program& program)
 static auto emit_destructor(
     Llvm::Module::Program& program,
     const Llvm::Module::Carriers& carriers,
-    const Ttx::Model::Addressable& addressable,
+    const Tetrodotoxin::Source::Addressable& addressable,
     LLVMValueRef global) -> Core::Option<LLVMValueRef> {
   LLVMValueRef function = create_void_function(program);
   auto& native_function = *llvm::unwrap<llvm::Function>(function);
@@ -117,7 +117,7 @@ static auto emit_destructor(
       native_function.getContext(), "entry", &native_function);
   Llvm::Module::Body body(program, addressable, function);
   llvm::IRBuilder<>& builder = get_builder(body);
-  auto type = addressable.get_type().select<Ttx::Model::Type>();
+  auto type = addressable.get_type().select<Tetrodotoxin::Source::Type>();
   auto native_type =
       type ? carriers.get_type(*type) : Core::Option<LLVMTypeRef>();
   if (!type || !native_type) {
@@ -149,7 +149,7 @@ static auto register_destructor(
 
 auto Llvm::Module::Globals::reserve(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Addressable& addressable,
+    const Tetrodotoxin::Source::Addressable& addressable,
     Record record) const -> Core::Option<Bool> {
   auto found = records.find(&addressable);
   if (found) {
@@ -180,7 +180,7 @@ auto Llvm::Module::Globals::reserve(
 
 auto Llvm::Module::Globals::reserve_static(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Addressable& addressable) const -> Core::Option<Bool> {
+    const Tetrodotoxin::Source::Addressable& addressable) const -> Core::Option<Bool> {
   auto target = get_target(program);
   BAIL_IF(!target);
 
@@ -207,7 +207,7 @@ auto Llvm::Module::Globals::reserve_static(
 
 auto Llvm::Module::Globals::reserve_foreign(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Addressable& addressable,
+    const Tetrodotoxin::Source::Addressable& addressable,
     Core::View::Bytes abi,
     Core::View::Bytes symbol,
     Bool writable) const -> Core::Option<Bool> {
@@ -237,7 +237,7 @@ auto Llvm::Module::Globals::reserve_foreign(
 
 auto Llvm::Module::Globals::complete(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Addressable& addressable) const -> Bool {
+    const Tetrodotoxin::Source::Addressable& addressable) const -> Bool {
   auto found = records.find(&addressable);
   auto target = get_target(program);
   auto carriers = get_carriers(program);
@@ -252,7 +252,7 @@ auto Llvm::Module::Globals::complete(
     return True;
   }
 
-  auto type = addressable.get_type().select<Ttx::Model::Type>();
+  auto type = addressable.get_type().select<Tetrodotoxin::Source::Type>();
   auto native_type =
       type ? carriers->get_type(*type) : Core::Option<LLVMTypeRef>();
   if (!type || !native_type) {
@@ -307,7 +307,7 @@ auto Llvm::Module::Globals::complete(
 
 auto Llvm::Module::Globals::begin_initializer(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Addressable& addressable) const
+    const Tetrodotoxin::Source::Addressable& addressable) const
     -> Core::Option<LLVMValueRef> {
   auto found = records.find(&addressable);
   auto target = get_target(program);
@@ -329,7 +329,7 @@ auto Llvm::Module::Globals::begin_initializer(
 
 auto Llvm::Module::Globals::end_initializer(
     Llvm::Module::Emission& body,
-    const Ttx::Model::Addressable& addressable,
+    const Tetrodotoxin::Source::Addressable& addressable,
     const Library::Language::Model::Pack& value) const -> Bool {
   auto native_body = body.get_kind() == Llvm::Module::Emission::Kind::Body
                          ? Core::Option<Llvm::Module::Body&>(
@@ -349,7 +349,7 @@ auto Llvm::Module::Globals::end_initializer(
         "LLVM completed a Static initializer under different target state."_view);
   }
 
-  auto type = addressable.get_type().select<Ttx::Model::Type>();
+  auto type = addressable.get_type().select<Tetrodotoxin::Source::Type>();
   BAIL_IF(!type);
 
   auto values = native_body->find_values(value);
@@ -389,14 +389,14 @@ auto Llvm::Module::Globals::end_initializer(
 }
 
 auto Llvm::Module::Globals::find_address(
-    const Ttx::Model::Addressable& addressable) const
+    const Tetrodotoxin::Source::Addressable& addressable) const
     -> Core::Option<LLVMValueRef> {
   auto found = records.find(&addressable);
   return found ? found->value.global : Core::Option<LLVMValueRef>();
 }
 
 auto Llvm::Module::Globals::find_symbol(
-    const Ttx::Model::Addressable& addressable) const
+    const Tetrodotoxin::Source::Addressable& addressable) const
     -> Core::Option<Core::View::Bytes> {
   auto found = records.find(&addressable);
   return found && found->value.global
@@ -405,7 +405,7 @@ auto Llvm::Module::Globals::find_symbol(
 }
 
 auto Llvm::Module::Globals::permits_foreign_write(
-    const Ttx::Model::Addressable& addressable) const -> Bool {
+    const Tetrodotoxin::Source::Addressable& addressable) const -> Bool {
   auto found = records.find(&addressable);
   return found && found->value.has(Record::Property::Foreign) &&
          found->value.has(Record::Property::Writable);
@@ -413,6 +413,6 @@ auto Llvm::Module::Globals::permits_foreign_write(
 
 auto Llvm::Module::Globals::get_foreign_addressables() const
     -> Core::View::Vector<
-        Ttx::Concept::Reference<const Ttx::Model::Addressable>> {
+        Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Addressable>> {
   return foreign_addressables.get_view();
 }

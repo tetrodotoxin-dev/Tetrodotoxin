@@ -5,8 +5,8 @@
 
 #include "perimortem/core/option.hpp"
 
-#include "ttx/concept/documentation.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/documentation.hpp"
 
 namespace Tetrodotoxin::Language::Parser {
 
@@ -21,8 +21,8 @@ namespace Tetrodotoxin::Language::Parser {
 // of presentation lines is legal at the selected grammar position.
 class Comment {
  public:
-  static auto parse(Ttx::Lexical::Cursor& cursor)
-      -> const Ttx::Concept::Documentation&;
+  static auto parse(Tetrodotoxin::Source::Lexical::Cursor& cursor)
+      -> const Tetrodotoxin::Source::Documentation&;
 };
 
 }  // namespace Tetrodotoxin::Language::Parser

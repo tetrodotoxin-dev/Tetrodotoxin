@@ -18,6 +18,6 @@ cc_library(
         "//tetrodotoxin/render/interpreter",
         "//tetrodotoxin/render/language",
         "//ttx:concept",
-        "//ttx:lexical",
+        "//tetrodotoxin/source:lexical",
     ],
 )

@@ -4,7 +4,7 @@
 #include "tetrodotoxin/render/language/attributes.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 static auto find_attribute(

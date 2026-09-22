@@ -11,7 +11,7 @@
 #include "tetrodotoxin/language/resource.hpp"
 #include "tetrodotoxin/library/language/constant.hpp"
 #include "tetrodotoxin/library/language/value.hpp"
-#include "ttx/concept/reference.hpp"
+#include "tetrodotoxin/source/reference.hpp"
 
 namespace Tetrodotoxin::Library::Language::Constants {
 
@@ -28,15 +28,15 @@ class Bytes : public Tetrodotoxin::Library::Language::Constant {
 
   auto bind_interface(Perimortem::System::Uuid requested) const
       -> Perimortem::Utility::Result<
-          Ttx::Semantic::Binding,
-          Ttx::Semantic::Binding::Failure> override {
+          Ttx::Semantic::Negotiation::Binding,
+          Ttx::Semantic::Negotiation::Binding::Failure> override {
     using Contract = Tetrodotoxin::Library::Language::Value;
     if (requested != Contract::contract_id) {
       return Constant::bind_interface(requested);
     }
 
     static const Contract::Operations operations = {
-      [](const void* source) -> Ttx::Concept::Abstract::Handle {
+      [](const void* source) -> Ttx::Concept::Abstract {
         return static_cast<const Bytes*>(source)->get_type().get_interface();
       },
       [](const void* source, Perimortem::Memory::Allocator::Arena&)
@@ -45,14 +45,14 @@ class Bytes : public Tetrodotoxin::Library::Language::Constant {
       },
       [](const void*) -> Count { return 1; },
     };
-    return Ttx::Semantic::Binding::provide<Contract>(this, operations);
+    return Ttx::Semantic::Negotiation::Binding::provide<Contract>(this, operations);
   }
 
   static auto create_authored(
       Perimortem::Memory::Allocator::Arena& domain,
       const Model::Type& type,
       Value value,
-      Ttx::Lexical::Anchor anchor,
+      Tetrodotoxin::Source::Lexical::Anchor anchor,
       Perimortem::Core::Option<const Tetrodotoxin::Language::Resource&>
           resource = {}) -> Bytes& {
     return Constant::create_authored<Bytes>(
@@ -83,8 +83,8 @@ class Bytes : public Tetrodotoxin::Library::Language::Constant {
   }
 
   auto resolve_concept(Perimortem::Core::View::Bytes name) const
-      -> const Ttx::Concept::Abstract& override;
-  auto visit_concepts(Ttx::Concept::Abstract::Visitor visitor) const
+      -> const Tetrodotoxin::Source::Abstract& override;
+  auto visit_concepts(Tetrodotoxin::Source::Abstract::Visitor visitor) const
       -> void override;
 
   constexpr auto get_resource() const
@@ -92,7 +92,7 @@ class Bytes : public Tetrodotoxin::Library::Language::Constant {
     return resource.visit(
         []() -> Perimortem::Core::Option<
                  const Tetrodotoxin::Language::Resource&> { return {}; },
-        [](const Ttx::Concept::Reference<
+        [](const Tetrodotoxin::Source::Reference<
             const Tetrodotoxin::Language::Resource>& selected)
             -> Perimortem::Core::Option<
                 const Tetrodotoxin::Language::Resource&> {
@@ -108,7 +108,7 @@ class Bytes : public Tetrodotoxin::Library::Language::Constant {
                      ? ::True
                      : ::False;
         },
-        [](const Ttx::Concept::Abstract&) { return ::False; });
+        [](const Tetrodotoxin::Source::Abstract&) { return ::False; });
   }
 
  private:
@@ -116,19 +116,19 @@ class Bytes : public Tetrodotoxin::Library::Language::Constant {
       Perimortem::Memory::Allocator::Arena& domain,
       const Model::Type& type,
       Value value,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor,
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor,
       Perimortem::Core::Option<const Tetrodotoxin::Language::Resource&>
           resource)
       : Tetrodotoxin::Library::Language::Constant(anchor),
         type(type),
         value(value),
         resource(resource.visit(
-            []() -> Perimortem::Core::Option<Ttx::Concept::Reference<
+            []() -> Perimortem::Core::Option<Tetrodotoxin::Source::Reference<
                      const Tetrodotoxin::Language::Resource>> { return {}; },
             [](const Tetrodotoxin::Language::Resource& selected)
-                -> Perimortem::Core::Option<Ttx::Concept::Reference<
+                -> Perimortem::Core::Option<Tetrodotoxin::Source::Reference<
                     const Tetrodotoxin::Language::Resource>> {
-              return Ttx::Concept::Reference<
+              return Tetrodotoxin::Source::Reference<
                   const Tetrodotoxin::Language::Resource>(selected);
             })),
         name(domain, "$["_view) {
@@ -147,7 +147,7 @@ class Bytes : public Tetrodotoxin::Library::Language::Constant {
   const Model::Type& type;
   Value value;
   Perimortem::Core::Option<
-      Ttx::Concept::Reference<const Tetrodotoxin::Language::Resource>>
+      Tetrodotoxin::Source::Reference<const Tetrodotoxin::Language::Resource>>
       resource;
   Perimortem::Memory::Managed::Bytes name;
 };

@@ -6,7 +6,7 @@
 #include "tetrodotoxin/language/parser/comment.hpp"
 #include "tetrodotoxin/library/interpreter/member.hpp"
 
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 
 auto Interpreter::Types::Composite::parse_body(
@@ -31,7 +31,7 @@ auto Interpreter::Types::Composite::parse_body(
       return ParseState::Rejected;
     }
 
-    const Ttx::Concept::Documentation& documentation =
+    const Tetrodotoxin::Source::Documentation& documentation =
         Tetrodotoxin::Language::Parser::Comment::parse(cursor);
     auto nested = Tetrodotoxin::Language::Definition::parse(
         cursor, documentation, structure);
@@ -59,9 +59,9 @@ auto Interpreter::Types::Composite::parse_body(
   }
 
   Token closing = cursor.consume();
-  if (!definition.complete(kind_token, closing)) {
-    state = ParseState::Rejected;
-  }
+  auto& authored = definition.get_authored();
+  authored.set_anchor(Anchor::create(
+      kind_token, Span(authored.get_anchor().get_span().get_start(), closing)));
   structure.complete_body();
   return state;
 }

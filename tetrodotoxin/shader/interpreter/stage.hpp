@@ -5,8 +5,8 @@
 
 #include "tetrodotoxin/language/definition.hpp"
 #include "tetrodotoxin/shader/language/program.hpp"
-#include "ttx/concept/documentation.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/documentation.hpp"
 
 namespace Tetrodotoxin::Shader::Interpreter {
 
@@ -14,12 +14,12 @@ class Stage {
  public:
   Stage() = delete;
 
-  static auto is_next(const Ttx::Lexical::Cursor& cursor) -> Bool;
+  static auto is_next(const Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool;
 
   static auto parse(
       Shader::Language::Program& program,
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Documentation& documentation) -> Bool;
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Documentation& documentation) -> Bool;
 };
 
 }  // namespace Tetrodotoxin::Shader::Interpreter

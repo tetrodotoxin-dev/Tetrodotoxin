@@ -4,14 +4,14 @@
 #include "tetrodotoxin/library/builtin/object/clone.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
 auto Builtin::Object::Clone::create(
     Memory::Allocator::Arena& domain,
     const Language::Model::Type& receiver) -> Clone& {
-  Ttx::Model::Layouts::Addressable& self =
-      Ttx::Model::Layouts::Addressable::create_synthetic(
+  Tetrodotoxin::Source::Layouts::Addressable& self =
+      Tetrodotoxin::Source::Layouts::Addressable::create_synthetic(
           domain, "self"_view, receiver);
   return domain.construct_from<Clone>([&]() -> Clone { return Clone(self); });
 }

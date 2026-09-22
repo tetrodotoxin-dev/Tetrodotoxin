@@ -13,20 +13,20 @@
 #include "tetrodotoxin/library/language/types/enumeration.hpp"
 #include "tetrodotoxin/library/language/types/object.hpp"
 #include "tetrodotoxin/library/language/types/structure.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/model/layouts/termination.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/layouts/termination.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Utility;
-using namespace Ttx::Concept;
-using Ttx::Semantic::Binding;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using Ttx::Semantic::Negotiation::Binding;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library::Language;
 
 using Tetrodotoxin::Language::Visibility;
 
-static constexpr Ttx::Model::Layouts::Named empty_layout;
+static constexpr Tetrodotoxin::Source::Layouts::Named empty_layout;
 
 template <typename selected_type, typename visitor_type>
 static auto visit_each(
@@ -147,13 +147,13 @@ auto Types::Composite::retain_authored_definition(
   if (!retain_binding(binding, definition, category, cursor)) {
     if (category == Category::Addressable) {
       cursor.create_expression_error(
-          definition.get_name_anchor(),
+          Anchor::create(Span(definition.get_authored().get_name())),
           "Library Addressable name is already occupied in this Composite."_view,
           "Static and state Fields share one Addressable namespace. Choose a "
           "unique name."_view);
     } else {
       cursor.create_expression_error(
-          definition.get_name_anchor(),
+          Anchor::create(Span(definition.get_authored().get_name())),
           "Library member collides with an occupied Composite category."_view);
     }
     return False;
@@ -204,7 +204,7 @@ auto Types::Composite::retain_binding(
   BAIL_IF(!can_accept_definition() || !can_bind_definition(binding, category));
 
   BAIL_IF(!publish_binding(binding, category, definition.is_published()));
-  cursor.get_associations().create(definition.get_name_anchor(), binding);
+  cursor.get_associations().create(Anchor::create(Span(definition.get_authored().get_name())), binding);
   return True;
 }
 
@@ -391,7 +391,7 @@ auto Types::Composite::validate_layout(Cursor& cursor) const -> Bool {
 
   const Layout& selected_layout = get_layout();
   if (selected_layout.is_empty() ||
-      Ttx::Model::Layouts::is_terminating(*this)) {
+      Tetrodotoxin::Source::Layouts::is_terminating(*this)) {
     return valid;
   }
 
@@ -412,7 +412,7 @@ auto Types::Composite::validate_layout_restored() const -> Bool {
 
   const Layout& selected_layout = get_layout();
   return selected_layout.is_empty() ||
-         Ttx::Model::Layouts::is_terminating(*this);
+         Tetrodotoxin::Source::Layouts::is_terminating(*this);
 }
 
 auto Types::Composite::complete_field_layout() -> void {
@@ -424,7 +424,7 @@ auto Types::Composite::complete_field_layout() -> void {
       fields.insert(*addressable);
     }
   }
-  layout = domain.construct<Ttx::Model::Layouts::Named>(fields.get_view());
+  layout = domain.construct<Tetrodotoxin::Source::Layouts::Named>(fields.get_view());
   static_authority.complete();
   instance_authority.complete();
 }
@@ -697,7 +697,7 @@ auto Types::Composite::resolve_concept(View::Bytes route) const
 }
 
 auto Types::Composite::visit_concepts(
-    Ttx::Concept::Abstract::Visitor visitor) const -> void {
+    Tetrodotoxin::Source::Abstract::Visitor visitor) const -> void {
   visitor("static"_view, static_authority);
   visitor("instance"_view, instance_authority);
 }
@@ -735,9 +735,9 @@ auto Types::Composite::is_externally_reachable(const Model::Type& type) const
   return &get_host().resolve_concept(type.get_name()).resolve() == &type;
 }
 
-auto Types::Composite::get_layout() const -> const Ttx::Model::Layouts::Named& {
+auto Types::Composite::get_layout() const -> const Tetrodotoxin::Source::Layouts::Named& {
   return layout.visit(
-      []() -> const Ttx::Model::Layouts::Named& { return empty_layout; },
-      [](const Ttx::Model::Layouts::Named& selected)
-          -> const Ttx::Model::Layouts::Named& { return selected; });
+      []() -> const Tetrodotoxin::Source::Layouts::Named& { return empty_layout; },
+      [](const Tetrodotoxin::Source::Layouts::Named& selected)
+          -> const Tetrodotoxin::Source::Layouts::Named& { return selected; });
 }

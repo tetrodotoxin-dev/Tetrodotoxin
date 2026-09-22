@@ -23,7 +23,7 @@
 #include "perimortem/serialization/stream/textual.hpp"
 
 #include "tetrodotoxin/language/product.hpp"
-#include "ttx/concept/reference.hpp"
+#include "tetrodotoxin/source/reference.hpp"
 
 using namespace Perimortem;
 using namespace Perimortem::Core;
@@ -139,14 +139,14 @@ static auto commit(Core::View::Bytes stage, Core::View::Bytes target) -> Bool {
   return True;
 }
 
-auto Puffer::Publisher::publish(const Ttx::Concept::Pack& products) const
+auto Puffer::Publisher::publish(const Tetrodotoxin::Source::Pack& products) const
     -> Bool {
-  const Ttx::Concept::Layout& layout = products.get_layout();
+  const Tetrodotoxin::Source::Layout& layout = products.get_layout();
   BAIL_IF(layout.is_empty());
 
   Core::Option<Core::View::Bytes> product_coordinate;
   Memory::Dynamic::Vector<
-      Ttx::Concept::Reference<const Tetrodotoxin::Language::Product>>
+      Tetrodotoxin::Source::Reference<const Tetrodotoxin::Language::Product>>
       retained;
   for (Count index = 0; index < layout.get_size(); index++) {
     auto abstract = layout.get_abstract(index);

@@ -35,10 +35,10 @@ static auto control_select_carriers(const Llvm::Module::Body& body)
   return body.get_program().get_carriers();
 }
 
-static auto control_select_type(const Ttx::Concept::Abstract& answer)
-    -> Core::Option<const Ttx::Model::Type&> {
-  auto direct = answer.select<Ttx::Model::Type>();
-  return direct ? direct : answer.resolve().select<Ttx::Model::Type>();
+static auto control_select_type(const Tetrodotoxin::Source::Abstract& answer)
+    -> Core::Option<const Tetrodotoxin::Source::Type&> {
+  auto direct = answer.select<Tetrodotoxin::Source::Type>();
+  return direct ? direct : answer.resolve().select<Tetrodotoxin::Source::Type>();
 }
 
 static auto control_native_builder(const Llvm::Module::Body& body)
@@ -62,7 +62,7 @@ static auto control_find_value(
 
 static auto control_leave_loop(
     Llvm::Module::Body& body,
-    const Ttx::Concept::Abstract& target,
+    const Tetrodotoxin::Source::Abstract& target,
     Bool breaking) -> Bool {
   Llvm::Module::Body& native_body = body;
   auto loop = native_body.find_loop(target);
@@ -92,7 +92,7 @@ static auto control_return_values(
     return False;
   }
 
-  const Ttx::Concept::Layout& results = callable->get_results();
+  const Tetrodotoxin::Source::Layout& results = callable->get_results();
   Core::Option<LLVMValueRef> native_return;
   if (results.is_empty()) {
     if (returned->get_size() != 0) {
@@ -100,18 +100,18 @@ static auto control_return_values(
     }
   } else if (results.get_size() == 1) {
     auto entry = results.get_abstract(0);
-    auto addressable = entry ? entry->select<Ttx::Model::Addressable>()
-                             : Core::Option<const Ttx::Model::Addressable&>();
+    auto addressable = entry ? entry->select<Tetrodotoxin::Source::Addressable>()
+                             : Core::Option<const Tetrodotoxin::Source::Addressable&>();
     auto type = addressable ? control_select_type(addressable->get_type())
                 : entry     ? control_select_type(*entry)
-                            : Core::Option<const Ttx::Model::Type&>();
+                            : Core::Option<const Tetrodotoxin::Source::Type&>();
     // Named result slots carry values. Only the exact Self result identity
     // denotes a borrowed address, as it does in native signature generation.
     auto library_callable =
         callable->select<Tetrodotoxin::Library::Language::Model::Callable>();
     auto reference = library_callable
                          ? library_callable->get_self_result()
-                         : Core::Option<const Ttx::Model::Addressable&>();
+                         : Core::Option<const Tetrodotoxin::Source::Addressable&>();
     if (!type) {
       return False;
     }
@@ -147,11 +147,11 @@ static auto control_return_values(
     Memory::Dynamic::Vector<LLVMValueRef> received(results.get_size());
     for (Count index = 0; index < results.get_size(); index++) {
       auto entry = results.get_abstract(index);
-      auto addressable = entry ? entry->select<Ttx::Model::Addressable>()
-                               : Core::Option<const Ttx::Model::Addressable&>();
+      auto addressable = entry ? entry->select<Tetrodotoxin::Source::Addressable>()
+                               : Core::Option<const Tetrodotoxin::Source::Addressable&>();
       auto type = addressable ? control_select_type(addressable->get_type())
                   : entry     ? control_select_type(*entry)
-                              : Core::Option<const Ttx::Model::Type&>();
+                              : Core::Option<const Tetrodotoxin::Source::Type&>();
       if (!type) {
         return False;
       }
@@ -211,7 +211,7 @@ auto Llvm::Emission::ControlFlow::escape_values(
 
 auto Llvm::Emission::ControlFlow::leave_loop(
     LoopAction action,
-    const Ttx::Concept::Abstract& target) const -> Bool {
+    const Tetrodotoxin::Source::Abstract& target) const -> Bool {
   return control_leave_loop(body, target, action == LoopAction::Break);
 }
 
@@ -291,7 +291,7 @@ auto Llvm::Emission::ControlFlow::end_branch(Branch state) const -> Bool {
 }
 
 auto Llvm::Emission::ControlFlow::begin_while(
-    const Ttx::Concept::Abstract& owner) const -> Bool {
+    const Tetrodotoxin::Source::Abstract& owner) const -> Bool {
   Llvm::Module::Body& native_body = body;
   llvm::IRBuilder<>& builder = control_native_builder(native_body);
   llvm::Function& function = control_native_function(native_body);
@@ -307,7 +307,7 @@ auto Llvm::Emission::ControlFlow::begin_while(
 }
 
 auto Llvm::Emission::ControlFlow::select_while(
-    const Ttx::Concept::Abstract& owner,
+    const Tetrodotoxin::Source::Abstract& owner,
     const Tetrodotoxin::Library::Language::Model::Pack& condition) const
     -> Bool {
   Llvm::Module::Body& native_body = body;
@@ -331,7 +331,7 @@ auto Llvm::Emission::ControlFlow::select_while(
 }
 
 auto Llvm::Emission::ControlFlow::end_while(
-    const Ttx::Concept::Abstract& owner) const -> Bool {
+    const Tetrodotoxin::Source::Abstract& owner) const -> Bool {
   Llvm::Module::Body& native_body = body;
   auto loop = native_body.find_loop(owner);
   if (!loop) {
@@ -407,9 +407,9 @@ static auto select_enumeration_name(
 }
 
 auto Llvm::Emission::ControlFlow::begin_sequence(
-    const Ttx::Concept::Abstract& owner,
-    const Ttx::Model::Addressable& binding,
-    const Ttx::Model::Type& input_type,
+    const Tetrodotoxin::Source::Abstract& owner,
+    const Tetrodotoxin::Source::Addressable& binding,
+    const Tetrodotoxin::Source::Type& input_type,
     const Tetrodotoxin::Library::Language::Model::Pack& input) const -> Bool {
   Llvm::Module::Body& native_body = body;
   auto carriers = control_select_carriers(body);
@@ -522,8 +522,8 @@ auto Llvm::Emission::ControlFlow::begin_sequence(
 }
 
 auto Llvm::Emission::ControlFlow::begin_enumeration(
-    const Ttx::Concept::Abstract& owner,
-    const Ttx::Concept::Layout& bindings,
+    const Tetrodotoxin::Source::Abstract& owner,
+    const Tetrodotoxin::Source::Layout& bindings,
     Core::View::Vector<U64> values,
     Core::View::Vector<Core::View::Bytes> names) const -> Bool {
   Llvm::Module::Body& native_body = body;
@@ -535,11 +535,11 @@ auto Llvm::Emission::ControlFlow::begin_enumeration(
 
   auto value_entry = bindings.get_abstract(0);
   auto value_binding = value_entry
-                           ? value_entry->select<Ttx::Model::Addressable>()
-                           : Core::Option<const Ttx::Model::Addressable&>();
+                           ? value_entry->select<Tetrodotoxin::Source::Addressable>()
+                           : Core::Option<const Tetrodotoxin::Source::Addressable&>();
   auto value_semantic_type =
       value_binding ? control_select_type(value_binding->get_type())
-                    : Core::Option<const Ttx::Model::Type&>();
+                    : Core::Option<const Tetrodotoxin::Source::Type&>();
   auto value_type = value_semantic_type
                         ? carriers->get_type(*value_semantic_type)
                         : Core::Option<LLVMTypeRef>();
@@ -561,15 +561,15 @@ auto Llvm::Emission::ControlFlow::begin_enumeration(
     return False;
   }
 
-  Core::Option<const Ttx::Model::Addressable&> name_binding;
+  Core::Option<const Tetrodotoxin::Source::Addressable&> name_binding;
   Core::Option<llvm::StructType&> name_type;
   if (bindings.get_size() == 2) {
     auto name_entry = bindings.get_abstract(1);
-    name_binding = name_entry ? name_entry->select<Ttx::Model::Addressable>()
-                              : Core::Option<const Ttx::Model::Addressable&>();
+    name_binding = name_entry ? name_entry->select<Tetrodotoxin::Source::Addressable>()
+                              : Core::Option<const Tetrodotoxin::Source::Addressable&>();
     auto name_semantic_type =
         name_binding ? control_select_type(name_binding->get_type())
-                     : Core::Option<const Ttx::Model::Type&>();
+                     : Core::Option<const Tetrodotoxin::Source::Type&>();
     auto native_name = name_semantic_type
                            ? carriers->get_type(*name_semantic_type)
                            : Core::Option<LLVMTypeRef>();
@@ -654,7 +654,7 @@ auto Llvm::Emission::ControlFlow::begin_enumeration(
 }
 
 auto Llvm::Emission::ControlFlow::end_iteration(
-    const Ttx::Concept::Abstract& owner) const -> Bool {
+    const Tetrodotoxin::Source::Abstract& owner) const -> Bool {
   Llvm::Module::Body& native_body = body;
   auto loop = native_body.find_loop(owner);
   if (!loop) {
@@ -722,8 +722,8 @@ auto Llvm::Emission::ControlFlow::begin_constant_case(
 
 auto Llvm::Emission::ControlFlow::begin_value_case(
     Match& state,
-    const Ttx::Model::Addressable& payload,
-    Ttx::Lexical::Anchor) const -> Core::Option<MatchCase> {
+    const Tetrodotoxin::Source::Addressable& payload,
+    Tetrodotoxin::Source::Lexical::Anchor) const -> Core::Option<MatchCase> {
   Llvm::Module::Body& native_body = body;
   auto carriers = control_select_carriers(body);
   if (!carriers) {
@@ -815,7 +815,7 @@ auto Llvm::Emission::ControlFlow::end_match(
 }
 
 auto Llvm::Emission::ControlFlow::end_block(
-    const Ttx::Concept::Abstract& block) const -> Bool {
+    const Tetrodotoxin::Source::Abstract& block) const -> Bool {
   auto scope = body.take_block_scope(block);
   if (!scope) {
     return False;
@@ -834,7 +834,7 @@ auto Llvm::Emission::ControlFlow::end_statement() const -> Bool {
 }
 
 auto Llvm::Emission::ControlFlow::bind_local(
-    const Ttx::Model::Addressable& local,
+    const Tetrodotoxin::Source::Addressable& local,
     const Tetrodotoxin::Library::Language::Model::Pack& value) const -> Bool {
   auto carriers = control_select_carriers(body);
   Llvm::Module::Program& program = body.get_program();
@@ -877,14 +877,14 @@ auto Llvm::Emission::ControlFlow::bind_local(
 // temporary values are cleared at each completed Statement boundary.
 
 auto Llvm::Emission::ControlFlow::begin_function(
-    const Ttx::Model::Callable& callable,
+    const Tetrodotoxin::Source::Callable& callable,
     const Tetrodotoxin::Language::Definition& definition) const -> Bool {
   return get_program().get_debug().begin_function(body, callable, definition);
 }
 
 auto Llvm::Emission::ControlFlow::parameter(
-    const Ttx::Model::Addressable& parameter,
-    Ttx::Lexical::Anchor anchor,
+    const Tetrodotoxin::Source::Addressable& parameter,
+    Tetrodotoxin::Source::Lexical::Anchor anchor,
     Count index) const -> Bool {
   return get_program().get_debug().parameter(body, parameter, anchor, index);
 }
@@ -894,19 +894,19 @@ auto Llvm::Emission::ControlFlow::end_function() const -> Bool {
 }
 
 auto Llvm::Emission::ControlFlow::begin_block(
-    const Ttx::Concept::Abstract& block,
-    Ttx::Lexical::Anchor anchor) const -> Bool {
+    const Tetrodotoxin::Source::Abstract& block,
+    Tetrodotoxin::Source::Lexical::Anchor anchor) const -> Bool {
   return get_program().get_debug().begin_block(body, block, anchor);
 }
 
-auto Llvm::Emission::ControlFlow::statement(Ttx::Lexical::Anchor anchor) const
+auto Llvm::Emission::ControlFlow::statement(Tetrodotoxin::Source::Lexical::Anchor anchor) const
     -> Bool {
   return get_program().get_debug().statement(body, anchor);
 }
 
 auto Llvm::Emission::ControlFlow::local(
-    const Ttx::Model::Addressable& local,
-    Ttx::Lexical::Anchor anchor) const -> Bool {
+    const Tetrodotoxin::Source::Addressable& local,
+    Tetrodotoxin::Source::Lexical::Anchor anchor) const -> Bool {
   return get_program().get_debug().local(body, local, anchor);
 }
 
@@ -916,9 +916,9 @@ auto Llvm::Emission::ControlFlow::has_full_debug() const -> Bool {
 }
 
 auto Llvm::Emission::ControlFlow::constant_local(
-    const Ttx::Model::Addressable& local,
+    const Tetrodotoxin::Source::Addressable& local,
     const Tetrodotoxin::Library::Language::Model::Pack& value,
-    Ttx::Lexical::Anchor anchor) const -> Bool {
+    Tetrodotoxin::Source::Lexical::Anchor anchor) const -> Bool {
   Llvm::Module::Program& program = get_program();
   if (program.get_debug().get_level() != Llvm::Module::Debug::Level::Full) {
     return True;

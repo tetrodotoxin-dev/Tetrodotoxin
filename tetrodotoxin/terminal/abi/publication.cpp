@@ -12,7 +12,7 @@ auto Tetrodotoxin::Terminal::Abi::is_publicly_reachable(
     return False;
   }
 
-  const Ttx::Concept::Abstract* selected = &definition.get_host();
+  const Tetrodotoxin::Source::Abstract* selected = &definition.get_host();
   while (selected) {
     auto composite =
         selected->select<Tetrodotoxin::Library::Language::Types::Composite>();

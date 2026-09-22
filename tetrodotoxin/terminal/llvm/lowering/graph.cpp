@@ -24,9 +24,9 @@ using namespace Tetrodotoxin::Library::Language;
 
 static auto is_excluded(
     const Model::Callable& callable,
-    Core::View::Vector<Ttx::Concept::Reference<const Model::Callable>> excluded)
+    Core::View::Vector<Tetrodotoxin::Source::Reference<const Model::Callable>> excluded)
     -> Bool {
-  for (const Ttx::Concept::Reference<const Model::Callable>& candidate :
+  for (const Tetrodotoxin::Source::Reference<const Model::Callable>& candidate :
        excluded) {
     if (&candidate.get() == &callable) {
       return True;
@@ -66,7 +66,7 @@ static auto complete_callable(
 
 static auto reserve_addressable(
     Llvm::Module::Program& program,
-    const Ttx::Model::Addressable& addressable) -> Bool {
+    const Tetrodotoxin::Source::Addressable& addressable) -> Bool {
   BAIL_IF(!Llvm::Lowering::Types::reserve(program, addressable));
   auto field = addressable.select<Field>();
   if (field && field->get_writability() == Writability::Full) {
@@ -85,7 +85,7 @@ static auto reserve_addressable(
 
 static auto complete_addressable(
     Llvm::Module::Program& program,
-    const Ttx::Model::Addressable& addressable) -> Bool {
+    const Tetrodotoxin::Source::Addressable& addressable) -> Bool {
   BAIL_IF(!Llvm::Lowering::Types::complete(program, addressable));
   auto field = addressable.select<Field>();
   if (field && field->get_writability() == Writability::Full) {
@@ -103,9 +103,9 @@ static auto complete_addressable(
 static auto retain_construction_parameters(
     const Types::Structure& structure,
     Memory::Dynamic::Vector<
-        Ttx::Concept::Reference<const Ttx::Model::Addressable>>& parameters)
+        Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Addressable>>& parameters)
     -> void {
-  for (const Ttx::Concept::Reference<Ttx::Concept::Abstract>& candidate :
+  for (const Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>& candidate :
        structure.get_addressables()) {
     auto field = candidate.get().select<Field>();
     if (field && field->get_writability() == Writability::Internal &&
@@ -118,23 +118,23 @@ static auto retain_construction_parameters(
 static auto reserve_type(
     Llvm::Module::Program& program,
     const Model::Type& type,
-    Core::View::Vector<Ttx::Concept::Reference<const Model::Callable>> excluded)
+    Core::View::Vector<Tetrodotoxin::Source::Reference<const Model::Callable>> excluded)
     -> Bool {
   BAIL_IF(!Llvm::Lowering::Types::reserve_declaration(program, type));
   auto composite = type.select<Types::Composite>();
   if (composite) {
-    for (const Ttx::Concept::Reference<Ttx::Concept::Abstract>& candidate :
+    for (const Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>& candidate :
          composite->get_types()) {
       auto nested = candidate.get().select<Model::Type>();
       BAIL_IF(nested && !reserve_type(program, *nested, excluded));
     }
-    for (const Ttx::Concept::Reference<Ttx::Concept::Abstract>& candidate :
+    for (const Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>& candidate :
          composite->get_addressables()) {
       auto addressable = candidate.get().select<Model::Memory>();
       BAIL_IF(addressable && !reserve_addressable(program, *addressable));
     }
   }
-  for (const Ttx::Concept::Reference<Ttx::Concept::Abstract>& candidate :
+  for (const Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>& candidate :
        type.get_callables()) {
     auto callable = candidate.get().select<Model::Callable>();
     BAIL_IF(
@@ -146,7 +146,7 @@ static auto reserve_type(
   if (structure && !structure->get_layout().is_empty() &&
       structure->is_externally_reachable(*structure)) {
     Memory::Dynamic::Vector<
-        Ttx::Concept::Reference<const Ttx::Model::Addressable>>
+        Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Addressable>>
         parameters;
     retain_construction_parameters(*structure, parameters);
     BAIL_IF(!program.get_functions().reserve_construction(
@@ -156,11 +156,11 @@ static auto reserve_type(
 
   auto source = type.select<Types::Source>();
   if (source) {
-    for (const Ttx::Concept::Reference<Foreign::State>& state :
+    for (const Tetrodotoxin::Source::Reference<Foreign::State>& state :
          source->get_foreign().get_states()) {
       BAIL_IF(!reserve_addressable(program, state.get()));
     }
-    for (const Ttx::Concept::Reference<Foreign::Function>& function :
+    for (const Tetrodotoxin::Source::Reference<Foreign::Function>& function :
          source->get_foreign().get_functions()) {
       BAIL_IF(!reserve_callable(program, function.get()));
     }
@@ -171,23 +171,23 @@ static auto reserve_type(
 static auto complete_type(
     Llvm::Module::Program& program,
     const Model::Type& type,
-    Core::View::Vector<Ttx::Concept::Reference<const Model::Callable>> excluded)
+    Core::View::Vector<Tetrodotoxin::Source::Reference<const Model::Callable>> excluded)
     -> Bool {
   BAIL_IF(!Llvm::Lowering::Types::complete_declaration(program, type));
   auto composite = type.select<Types::Composite>();
   if (composite) {
-    for (const Ttx::Concept::Reference<Ttx::Concept::Abstract>& candidate :
+    for (const Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>& candidate :
          composite->get_types()) {
       auto nested = candidate.get().select<Model::Type>();
       BAIL_IF(nested && !complete_type(program, *nested, excluded));
     }
-    for (const Ttx::Concept::Reference<Ttx::Concept::Abstract>& candidate :
+    for (const Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>& candidate :
          composite->get_addressables()) {
       auto addressable = candidate.get().select<Model::Memory>();
       BAIL_IF(addressable && !complete_addressable(program, *addressable));
     }
   }
-  for (const Ttx::Concept::Reference<Ttx::Concept::Abstract>& candidate :
+  for (const Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>& candidate :
        type.get_callables()) {
     auto callable = candidate.get().select<Model::Callable>();
     BAIL_IF(
@@ -202,11 +202,11 @@ static auto complete_type(
   }
   auto source = type.select<Types::Source>();
   if (source) {
-    for (const Ttx::Concept::Reference<Foreign::State>& state :
+    for (const Tetrodotoxin::Source::Reference<Foreign::State>& state :
          source->get_foreign().get_states()) {
       BAIL_IF(!complete_addressable(program, state.get()));
     }
-    for (const Ttx::Concept::Reference<Foreign::Function>& function :
+    for (const Tetrodotoxin::Source::Reference<Foreign::Function>& function :
          source->get_foreign().get_functions()) {
       BAIL_IF(!complete_callable(program, function.get()));
     }
@@ -248,17 +248,17 @@ static auto emit_function(
   Llvm::Lowering::Execution execution(native_body);
   const Llvm::Emission::ControlFlow& control = execution.get_control_flow();
   BAIL_IF(!control.begin_function(function, function.get_definition()));
-  const Ttx::Concept::Layout& parameters = function.get_parameters();
+  const Tetrodotoxin::Source::Layout& parameters = function.get_parameters();
   for (Count index = 0; index < parameters.get_size(); index++) {
     auto entry = parameters.get_abstract(index);
-    auto parameter = entry ? entry->select<Ttx::Model::Addressable>()
-                           : Core::Option<const Ttx::Model::Addressable&>();
+    auto parameter = entry ? entry->select<Tetrodotoxin::Source::Addressable>()
+                           : Core::Option<const Tetrodotoxin::Source::Addressable&>();
     auto anchor = function.get_parameter_anchor(index);
     BAIL_IF(
         !parameter ||
         !control.parameter(
             *parameter,
-            anchor ? *anchor : function.get_definition().get_anchor(), index));
+            anchor ? *anchor : function.get_definition().get_authored().get_anchor(), index));
   }
   return execution.lower(*source_body) && control.end_function() &&
          program.get_functions().end_body(native_body, function);
@@ -272,7 +272,7 @@ static auto emit_structure(
     return True;
   }
   Memory::Dynamic::Vector<Llvm::Module::Functions::ConstructionField> fields;
-  for (const Ttx::Concept::Reference<Ttx::Concept::Abstract>& candidate :
+  for (const Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>& candidate :
        structure.get_addressables()) {
     auto field = candidate.get().select<Field>();
     if (!field || field->get_writability() != Writability::Internal) {
@@ -306,11 +306,11 @@ static auto emit_structure(
 static auto emit_type(
     Llvm::Module::Program& program,
     const Model::Type& type,
-    Core::View::Vector<Ttx::Concept::Reference<const Model::Callable>> excluded)
+    Core::View::Vector<Tetrodotoxin::Source::Reference<const Model::Callable>> excluded)
     -> Bool {
   auto composite = type.select<Types::Composite>();
   if (composite) {
-    for (const Ttx::Concept::Reference<Ttx::Concept::Abstract>& declaration :
+    for (const Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>& declaration :
          composite->get_declarations()) {
       auto nested = declaration.get().select<Model::Type>();
       auto addressable = declaration.get().select<Model::Memory>();
@@ -342,7 +342,7 @@ static auto emit_type(
 auto Llvm::Lowering::Graph::lower(
     Llvm::Module::Program& program,
     const Tetrodotoxin::Library::Language::Monograph& monograph,
-    Core::View::Vector<Ttx::Concept::Reference<const Model::Callable>> excluded)
+    Core::View::Vector<Tetrodotoxin::Source::Reference<const Model::Callable>> excluded)
     -> Bool {
   const Tetrodotoxin::Library::Language::Types::Source& source =
       monograph.get_source();
@@ -373,7 +373,7 @@ auto Llvm::Lowering::Graph::prepare(
 
 auto Llvm::Lowering::Graph::prepare(
     Llvm::Module::Program& program,
-    const Ttx::Model::Addressable& addressable) -> Bool {
+    const Tetrodotoxin::Source::Addressable& addressable) -> Bool {
   return reserve_addressable(program, addressable) &&
          complete_addressable(program, addressable);
 }

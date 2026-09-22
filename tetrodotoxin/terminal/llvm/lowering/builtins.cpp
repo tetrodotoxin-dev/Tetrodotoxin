@@ -26,23 +26,23 @@ using namespace Tetrodotoxin::Terminal;
 using namespace Tetrodotoxin::Library;
 using Llvm::Emission::Invocation;
 
-static auto select_type(const Ttx::Concept::Layout& layout, Count index)
-    -> Core::Option<const Ttx::Model::Type&> {
+static auto select_type(const Tetrodotoxin::Source::Layout& layout, Count index)
+    -> Core::Option<const Tetrodotoxin::Source::Type&> {
   auto entry = layout.get_abstract(index);
-  return entry ? entry->resolve().select<Ttx::Model::Type>()
-               : Core::Option<const Ttx::Model::Type&>();
+  return entry ? entry->resolve().select<Tetrodotoxin::Source::Type>()
+               : Core::Option<const Tetrodotoxin::Source::Type&>();
 }
 
-static auto select_parameter(const Ttx::Model::Callable& callable, Count index)
-    -> Core::Option<const Ttx::Model::Addressable&> {
+static auto select_parameter(const Tetrodotoxin::Source::Callable& callable, Count index)
+    -> Core::Option<const Tetrodotoxin::Source::Addressable&> {
   auto entry = callable.get_parameters().get_abstract(index);
-  return entry ? entry->select<Ttx::Model::Addressable>()
-               : Core::Option<const Ttx::Model::Addressable&>();
+  return entry ? entry->select<Tetrodotoxin::Source::Addressable>()
+               : Core::Option<const Tetrodotoxin::Source::Addressable&>();
 }
 
 auto Llvm::Lowering::Builtins::lower(
     const Execution& execution,
-    const Ttx::Model::Callable& callable,
+    const Tetrodotoxin::Source::Callable& callable,
     const Library::Language::Model::Pack& result,
     Core::View::Vector<LLVMValueRef> inputs,
     Core::Option<const Library::Language::Model::Pack&> receiver_source)

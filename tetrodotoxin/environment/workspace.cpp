@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/environment/workspace.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "perimortem/core/diagnostics/log.hpp"
 
 #include "perimortem/memory/dynamic/record.hpp"
@@ -21,16 +23,16 @@
 #include "tetrodotoxin/package/resource.hpp"
 #include "tetrodotoxin/package/storage.hpp"
 #include "tetrodotoxin/source/declaration.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/cursor.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::System;
-using namespace Ttx::Concept;
-using Ttx::Semantic::Binding;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using Ttx::Semantic::Negotiation::Binding;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 static auto append_storage_failure(
@@ -89,7 +91,7 @@ static auto interpret_source(
     return {};
   }
 
-  const Documentation& documentation = Language::Parser::Comment::parse(cursor);
+  const Tetrodotoxin::Source::Documentation& documentation = Language::Parser::Comment::parse(cursor);
   if (documentation.is_empty()) {
     cursor.create_token_error(
         source_opening,
@@ -132,7 +134,7 @@ static auto interpret_source(
 
   Managed::Vector<Language::Import::Description> imports(cursor.get_arena());
   while (Language::Parser::Import::is_next(cursor)) {
-    const Documentation& import_documentation =
+    const Tetrodotoxin::Source::Documentation& import_documentation =
         Language::Parser::Comment::parse(cursor);
     auto import = Language::Parser::Import::parse(cursor, import_documentation);
     if (import) {
@@ -246,7 +248,7 @@ auto Environment::Workspace::interpret_source(
   }
 
   retained_monographs.insert(
-      retained_name, Ttx::Concept::Reference<Language::Monograph>(monograph));
+      retained_name, Tetrodotoxin::Source::Reference<Language::Monograph>(monograph));
   retained_sources[retained_index].completed = completed;
   return completed ? Option<Language::Monograph&>(monograph)
                    : Option<Language::Monograph&>();
@@ -399,7 +401,7 @@ auto Environment::Workspace::import_package(
     }
     retained_monographs.insert(
         arena.proxy(root_semantic_name),
-        Ttx::Concept::Reference<Language::Monograph>(root));
+        Tetrodotoxin::Source::Reference<Language::Monograph>(root));
     retained = True;
   };
 
@@ -441,8 +443,8 @@ auto Environment::Workspace::import_package(
         }
         auto target =
             selected
-                ? selected->monograph->get_root().select<Ttx::Model::Type>()
-                : Option<const Ttx::Model::Type&>();
+                ? selected->monograph->get_root().select<Tetrodotoxin::Source::Type>()
+                : Option<const Tetrodotoxin::Source::Type&>();
         if (!target || !import.acquire(*target)) {
           if (!selected && !pending_package_imports.get_view().contains(
                                [&](const Reference<Language::Import>& pending) {
@@ -553,7 +555,7 @@ auto Environment::Workspace::import_package(
       }
 
       auto target =
-          candidates[*existing_index]->get_root().select<Ttx::Model::Type>();
+          candidates[*existing_index]->get_root().select<Tetrodotoxin::Source::Type>();
       if (!target || !import.acquire(*target)) {
         cursors[candidate_index]->create_expression_error(
             import.get_declaration_anchor(),
@@ -801,7 +803,7 @@ auto Environment::Workspace::restore_package(
 
     Language::Import::Description description(
         root_transaction->proxy(archived.get_local_name()),
-        Documentation::get_empty(), archived.get_visibility(),
+        Tetrodotoxin::Source::Documentation::get_empty(), archived.get_visibility(),
         archived.get_kind(), root_transaction->proxy(archived.get_target()),
         archived.get_version(), root_transaction->proxy(archived.get_route()),
         Anchor::create(Span()), Anchor::create(Span()), Anchor::create(Span()));
@@ -815,11 +817,11 @@ auto Environment::Workspace::restore_package(
             .get_data()[importer->get_imports().get_size() - 1]
             .get();
 
-    const Ttx::Model::Type* target = nullptr;
+    const Tetrodotoxin::Source::Type* target = nullptr;
     if (archived.get_kind() == Language::Import::Kind::Source) {
       auto selected = restored_members.find(archived.get_target());
       if (selected) {
-        auto root_type = selected->value.get_root().select<Ttx::Model::Type>();
+        auto root_type = selected->value.get_root().select<Tetrodotoxin::Source::Type>();
         if (root_type) {
           target = &*root_type;
         }
@@ -829,7 +831,7 @@ auto Environment::Workspace::restore_package(
         if (candidate.identity == archived.get_target() &&
             candidate.version == archived.get_version()) {
           auto root_type =
-              candidate.monograph->get_root().select<Ttx::Model::Type>();
+              candidate.monograph->get_root().select<Tetrodotoxin::Source::Type>();
           if (root_type) {
             target = &*root_type;
           }
@@ -957,7 +959,7 @@ auto Environment::Workspace::restore_package(
   });
   View::Bytes retained_name = arena.proxy(root_semantic_name);
   retained_monographs.insert(
-      retained_name, Ttx::Concept::Reference<Language::Monograph>(root));
+      retained_name, Tetrodotoxin::Source::Reference<Language::Monograph>(root));
   return root;
 }
 
@@ -1096,7 +1098,7 @@ auto Environment::Workspace::find_authored_location(
     const Abstract& semantic) const -> Option<AuthoredLocation> {
   Option<Anchor> declaration;
   semantic.bind<Tetrodotoxin::Source::Declaration>().visit(
-      [&](const Tetrodotoxin::Source::Declaration::Handle& source) {
+      [&](const Tetrodotoxin::Source::Declaration& source) {
         declaration = source.get_anchor();
       },
       [](Binding::Failure) {});
@@ -1224,8 +1226,8 @@ auto Environment::Workspace::get_name() const -> View::Bytes {
   return "Workspace"_view;
 }
 
-auto Environment::Workspace::get_documentation() const -> const Documentation& {
-  return Documentation::get_empty();
+auto Environment::Workspace::get_documentation() const -> const Tetrodotoxin::Source::Documentation& {
+  return Tetrodotoxin::Source::Documentation::get_empty();
 }
 
 auto Environment::Workspace::resolve() const -> const Abstract& {
@@ -1243,7 +1245,7 @@ auto Environment::Workspace::resolve_concept(View::Bytes route) const
 }
 
 auto Environment::Workspace::visit_concepts(
-    Ttx::Concept::Abstract::Visitor visitor) const -> void {
+    Tetrodotoxin::Source::Abstract::Visitor visitor) const -> void {
   for (Count index = 0; index < retained_monographs.get_size(); index++) {
     const auto* entry = retained_monographs.get_entry(index);
     if (entry != nullptr) {

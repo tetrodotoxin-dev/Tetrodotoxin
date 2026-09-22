@@ -81,7 +81,7 @@ static auto write_route(
 auto Tetrodotoxin::Terminal::Abi::Representation::TypeName::create(
     Memory::Allocator::Arena& arena,
     const Tetrodotoxin::Terminal::Abi::Unit& unit,
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     Core::View::Bytes inherited_package,
     Core::View::Bytes inherited_member)
     -> Core::Option<Tetrodotoxin::Terminal::Abi::Representation::TypeName> {

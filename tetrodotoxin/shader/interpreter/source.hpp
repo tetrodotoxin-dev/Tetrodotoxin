@@ -4,7 +4,7 @@
 #pragma once
 
 #include "tetrodotoxin/shader/language/monograph.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Shader::Interpreter {
 
@@ -14,7 +14,7 @@ class Source {
 
   static auto parse(
       Language::Monograph& monograph,
-      Ttx::Lexical::Cursor& cursor) -> void;
+      Tetrodotoxin::Source::Lexical::Cursor& cursor) -> void;
 };
 
 }  // namespace Tetrodotoxin::Shader::Interpreter

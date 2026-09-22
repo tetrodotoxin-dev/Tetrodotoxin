@@ -6,11 +6,11 @@
 #include "perimortem/memory/managed/vector.hpp"
 
 #include "tetrodotoxin/library/interpreter/expression.hpp"
-#include "ttx/concept/reference.hpp"
+#include "tetrodotoxin/source/reference.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 
 auto Interpreter::Pack::parse(
@@ -33,7 +33,7 @@ auto Interpreter::Pack::parse(
   }
 
   Token opening = cursor.consume();
-  Memory::Managed::Vector<Ttx::Model::PackReference<Language::Model::Pack>>
+  Memory::Managed::Vector<Tetrodotoxin::Source::PackReference<Language::Model::Pack>>
       entries(domain);
   Memory::Managed::Vector<Core::View::Bytes> names(domain);
   Core::Option<Bool> named;

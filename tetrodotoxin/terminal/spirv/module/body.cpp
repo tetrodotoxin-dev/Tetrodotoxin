@@ -25,11 +25,11 @@
 #include "tetrodotoxin/library/language/types/structure.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin;
 using namespace Tetrodotoxin::Terminal::Spirv;
 
-static auto anchor_of(const Abstract& semantic) -> Ttx::Lexical::Anchor {
+static auto anchor_of(const Abstract& semantic) -> Tetrodotoxin::Source::Lexical::Anchor {
   auto expression = semantic.select<Library::Language::Expression>();
   if (expression && expression->get_anchor()) {
     return *expression->get_anchor();
@@ -44,7 +44,7 @@ static auto anchor_of(const Abstract& semantic) -> Ttx::Lexical::Anchor {
   }
   auto function = semantic.select<Library::Language::Function>();
   return function ? function->get_anchor()
-                  : Ttx::Lexical::Anchor::create(Ttx::Lexical::Span());
+                  : Tetrodotoxin::Source::Lexical::Anchor::create(Tetrodotoxin::Source::Lexical::Span());
 }
 
 static auto constant_conversion(
@@ -82,7 +82,7 @@ static auto select_scalar_pack(
   }
 
   Count offset = 0;
-  for (const Ttx::Model::PackReference<Library::Language::Model::Pack>& entry :
+  for (const Tetrodotoxin::Source::PackReference<Library::Language::Model::Pack>& entry :
        pack.get_entries()) {
     Count size = entry.get().get_layout().get_size();
     if (index < offset + size) {
@@ -113,7 +113,7 @@ static auto is_sample_call(const Library::Language::Access::Call& call)
 
 auto Module::Body::reject(const Abstract& semantic, Core::View::Bytes message)
     const -> Bool {
-  Ttx::Lexical::Errors::Report report(
+  Tetrodotoxin::Source::Lexical::Errors::Report report(
       request.get_errors(), request.get_source_path(),
       request.get_source_text(), anchor_of(semantic));
   report << message;
@@ -165,7 +165,7 @@ auto Module::Body::prepare_pack(const Library::Language::Model::Pack& pack)
   if (expression) {
     return prepare_expression(*expression);
   }
-  for (const Ttx::Model::PackReference<Library::Language::Model::Pack>& entry :
+  for (const Tetrodotoxin::Source::PackReference<Library::Language::Model::Pack>& entry :
        pack.get_entries()) {
     BAIL_IF(!prepare_pack(entry.get()));
   }
@@ -239,7 +239,7 @@ auto Module::Body::prepare_expression(
           expression,
           "This arithmetic operation has no floating point SPIR V form."_view);
     }
-    for (const Ttx::Model::PackReference<Library::Language::Model::Pack>&
+    for (const Tetrodotoxin::Source::PackReference<Library::Language::Model::Pack>&
              input : operation->get_inputs()) {
       BAIL_IF(!prepare_pack(input.get()));
     }
@@ -279,7 +279,7 @@ auto Module::Body::retain_value(Value value) -> Bool {
 
 auto Module::Body::select_source(
     const Library::Language::Model::Pack& pack,
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count target_index) -> Core::Option<Count> {
   auto target_name = target.get_name(target_index);
   if (!target_name) {
@@ -339,7 +339,7 @@ auto Module::Body::lower_pack(
     return lower_pack(*child, expected, assembler);
   }
 
-  const Ttx::Concept::Layout& target = structure->get_layout();
+  const Tetrodotoxin::Source::Layout& target = structure->get_layout();
   BAIL_IF(!pack.fits(expected));
   Memory::Dynamic::Vector<U32> members;
   for (Count index = 0; index < target.get_size(); index++) {
@@ -436,7 +436,7 @@ auto Module::Body::lower_expression(
     BAIL_IF(!is_sample_call(*call));
     auto callable = call->get_callable();
     BAIL_IF(!callable || callable->get_parameters().get_size() != 2);
-    const Ttx::Concept::Layout& parameters = callable->get_parameters();
+    const Tetrodotoxin::Source::Layout& parameters = callable->get_parameters();
     auto coordinate_semantic = parameters.get_abstract(1);
     auto coordinate_type =
         coordinate_semantic
@@ -473,7 +473,7 @@ auto Module::Body::lower_expression(
             ? lower_pack(address->get_receiver(), *receiver_type, assembler)
             : Core::Option<Value>();
     BAIL_IF(!receiver);
-    const Ttx::Concept::Layout& layout = receiver->type.get().get_layout();
+    const Tetrodotoxin::Source::Layout& layout = receiver->type.get().get_layout();
     Core::Option<Count> member;
     for (Count index = 0; index < layout.get_size(); index++) {
       auto semantic = layout.get_abstract(index);
@@ -625,7 +625,7 @@ auto Module::Body::emit(
     auto return_statement = root.select<Library::Language::Flow::Return>();
     if (return_statement) {
       if (!lower_return(return_statement->get_pack(), stage, assembler)) {
-        Ttx::Lexical::Errors::Report report(
+        Tetrodotoxin::Source::Lexical::Errors::Report report(
             request.get_errors(), request.get_source_path(),
             request.get_source_text(), return_statement->get_anchor());
         report

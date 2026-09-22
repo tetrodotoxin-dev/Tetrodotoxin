@@ -32,7 +32,7 @@
 #include "tetrodotoxin/terminal/llvm/module/carriers.hpp"
 #include "tetrodotoxin/terminal/llvm/module/functions.hpp"
 #include "tetrodotoxin/terminal/llvm/module/program.hpp"
-#include "ttx/model/addressable.hpp"
+#include "tetrodotoxin/source/addressable.hpp"
 
 using namespace Perimortem;
 using namespace Tetrodotoxin::Terminal;
@@ -43,10 +43,10 @@ static auto llvm_text(Core::View::Bytes value) -> llvm::StringRef {
       reinterpret_cast<const char*>(value.get_data()), value.get_size());
 }
 
-static auto select_type(const Ttx::Concept::Abstract& answer)
-    -> Core::Option<const Ttx::Model::Type&> {
-  auto direct = answer.select<Ttx::Model::Type>();
-  return direct ? direct : answer.resolve().select<Ttx::Model::Type>();
+static auto select_type(const Tetrodotoxin::Source::Abstract& answer)
+    -> Core::Option<const Tetrodotoxin::Source::Type&> {
+  auto direct = answer.select<Tetrodotoxin::Source::Type>();
+  return direct ? direct : answer.resolve().select<Tetrodotoxin::Source::Type>();
 }
 
 static auto select_program(Llvm::Module::Emission& program)
@@ -60,7 +60,7 @@ static auto select_program(Llvm::Module::Emission& program)
 static auto is_local_definition(
     const Tetrodotoxin::Terminal::Abi::Unit& unit,
     const Tetrodotoxin::Language::Definition& definition) -> Bool {
-  Ttx::Concept::Reference<const Ttx::Concept::Abstract> current(
+  Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Abstract> current(
       definition.get_host());
   while (true) {
     auto source =
@@ -125,9 +125,9 @@ static auto fail_callable(
     Core::View::Bytes hint = {}) -> Bool {
   auto target = select_program(program);
   auto anchor = definition.visit(
-      []() { return Core::Option<Ttx::Lexical::Anchor>(); },
+      []() { return Core::Option<Tetrodotoxin::Source::Lexical::Anchor>(); },
       [](const Tetrodotoxin::Language::Definition& selected) {
-        return Core::Option<Ttx::Lexical::Anchor>(selected.get_anchor());
+        return Core::Option<Tetrodotoxin::Source::Lexical::Anchor>(selected.get_anchor());
       });
   if (target && anchor) {
     return target->fail_source(*anchor, message, hint);
@@ -136,10 +136,10 @@ static auto fail_callable(
   return fail_toolchain(program, message);
 }
 
-static auto declares_self(const Ttx::Model::Callable& callable) -> Bool {
+static auto declares_self(const Tetrodotoxin::Source::Callable& callable) -> Bool {
   auto first = callable.get_parameters().get_abstract(0);
-  auto parameter = first ? first->select<Ttx::Model::Addressable>()
-                         : Core::Option<const Ttx::Model::Addressable&>();
+  auto parameter = first ? first->select<Tetrodotoxin::Source::Addressable>()
+                         : Core::Option<const Tetrodotoxin::Source::Addressable&>();
   return parameter && parameter->get_name() == "self"_view;
 }
 
@@ -168,7 +168,7 @@ static auto count_c_registers(llvm::Type& type, Count& integers, Count& sse)
 
 static auto get_extension(
     const Llvm::Module::Carriers& carriers,
-    const Ttx::Model::Type& type) -> Core::Option<llvm::Attribute::AttrKind> {
+    const Tetrodotoxin::Source::Type& type) -> Core::Option<llvm::Attribute::AttrKind> {
   auto native = carriers.get_type(type);
   if (!native) {
     return {};
@@ -186,14 +186,14 @@ static auto get_extension(
 static auto select_parameter_types(
     Llvm::Module::Emission& program,
     const Llvm::Module::Carriers& carriers,
-    const Ttx::Model::Callable& callable,
+    const Tetrodotoxin::Source::Callable& callable,
     Memory::Dynamic::Vector<llvm::Type*>& native,
-    Memory::Dynamic::Vector<const Ttx::Model::Type*>& semantic) -> Bool {
-  const Ttx::Concept::Layout& layout = callable.get_parameters();
+    Memory::Dynamic::Vector<const Tetrodotoxin::Source::Type*>& semantic) -> Bool {
+  const Tetrodotoxin::Source::Layout& layout = callable.get_parameters();
   for (Count index = 0; index < layout.get_size(); index++) {
     auto entry = layout.get_abstract(index);
-    auto parameter = entry ? entry->select<Ttx::Model::Addressable>()
-                           : Core::Option<const Ttx::Model::Addressable&>();
+    auto parameter = entry ? entry->select<Tetrodotoxin::Source::Addressable>()
+                           : Core::Option<const Tetrodotoxin::Source::Addressable&>();
     if (!parameter) {
       return fail_toolchain(
           program,
@@ -219,23 +219,23 @@ static auto select_parameter_types(
 static auto select_result_types(
     Llvm::Module::Emission& program,
     const Llvm::Module::Carriers& carriers,
-    const Ttx::Model::Callable& callable,
+    const Tetrodotoxin::Source::Callable& callable,
     Memory::Dynamic::Vector<llvm::Type*>& native,
-    Memory::Dynamic::Vector<const Ttx::Model::Type*>& semantic) -> Bool {
-  const Ttx::Concept::Layout& layout = callable.get_results();
+    Memory::Dynamic::Vector<const Tetrodotoxin::Source::Type*>& semantic) -> Bool {
+  const Tetrodotoxin::Source::Layout& layout = callable.get_results();
   auto library_callable =
       callable.select<Tetrodotoxin::Library::Language::Model::Callable>();
   auto self_result = library_callable
                          ? library_callable->get_self_result()
-                         : Core::Option<const Ttx::Model::Addressable&>();
+                         : Core::Option<const Tetrodotoxin::Source::Addressable&>();
   auto target = select_program(program);
   for (Count index = 0; index < layout.get_size(); index++) {
     auto entry = layout.get_abstract(index);
-    auto addressable = entry ? entry->select<Ttx::Model::Addressable>()
-                             : Core::Option<const Ttx::Model::Addressable&>();
+    auto addressable = entry ? entry->select<Tetrodotoxin::Source::Addressable>()
+                             : Core::Option<const Tetrodotoxin::Source::Addressable&>();
     auto type = addressable ? select_type(addressable->get_type())
                 : entry     ? select_type(*entry)
-                            : Core::Option<const Ttx::Model::Type&>();
+                            : Core::Option<const Tetrodotoxin::Source::Type&>();
     if (!type || !target) {
       return fail_toolchain(
           program,
@@ -265,7 +265,7 @@ static auto select_result_types(
 
 auto Llvm::Module::Functions::reserve(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Callable& callable,
+    const Tetrodotoxin::Source::Callable& callable,
     Record record) const -> Core::Option<Bool> {
   auto found = records.find(&callable);
   if (found) {
@@ -285,7 +285,7 @@ auto Llvm::Module::Functions::reserve(
 
 auto Llvm::Module::Functions::reserve_function(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Callable& callable,
+    const Tetrodotoxin::Source::Callable& callable,
     const Tetrodotoxin::Language::Definition& definition) const
     -> Core::Option<Bool> {
   auto target = select_program(program);
@@ -308,7 +308,7 @@ auto Llvm::Module::Functions::reserve_function(
 
 auto Llvm::Module::Functions::reserve_foreign(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Callable& callable,
+    const Tetrodotoxin::Source::Callable& callable,
     Core::View::Bytes abi,
     Core::View::Bytes symbol) const -> Core::Option<Bool> {
   if (abi != "C"_view) {
@@ -343,9 +343,9 @@ auto Llvm::Module::Functions::reserve_foreign(
 
 auto Llvm::Module::Functions::reserve_construction(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Type& owner,
+    const Tetrodotoxin::Source::Type& owner,
     Bool provider,
-    Core::View::Vector<Ttx::Concept::Reference<const Ttx::Model::Addressable>>
+    Core::View::Vector<Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Addressable>>
         parameters) const -> Bool {
   auto target = select_program(program);
   BAIL_IF(!target);
@@ -386,7 +386,7 @@ auto Llvm::Module::Functions::reserve_construction(
                              : publication ? publication->get_symbol()
                                            : generated.get_view();
   ConstructionRecord record(provider, symbol);
-  for (const Ttx::Concept::Reference<const Ttx::Model::Addressable>& parameter :
+  for (const Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Addressable>& parameter :
        parameters) {
     record.parameters.insert(parameter);
   }
@@ -396,7 +396,7 @@ auto Llvm::Module::Functions::reserve_construction(
 
 auto Llvm::Module::Functions::complete_construction(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Type& owner) const -> Bool {
+    const Tetrodotoxin::Source::Type& owner) const -> Bool {
   auto target = select_program(program);
   auto carriers = select_carriers(program);
   auto found = constructions.find(&owner);
@@ -428,7 +428,7 @@ auto Llvm::Module::Functions::complete_construction(
   }
 
   record.indirect_parameters.clear();
-  for (const Ttx::Concept::Reference<const Ttx::Model::Addressable>& retained :
+  for (const Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Addressable>& retained :
        record.parameters.get_view()) {
     auto type = select_type(retained.get().get_type());
     auto native =
@@ -515,7 +515,7 @@ static auto lower_construction_value(
     Llvm::Module::Body& body,
     const Llvm::Lowering::Execution& execution,
     const Llvm::Module::Carriers& carriers,
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     const Tetrodotoxin::Library::Language::Model::Pack& value)
     -> Core::Option<LLVMValueRef> {
   BAIL_IF(!execution.lower(value));
@@ -526,7 +526,7 @@ static auto lower_construction_value(
 
 auto Llvm::Module::Functions::lower_construction(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Type& owner,
+    const Tetrodotoxin::Source::Type& owner,
     Core::View::Vector<ConstructionField> fields) const -> Bool {
   auto target = select_program(program);
   auto found = constructions.find(&owner);
@@ -558,7 +558,7 @@ auto Llvm::Module::Functions::lower_construction(
   LLVMValueRef retained_function = *record.function;
   Core::Option<LLVMTypeRef> retained_sret_type = record.sret_type;
   Memory::Dynamic::Vector<
-      Ttx::Concept::Reference<const Ttx::Model::Addressable>>
+      Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Addressable>>
       retained_parameters = record.parameters;
   Memory::Dynamic::Vector<Bool> retained_indirect_parameters =
       record.indirect_parameters;
@@ -585,7 +585,7 @@ auto Llvm::Module::Functions::lower_construction(
   Memory::Dynamic::Vector<LLVMValueRef> values;
   Count parameter_index = 0;
   for (const ConstructionField& input : fields) {
-    const Ttx::Model::Addressable& field = input.get_field();
+    const Tetrodotoxin::Source::Addressable& field = input.get_field();
     auto field_type = select_type(field.get_type());
     BAIL_IF(!field_type);
 
@@ -686,7 +686,7 @@ auto Llvm::Module::Functions::lower_construction(
 static auto select_construction_argument(
     const Tetrodotoxin::Library::Language::Model::Pack& arguments,
     Core::View::Bytes name) -> Core::Option<Count> {
-  const Ttx::Concept::Layout& layout = arguments.get_layout();
+  const Tetrodotoxin::Source::Layout& layout = arguments.get_layout();
   Core::Option<Count> selected;
   for (Count index = 0; index < layout.get_size(); index++) {
     auto candidate_name = layout.get_name(index);
@@ -702,7 +702,7 @@ static auto select_construction_argument(
 auto Llvm::Module::Functions::call_construction(
     Llvm::Module::Emission& body,
     const Library::Language::Model::Pack& result,
-    const Ttx::Model::Type& owner,
+    const Tetrodotoxin::Source::Type& owner,
     const Library::Language::Model::Pack& arguments) const -> Bool {
   auto native_body = select_body(body);
   auto found = constructions.find(&owner);
@@ -716,7 +716,7 @@ auto Llvm::Module::Functions::call_construction(
   LLVMValueRef retained_function = *record.function;
   Core::Option<LLVMTypeRef> retained_sret_type = record.sret_type;
   Memory::Dynamic::Vector<
-      Ttx::Concept::Reference<const Ttx::Model::Addressable>>
+      Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Addressable>>
       retained_parameters = record.parameters;
   Memory::Dynamic::Vector<Bool> retained_indirect_parameters =
       record.indirect_parameters;
@@ -731,7 +731,7 @@ auto Llvm::Module::Functions::call_construction(
   }
 
   for (Count index = 0; index < retained_parameters.get_size(); index++) {
-    const Ttx::Model::Addressable& field = retained_parameters[index].get();
+    const Tetrodotoxin::Source::Addressable& field = retained_parameters[index].get();
     auto field_type = select_type(field.get_type());
     BAIL_IF(!field_type);
     auto selected = select_construction_argument(arguments, field.get_name());
@@ -788,7 +788,7 @@ auto Llvm::Module::Functions::call_construction(
 
 auto Llvm::Module::Functions::complete(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Callable& callable) const -> Bool {
+    const Tetrodotoxin::Source::Callable& callable) const -> Bool {
   auto found = records.find(&callable);
   if (!found) {
     return fail_toolchain(
@@ -850,9 +850,9 @@ auto Llvm::Module::Functions::complete(
   }
 
   Memory::Dynamic::Vector<llvm::Type*> parameter_types;
-  Memory::Dynamic::Vector<const Ttx::Model::Type*> semantic_parameters;
+  Memory::Dynamic::Vector<const Tetrodotoxin::Source::Type*> semantic_parameters;
   Memory::Dynamic::Vector<llvm::Type*> result_types;
-  Memory::Dynamic::Vector<const Ttx::Model::Type*> semantic_results;
+  Memory::Dynamic::Vector<const Tetrodotoxin::Source::Type*> semantic_results;
   if (!select_parameter_types(
           program, *carriers, callable, parameter_types, semantic_parameters)) {
     return False;
@@ -1037,7 +1037,7 @@ auto Llvm::Module::Functions::complete(
 
 auto Llvm::Module::Functions::begin_body(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Callable& callable) const -> Core::Option<Lowering> {
+    const Tetrodotoxin::Source::Callable& callable) const -> Core::Option<Lowering> {
   auto found = records.find(&callable);
   auto target = select_program(program);
   if (!found || !target || found->value.kind != Kind::Function ||
@@ -1071,7 +1071,7 @@ auto Llvm::Module::Functions::begin_body(
     sret = llvm::wrap(&*argument);
   }
 
-  const Ttx::Concept::Layout& parameters = callable.get_parameters();
+  const Tetrodotoxin::Source::Layout& parameters = callable.get_parameters();
   if (record.indirect_parameters.get_size() != parameters.get_size() ||
       record.parameter_types.get_size() != parameters.get_size() ||
       record.parameter_abi_types.get_size() != parameters.get_size() ||
@@ -1088,7 +1088,7 @@ auto Llvm::Module::Functions::begin_body(
 
 auto Llvm::Module::Functions::bind_parameters(
     Llvm::Module::Emission& body,
-    const Ttx::Model::Callable& callable) const -> Bool {
+    const Tetrodotoxin::Source::Callable& callable) const -> Bool {
   auto native_body = select_body(body);
   auto found = records.find(&callable);
   if (!native_body || !found || found->value.kind != Kind::Function ||
@@ -1113,12 +1113,12 @@ auto Llvm::Module::Functions::bind_parameters(
     argument++;
   }
 
-  const Ttx::Concept::Layout& parameters = callable.get_parameters();
+  const Tetrodotoxin::Source::Layout& parameters = callable.get_parameters();
   for (Count index = 0; index < parameters.get_size(); index++) {
     auto entry_value = parameters.get_abstract(index);
     auto parameter = entry_value
-                         ? entry_value->select<Ttx::Model::Addressable>()
-                         : Core::Option<const Ttx::Model::Addressable&>();
+                         ? entry_value->select<Tetrodotoxin::Source::Addressable>()
+                         : Core::Option<const Tetrodotoxin::Source::Addressable&>();
     if (!parameter || argument == function.arg_end() ||
         record.parameter_abi_counts[index] == 0) {
       fail_toolchain(
@@ -1190,7 +1190,7 @@ auto Llvm::Module::Functions::bind_parameters(
 
 auto Llvm::Module::Functions::end_body(
     Llvm::Module::Emission& body,
-    const Ttx::Model::Callable& callable) const -> Bool {
+    const Tetrodotoxin::Source::Callable& callable) const -> Bool {
   auto native_body = select_body(body);
   auto target = select_program(get_program(body));
   if (!native_body || !target) {
@@ -1213,7 +1213,7 @@ auto Llvm::Module::Functions::end_body(
         callable.select<Tetrodotoxin::Library::Language::Model::Callable>();
     auto self_result = library_callable
                            ? library_callable->get_self_result()
-                           : Core::Option<const Ttx::Model::Addressable&>();
+                           : Core::Option<const Tetrodotoxin::Source::Addressable&>();
     if (self_result) {
       auto address = native_body->find_address(*self_result);
       completed = Bool(
@@ -1247,7 +1247,7 @@ auto Llvm::Module::Functions::end_body(
 
 auto Llvm::Module::Functions::append_call_arguments(
     Llvm::Module::Emission& body,
-    const Ttx::Model::Callable& callable,
+    const Tetrodotoxin::Source::Callable& callable,
     Count parameter,
     LLVMValueRef value,
     Memory::Dynamic::Vector<LLVMValueRef>& arguments) const -> Bool {
@@ -1296,7 +1296,7 @@ auto Llvm::Module::Functions::append_call_arguments(
 
 auto Llvm::Module::Functions::decode_call_result(
     Llvm::Module::Emission& body,
-    const Ttx::Model::Callable& callable,
+    const Tetrodotoxin::Source::Callable& callable,
     LLVMValueRef value) const -> Core::Option<LLVMValueRef> {
   auto native_body = select_body(body);
   auto found = records.find(&callable);
@@ -1311,7 +1311,7 @@ auto Llvm::Module::Functions::decode_call_result(
 
 auto Llvm::Module::Functions::encode_return(
     Llvm::Module::Emission& body,
-    const Ttx::Model::Callable& callable,
+    const Tetrodotoxin::Source::Callable& callable,
     LLVMValueRef value) const -> Core::Option<LLVMValueRef> {
   auto native_body = select_body(body);
   auto found = records.find(&callable);
@@ -1325,12 +1325,12 @@ auto Llvm::Module::Functions::encode_return(
 }
 
 auto Llvm::Module::Functions::find_function(
-    const Ttx::Model::Callable& callable) const -> Core::Option<LLVMValueRef> {
+    const Tetrodotoxin::Source::Callable& callable) const -> Core::Option<LLVMValueRef> {
   auto found = records.find(&callable);
   return found ? found->value.function : Core::Option<LLVMValueRef>();
 }
 
-auto Llvm::Module::Functions::find_symbol(const Ttx::Model::Callable& callable)
+auto Llvm::Module::Functions::find_symbol(const Tetrodotoxin::Source::Callable& callable)
     const -> Core::Option<Core::View::Bytes> {
   auto found = records.find(&callable);
   return found && found->value.function
@@ -1339,19 +1339,19 @@ auto Llvm::Module::Functions::find_symbol(const Ttx::Model::Callable& callable)
 }
 
 auto Llvm::Module::Functions::find_sret_type(
-    const Ttx::Model::Callable& callable) const -> Core::Option<LLVMTypeRef> {
+    const Tetrodotoxin::Source::Callable& callable) const -> Core::Option<LLVMTypeRef> {
   auto found = records.find(&callable);
   return found ? found->value.sret_type : Core::Option<LLVMTypeRef>();
 }
 
 auto Llvm::Module::Functions::get_indirect_parameters(
-    const Ttx::Model::Callable& callable) const -> Core::View::Vector<Bool> {
+    const Tetrodotoxin::Source::Callable& callable) const -> Core::View::Vector<Bool> {
   auto found = records.find(&callable);
   return found ? found->value.indirect_parameters.get_view()
                : Core::View::Vector<Bool>();
 }
 
 auto Llvm::Module::Functions::get_foreign_callables() const
-    -> Core::View::Vector<Ttx::Concept::Reference<const Ttx::Model::Callable>> {
+    -> Core::View::Vector<Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Callable>> {
   return foreign_callables.get_view();
 }

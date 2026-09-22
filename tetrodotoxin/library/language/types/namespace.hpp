@@ -28,10 +28,10 @@ class Namespace : public Composite {
 
  protected:
   auto retain_binding(
-      Ttx::Concept::Abstract& binding,
+      Tetrodotoxin::Source::Abstract& binding,
       Tetrodotoxin::Language::Definition& definition,
       Category category,
-      Ttx::Lexical::Cursor& cursor) -> Bool override;
+      Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
 
  private:
   Namespace(

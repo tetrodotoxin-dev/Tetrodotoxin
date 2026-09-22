@@ -11,7 +11,7 @@
 #include "perimortem/memory/managed/vector.hpp"
 
 #include "tetrodotoxin/language/dialect.hpp"
-#include "ttx/concept/reference.hpp"
+#include "tetrodotoxin/source/reference.hpp"
 
 namespace Tetrodotoxin::Environment {
 
@@ -51,11 +51,11 @@ class Toolchain {
   // but it's considered undefined behavior as far as Tetrodotoxin is concerned.
   auto process(
       Perimortem::Core::View::Bytes source,
-      Ttx::Lexical::Errors& errors)
+      Tetrodotoxin::Source::Lexical::Errors& errors)
       -> Perimortem::Core::Option<Language::Monograph&>;
 
   constexpr auto get_dialects() const -> Perimortem::Core::View::Vector<
-      Ttx::Concept::Reference<Language::Dialect>> {
+      Tetrodotoxin::Source::Reference<Language::Dialect>> {
     return dialects;
   }
 
@@ -64,10 +64,10 @@ class Toolchain {
 
   Perimortem::Memory::Allocator::Arena arena;
   Perimortem::Memory::Managed::Vector<
-      Ttx::Concept::Reference<Language::Dialect>>
+      Tetrodotoxin::Source::Reference<Language::Dialect>>
       dialects;
   Perimortem::Memory::Managed::Vector<
-      Ttx::Concept::Reference<Language::Monograph>>
+      Tetrodotoxin::Source::Reference<Language::Monograph>>
       sources;
 };
 

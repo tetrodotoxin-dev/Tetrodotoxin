@@ -31,12 +31,12 @@
 #include "tetrodotoxin/library/language/types/option.hpp"
 #include "tetrodotoxin/library/language/types/range.hpp"
 #include "tetrodotoxin/library/language/types/result.hpp"
-#include "ttx/concept/documentation.hpp"
-#include "ttx/concept/reference.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/documentation.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
 auto Language::Model::Pack::from(Abstract& identity) -> Core::Option<Pack&> {
@@ -75,7 +75,7 @@ auto Language::Model::Pack::link_restored(
 
 class Group final : public Language::Model::Pack {
  public:
-  class Layout final : public Ttx::Concept::Layout {
+  class Layout final : public Tetrodotoxin::Source::Layout {
    public:
     struct Selection {
       Count entry;
@@ -90,13 +90,13 @@ class Group final : public Language::Model::Pack {
     auto get_name(Count index) const
         -> Core::Option<Core::View::Bytes> override;
     auto fits_entry(
-        const Ttx::Concept::Layout& target,
+        const Tetrodotoxin::Source::Layout& target,
         Count source,
         Count target_index) const -> Bool override;
-    auto fits_at(const Ttx::Concept::Layout& target, Count target_offset) const
+    auto fits_at(const Tetrodotoxin::Source::Layout& target, Count target_offset) const
         -> Bool override;
     auto get_fitted_at(
-        const Ttx::Concept::Layout& target,
+        const Tetrodotoxin::Source::Layout& target,
         Count target_offset,
         Count target_index) const
         -> Utility::Result<const Abstract&, Errors> override;
@@ -109,10 +109,10 @@ class Group final : public Language::Model::Pack {
 
   Group(
       Memory::Allocator::Arena& domain,
-      Core::View::Vector<Ttx::Model::PackReference<Language::Model::Pack>>
+      Core::View::Vector<Tetrodotoxin::Source::PackReference<Language::Model::Pack>>
           source_entries,
       Core::View::Vector<Core::View::Bytes> source_names,
-      Core::Option<Ttx::Lexical::Anchor> anchor,
+      Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor,
       Bool linked = False)
       : entries(domain),
         names(domain),
@@ -120,7 +120,7 @@ class Group final : public Language::Model::Pack {
         layout(*this),
         linked(linked) {
     entries.reset(source_entries.get_size());
-    for (const Ttx::Model::PackReference<Language::Model::Pack>& entry :
+    for (const Tetrodotoxin::Source::PackReference<Language::Model::Pack>& entry :
          source_entries) {
       entries.insert(entry);
     }
@@ -132,11 +132,11 @@ class Group final : public Language::Model::Pack {
   }
 
   auto link(
-      Ttx::Lexical::Cursor& cursor,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
       const Abstract& lexical_context,
       Core::Option<const Abstract&> access_scope) -> Bool override {
     Bool failed = False;
-    for (Ttx::Model::PackReference<Language::Model::Pack> entry :
+    for (Tetrodotoxin::Source::PackReference<Language::Model::Pack> entry :
          entries.get_view()) {
       failed |= !entry.get().link(cursor, lexical_context, access_scope);
     }
@@ -145,7 +145,7 @@ class Group final : public Language::Model::Pack {
     // Type selection links here so a following access can query that identity.
     // A group is a value consumer, so it rejects the same result before Layout
     // observation turns the missing value output into a process failure.
-    for (Ttx::Model::PackReference<Language::Model::Pack> entry :
+    for (Tetrodotoxin::Source::PackReference<Language::Model::Pack> entry :
          entries.get_view()) {
       if (!entry.get().is_complete()) {
         cursor.create_expression_error(
@@ -156,7 +156,7 @@ class Group final : public Language::Model::Pack {
     }
 
     if (!names.is_empty()) {
-      for (Ttx::Model::PackReference<Language::Model::Pack> entry :
+      for (Tetrodotoxin::Source::PackReference<Language::Model::Pack> entry :
            entries.get_view()) {
         if (entry.get().get_layout().get_size() != 1) {
           cursor.create_expression_error(
@@ -179,7 +179,7 @@ class Group final : public Language::Model::Pack {
       return True;
     }
 
-    for (Ttx::Model::PackReference<Language::Model::Pack> entry :
+    for (Tetrodotoxin::Source::PackReference<Language::Model::Pack> entry :
          entries.get_view()) {
       BAIL_IF(!entry.get().link_restored(lexical_context, access_scope));
       BAIL_IF(!entry.get().is_complete());
@@ -188,7 +188,7 @@ class Group final : public Language::Model::Pack {
     return True;
   }
 
-  auto get_layout() const -> const Ttx::Concept::Layout& override {
+  auto get_layout() const -> const Tetrodotoxin::Source::Layout& override {
     return layout;
   }
 
@@ -202,7 +202,7 @@ class Group final : public Language::Model::Pack {
 
   auto is_complete() const -> Bool override { return linked; }
 
-  auto get_anchor() const -> Core::Option<Ttx::Lexical::Anchor> override {
+  auto get_anchor() const -> Core::Option<Tetrodotoxin::Source::Lexical::Anchor> override {
     return anchor;
   }
 
@@ -210,22 +210,22 @@ class Group final : public Language::Model::Pack {
     return {};
   }
 
-  auto finalize(Ttx::Lexical::Cursor& cursor) -> void override {
-    for (Ttx::Model::PackReference<Language::Model::Pack> entry :
+  auto finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> void override {
+    for (Tetrodotoxin::Source::PackReference<Language::Model::Pack> entry :
          entries.get_view()) {
       entry.get().finalize(cursor);
     }
   }
 
   constexpr auto get_entries() const -> Core::View::Vector<
-      Ttx::Model::PackReference<Language::Model::Pack>> override {
+      Tetrodotoxin::Source::PackReference<Language::Model::Pack>> override {
     return entries;
   }
 
-  Memory::Managed::Vector<Ttx::Model::PackReference<Language::Model::Pack>>
+  Memory::Managed::Vector<Tetrodotoxin::Source::PackReference<Language::Model::Pack>>
       entries;
   Memory::Managed::Vector<Core::View::Bytes> names;
-  Core::Option<Ttx::Lexical::Anchor> anchor;
+  Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor;
   Layout layout;
   Bool linked = False;
 };
@@ -236,7 +236,7 @@ auto Group::Layout::get_size() const -> Count {
   }
 
   Count size = 0;
-  for (Ttx::Model::PackReference<Language::Model::Pack> entry :
+  for (Tetrodotoxin::Source::PackReference<Language::Model::Pack> entry :
        group.entries.get_view()) {
     size += entry.get().get_layout().get_size();
   }
@@ -276,7 +276,7 @@ auto Group::Layout::get_name(Count index) const
   return group.names.at(index);
 }
 
-static auto get_target_name(const Ttx::Concept::Layout& target, Count index)
+static auto get_target_name(const Tetrodotoxin::Source::Layout& target, Count index)
     -> Core::Option<Core::View::Bytes> {
   auto name = target.get_name(index);
   if (name) {
@@ -291,7 +291,7 @@ static auto get_target_name(const Ttx::Concept::Layout& target, Count index)
 }
 
 auto Group::Layout::fits_entry(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count source,
     Count target_index) const -> Bool {
   BAIL_IF(source >= get_size() || target_index >= target.get_size());
@@ -310,7 +310,7 @@ auto Group::Layout::fits_entry(
 }
 
 auto Group::Layout::fits_at(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count target_offset) const -> Bool {
   BAIL_IF(!has_target_segment(target, target_offset));
 
@@ -341,7 +341,7 @@ auto Group::Layout::fits_at(
 }
 
 auto Group::Layout::get_fitted_at(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count target_offset,
     Count target_index) const -> Utility::Result<const Abstract&, Errors> {
   if (target_index >= get_size()) {
@@ -386,7 +386,7 @@ auto Group::Layout::get_fitted_at(
 }
 
 auto Language::Model::Pack::get_type() const -> const Abstract& {
-  const Ttx::Concept::Layout& layout = get_layout();
+  const Tetrodotoxin::Source::Layout& layout = get_layout();
   if (layout.get_size() != 1) {
     return Unknown::get_unknown();
   }
@@ -402,7 +402,7 @@ auto Language::Model::Pack::get_result() const -> const Abstract& {
 
 auto Language::Model::Pack::get_identity() const
     -> Core::Option<const Abstract&> {
-  const Ttx::Concept::Layout& layout = get_layout();
+  const Tetrodotoxin::Source::Layout& layout = get_layout();
   BAIL_IF(layout.get_size() != 1);
   return layout.get_abstract(0);
 }
@@ -415,17 +415,17 @@ static auto select_target_type(const Abstract& target)
   }
 
   const Abstract& resolved = target.resolve();
-  auto addressable = resolved.select<Ttx::Model::Addressable>();
+  auto addressable = resolved.select<Tetrodotoxin::Source::Addressable>();
   const Abstract& selected = addressable ? addressable->get_type() : resolved;
   direct = selected.select<Language::Model::Type>();
   return direct ? direct : selected.resolve().select<Language::Model::Type>();
 }
 
 auto Language::Model::Pack::fits_entry(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count source_index,
     Count target_index) const -> Bool {
-  const Ttx::Concept::Layout& source = get_layout();
+  const Tetrodotoxin::Source::Layout& source = get_layout();
   BAIL_IF(
       source_index >= source.get_size() || target_index >= target.get_size());
 
@@ -451,9 +451,9 @@ auto Language::Model::Pack::fits_entry(
 }
 
 auto Language::Model::Pack::fits_at(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count target_offset) const -> Bool {
-  const Ttx::Concept::Layout& source = get_layout();
+  const Tetrodotoxin::Source::Layout& source = get_layout();
   BAIL_IF(
       target_offset > target.get_size() ||
       source.get_size() > target.get_size() - target_offset);
@@ -492,7 +492,7 @@ auto Language::Model::Pack::fits_at(
   return True;
 }
 
-auto Language::Model::Pack::fits(const Ttx::Concept::Layout& target) const
+auto Language::Model::Pack::fits(const Tetrodotoxin::Source::Layout& target) const
     -> Bool {
   BAIL_IF(!is_complete());
   if (get_layout().get_size() == target.get_size() && fits_at(target, 0)) {
@@ -508,20 +508,20 @@ auto Language::Model::Pack::fits(const Ttx::Concept::Layout& target) const
 }
 
 auto Language::Model::Pack::get_fitted_at(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count target_offset,
     Count target_index) const
-    -> Utility::Result<const Abstract&, Ttx::Concept::Layout::Errors> {
-  const Ttx::Concept::Layout& source = get_layout();
+    -> Utility::Result<const Abstract&, Tetrodotoxin::Source::Layout::Errors> {
+  const Tetrodotoxin::Source::Layout& source = get_layout();
   if (target_index >= source.get_size()) {
-    return Ttx::Concept::Layout::Errors::IndexOutOfBounds;
+    return Tetrodotoxin::Source::Layout::Errors::IndexOutOfBounds;
   }
   if (target_offset > target.get_size() ||
       source.get_size() > target.get_size() - target_offset) {
-    return Ttx::Concept::Layout::Errors::SizeMismatch;
+    return Tetrodotoxin::Source::Layout::Errors::SizeMismatch;
   }
   if (!fits_at(target, target_offset)) {
-    return Ttx::Concept::Layout::Errors::IncompatibleFit;
+    return Tetrodotoxin::Source::Layout::Errors::IncompatibleFit;
   }
 
   for (Count index = 0; index < source.get_size(); index++) {
@@ -532,24 +532,24 @@ auto Language::Model::Pack::get_fitted_at(
   return source.get_abstract(target_index)
       .visit(
           []() -> Utility::Result<
-                   const Abstract&, Ttx::Concept::Layout::Errors> {
-            return Ttx::Concept::Layout::Errors::IncompatibleFit;
+                   const Abstract&, Tetrodotoxin::Source::Layout::Errors> {
+            return Tetrodotoxin::Source::Layout::Errors::IncompatibleFit;
           },
           [](const Abstract& entry)
               -> Utility::Result<
-                  const Abstract&, Ttx::Concept::Layout::Errors> {
+                  const Abstract&, Tetrodotoxin::Source::Layout::Errors> {
             return entry;
           });
 }
 
-auto Language::Model::Pack::fits(const Ttx::Model::Type& target) const -> Bool {
+auto Language::Model::Pack::fits(const Tetrodotoxin::Source::Type& target) const -> Bool {
   BAIL_IF(!is_complete());
-  const Ttx::Concept::Layout& target_layout = target.get_layout();
+  const Tetrodotoxin::Source::Layout& target_layout = target.get_layout();
   return get_layout().get_size() == target_layout.get_size() &&
          fits_at(target_layout, 0);
 }
 
-auto Language::Model::Pack::fits_into(const Ttx::Model::Type& target) const
+auto Language::Model::Pack::fits_into(const Tetrodotoxin::Source::Type& target) const
     -> Bool {
   if (fits(target)) {
     return True;
@@ -561,23 +561,23 @@ auto Language::Model::Pack::fits_into(const Ttx::Model::Type& target) const
 
 auto Language::Model::Pack::create_empty(
     Perimortem::Memory::Allocator::Arena& domain,
-    Core::Option<Ttx::Lexical::Anchor> anchor) -> Pack& {
+    Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor) -> Pack& {
   return domain.construct<Group>(
-      domain, Core::View::Vector<Ttx::Model::PackReference<Pack>>(),
+      domain, Core::View::Vector<Tetrodotoxin::Source::PackReference<Pack>>(),
       Core::View::Vector<Core::View::Bytes>(), anchor);
 }
 
 auto Language::Model::Pack::create_group(
     Perimortem::Memory::Allocator::Arena& domain,
-    Core::View::Vector<Ttx::Model::PackReference<Pack>> entries,
+    Core::View::Vector<Tetrodotoxin::Source::PackReference<Pack>> entries,
     Core::View::Vector<Core::View::Bytes> names,
-    Core::Option<Ttx::Lexical::Anchor> anchor) -> Pack& {
+    Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor) -> Pack& {
   return domain.construct<Group>(domain, entries, names, anchor);
 }
 
 auto Language::Model::Pack::create_folded(
     Perimortem::Memory::Allocator::Arena& domain,
-    Core::View::Vector<Ttx::Model::PackReference<Pack>> entries) -> Pack& {
+    Core::View::Vector<Tetrodotoxin::Source::PackReference<Pack>> entries) -> Pack& {
   auto aggregate = Language::Constants::Aggregate::create(domain, entries);
   return aggregate ? static_cast<Pack&>(*aggregate)
                    : create_completed(domain, entries);
@@ -585,8 +585,8 @@ auto Language::Model::Pack::create_folded(
 
 auto Language::Model::Pack::create_completed(
     Perimortem::Memory::Allocator::Arena& domain,
-    Core::View::Vector<Ttx::Model::PackReference<Pack>> entries,
+    Core::View::Vector<Tetrodotoxin::Source::PackReference<Pack>> entries,
     Core::View::Vector<Core::View::Bytes> names) -> Pack& {
   return domain.construct<Group>(
-      domain, entries, names, Core::Option<Ttx::Lexical::Anchor>(), True);
+      domain, entries, names, Core::Option<Tetrodotoxin::Source::Lexical::Anchor>(), True);
 }

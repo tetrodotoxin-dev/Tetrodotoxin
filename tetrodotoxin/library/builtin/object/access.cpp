@@ -6,14 +6,14 @@
 #include "tetrodotoxin/library/language/types/object_storage.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
 auto Builtin::Object::Access::create(
     Memory::Allocator::Arena& domain,
     const Language::Model::Type& receiver,
     const Language::Model::Type& result) -> Access& {
-  auto& self = Ttx::Model::Layouts::Addressable::create_synthetic(
+  auto& self = Tetrodotoxin::Source::Layouts::Addressable::create_synthetic(
       domain, "self"_view, receiver);
   return domain.construct_from<Access>(
       [&]() -> Access { return Access(self, result); });

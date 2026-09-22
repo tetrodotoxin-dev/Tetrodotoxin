@@ -3,13 +3,15 @@
 
 #include "tetrodotoxin/library/language/access/type.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "tetrodotoxin/library/language/expressions/identifier.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 
 static auto resolve_receiver(const Language::Model::Pack& receiver)
@@ -49,7 +51,7 @@ auto Language::Access::Type::create_authored(
 }
 
 auto Language::Access::Type::link(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& lexical_context,
     Core::Option<const Abstract&> access_scope) -> Bool {
   BAIL_IF(!receiver.link(cursor, lexical_context, access_scope));
@@ -78,10 +80,10 @@ auto Language::Access::Type::link(
   return True;
 }
 
-auto Language::Access::Type::get_documentation() const -> const Documentation& {
+auto Language::Access::Type::get_documentation() const -> const Tetrodotoxin::Source::Documentation& {
   return selected.visit(
-      []() -> const Documentation& { return Documentation::get_empty(); },
-      [](const Reference<const Abstract>& selected) -> const Documentation& {
+      []() -> const Tetrodotoxin::Source::Documentation& { return Tetrodotoxin::Source::Documentation::get_empty(); },
+      [](const Reference<const Abstract>& selected) -> const Tetrodotoxin::Source::Documentation& {
         return selected.get().get_documentation();
       });
 }
@@ -117,7 +119,7 @@ auto Language::Access::Type::resolve_concept(Core::View::Bytes route) const
 }
 
 auto Language::Access::Type::visit_concepts(
-    Ttx::Concept::Abstract::Visitor visitor) const -> void {
+    Tetrodotoxin::Source::Abstract::Visitor visitor) const -> void {
   // These queries can complete the expression. Capture the advertised answers
   // together before entering receiver code, without copying their storage.
   const Abstract& folded = Expression::resolve_concept("folded"_view);

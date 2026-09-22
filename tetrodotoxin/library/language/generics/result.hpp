@@ -6,7 +6,7 @@
 #include "perimortem/core/static/vector.hpp"
 
 #include "tetrodotoxin/library/language/generic.hpp"
-#include "ttx/model/documentations/comment.hpp"
+#include "tetrodotoxin/source/documentations/comment.hpp"
 
 namespace Tetrodotoxin::Library::Language::Generics {
 
@@ -18,7 +18,7 @@ class Result : public Generic {
 
   Result(
       Perimortem::Memory::Allocator::Arena& domain,
-      const Ttx::Concept::Abstract& context)
+      const Tetrodotoxin::Source::Abstract& context)
       : Generic(domain, context) {}
 
   TTX_NAME(name);
@@ -35,7 +35,7 @@ class Result : public Generic {
 
   static constexpr Perimortem::Core::Static::Vector<Parameters, 2>
       parameterization = {{Parameters::Type, Parameters::Type}};
-  static constexpr Ttx::Model::Documentations::Comment documentation{
+  static constexpr Tetrodotoxin::Source::Documentations::Comment documentation{
     "Carries one exact value or one exact error that must be handled."_view,
   };
 };

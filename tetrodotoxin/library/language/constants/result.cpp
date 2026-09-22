@@ -6,7 +6,7 @@
 #include "tetrodotoxin/library/language/expression.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library::Language;
 
 static auto append_pack(Memory::Managed::Bytes& output, const Model::Pack& pack)
@@ -35,7 +35,7 @@ Constants::Result::Result(
     const Types::Result& type,
     Types::Result::Kind kind,
     Model::Pack& payload,
-    Core::Option<Ttx::Lexical::Anchor> anchor)
+    Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor)
     : Constant(anchor),
       type(type),
       kind(kind),

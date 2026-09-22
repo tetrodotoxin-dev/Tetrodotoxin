@@ -8,7 +8,7 @@
 #include "perimortem/memory/allocator/arena.hpp"
 
 #include "tetrodotoxin/terminal/abi/unit.hpp"
-#include "ttx/concept/abstract.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
 
 namespace Tetrodotoxin::Terminal::Abi {
 
@@ -31,7 +31,7 @@ class Symbol {
 
   Symbol(
       Perimortem::Memory::Allocator::Arena& arena,
-      const Ttx::Concept::Abstract& semantic,
+      const Tetrodotoxin::Source::Abstract& semantic,
       Kind kind,
       Unit unit = {});
 

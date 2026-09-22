@@ -12,9 +12,9 @@
 
 #include "tetrodotoxin/library/language/expression.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/lexical/cursor.hpp"
-#include "ttx/lexical/token.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/token.hpp"
 
 namespace Tetrodotoxin::Library::Language::Access {
 
@@ -32,25 +32,25 @@ class Swizzle : public Expression {
   static auto create_authored(
       Perimortem::Memory::Allocator::Arena& domain,
       Language::Model::Pack& receiver,
-      Perimortem::Core::View::Vector<Ttx::Lexical::Token> name_tokens,
+      Perimortem::Core::View::Vector<Tetrodotoxin::Source::Lexical::Token> name_tokens,
       Perimortem::Core::View::Vector<Perimortem::Core::View::Bytes> names,
-      Ttx::Lexical::Anchor anchor) -> Swizzle&;
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> Swizzle&;
 
   auto link(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& lexical_context,
-      Perimortem::Core::Option<const Ttx::Concept::Abstract&> access_scope = {})
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& lexical_context,
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&> access_scope = {})
       -> Bool override;
 
   TTX_NAME("Swizzle"_view);
 
-  auto get_documentation() const -> const Ttx::Concept::Documentation& override;
-  auto get_type() const -> const Ttx::Concept::Abstract& override;
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override;
+  auto get_type() const -> const Tetrodotoxin::Source::Abstract& override;
   auto get_value_type(Count index) const
-      -> const Ttx::Concept::Abstract& override;
-  auto get_layout() const -> const Ttx::Concept::Layout& override;
-  auto resolve() const -> const Ttx::Concept::Abstract& override;
-  auto finalize(Ttx::Lexical::Cursor& cursor) -> void override;
+      -> const Tetrodotoxin::Source::Abstract& override;
+  auto get_layout() const -> const Tetrodotoxin::Source::Layout& override;
+  auto resolve() const -> const Tetrodotoxin::Source::Abstract& override;
+  auto finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> void override;
 
   constexpr auto get_receiver() const -> const Language::Model::Pack& {
     return receiver;
@@ -64,9 +64,9 @@ class Swizzle : public Expression {
   Swizzle(
       Perimortem::Memory::Allocator::Arena& domain,
       Language::Model::Pack& receiver,
-      Perimortem::Core::View::Vector<Ttx::Lexical::Token> name_tokens,
+      Perimortem::Core::View::Vector<Tetrodotoxin::Source::Lexical::Token> name_tokens,
       Perimortem::Core::View::Vector<Perimortem::Core::View::Bytes> names,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor)
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor)
       : Expression(anchor),
         domain(domain),
         receiver(receiver),
@@ -77,13 +77,13 @@ class Swizzle : public Expression {
 
   Perimortem::Memory::Allocator::Arena& domain;
   Language::Model::Pack& receiver;
-  Perimortem::Core::View::Vector<Ttx::Lexical::Token> name_tokens;
+  Perimortem::Core::View::Vector<Tetrodotoxin::Source::Lexical::Token> name_tokens;
   Perimortem::Core::View::Vector<Perimortem::Core::View::Bytes> names;
   Perimortem::Memory::Managed::Vector<Count> selections;
   Perimortem::Memory::Managed::Vector<
-      Ttx::Concept::Reference<const Ttx::Concept::Abstract>>
+      Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Abstract>>
       projections;
-  Perimortem::Core::Option<const Ttx::Concept::Layout&> output;
+  Perimortem::Core::Option<const Tetrodotoxin::Source::Layout&> output;
 };
 
 }  // namespace Tetrodotoxin::Library::Language::Access

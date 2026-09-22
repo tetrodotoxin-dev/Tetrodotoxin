@@ -7,12 +7,12 @@
 
 #include "tetrodotoxin/environment/workspace.hpp"
 #include "tetrodotoxin/library/dialect.hpp"
-#include "ttx/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
 
 using namespace Perimortem::Core;
 using namespace Tetrodotoxin;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Validation;
 
 static Harness StructureInterface = {
@@ -70,17 +70,17 @@ PERIMORTEM_UNIT_TEST(StructureInterface, negotiates_real_library_types) {
 
   EXPECT(
       hosting.negotiate(requirement, requirement) ==
-      Ttx::Concept::Interface::Relation::Rejected);
+      Tetrodotoxin::Source::Interface::Relation::Rejected);
   EXPECT(
       hosting.negotiate(requirement, sprite) ==
-      Ttx::Concept::Interface::Relation::Satisfied);
+      Tetrodotoxin::Source::Interface::Relation::Satisfied);
   EXPECT(
       hosting.negotiate(requirement, wrong_type) ==
-      Ttx::Concept::Interface::Relation::Rejected);
+      Tetrodotoxin::Source::Interface::Relation::Rejected);
   EXPECT(
       hosting.negotiate(requirement, hidden_state) ==
-      Ttx::Concept::Interface::Relation::Rejected);
+      Tetrodotoxin::Source::Interface::Relation::Rejected);
   EXPECT(
       hosting.negotiate(requirement, inline_value) ==
-      Ttx::Concept::Interface::Relation::Rejected);
+      Tetrodotoxin::Source::Interface::Relation::Rejected);
 }

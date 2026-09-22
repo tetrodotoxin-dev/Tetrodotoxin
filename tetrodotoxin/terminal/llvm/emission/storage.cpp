@@ -35,7 +35,7 @@ struct ContiguousSelection {
 static auto release_owned(
     Llvm::Module::Body& body,
     const Llvm::Module::Carriers& carriers,
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     LLVMValueRef value) -> Bool {
   return !body.take_owned(value) || carriers.release(body, type, value);
 }
@@ -108,7 +108,7 @@ static auto publish_sequence(
 }
 
 auto Llvm::Emission::Storage::range(
-    const Ttx::Model::Type& carrier,
+    const Tetrodotoxin::Source::Type& carrier,
     const Tetrodotoxin::Library::Language::Model::Pack& result,
     const Tetrodotoxin::Library::Language::Model::Pack& start,
     const Tetrodotoxin::Library::Language::Model::Pack& end) const -> Bool {
@@ -134,7 +134,7 @@ auto Llvm::Emission::Storage::range(
 }
 
 auto Llvm::Emission::Storage::empty_range(
-    const Ttx::Model::Type& carrier,
+    const Tetrodotoxin::Source::Type& carrier,
     const Tetrodotoxin::Library::Language::Model::Pack& result) const -> Bool {
   Llvm::Module::Body& native_body = body;
   auto carriers = sequence_select_carriers(body);
@@ -147,7 +147,7 @@ auto Llvm::Emission::Storage::empty_range(
 }
 
 auto Llvm::Emission::Storage::select_index(
-    const Ttx::Model::Type& element,
+    const Tetrodotoxin::Source::Type& element,
     const Tetrodotoxin::Library::Language::Model::Pack& result,
     const Tetrodotoxin::Library::Language::Model::Pack& receiver,
     const Tetrodotoxin::Library::Language::Model::Pack& index) const -> Bool {
@@ -170,7 +170,7 @@ auto Llvm::Emission::Storage::select_index(
 }
 
 auto Llvm::Emission::Storage::select_range(
-    const Ttx::Model::Type& element,
+    const Tetrodotoxin::Source::Type& element,
     const Tetrodotoxin::Library::Language::Model::Pack& result,
     const Tetrodotoxin::Library::Language::Model::Pack& receiver,
     const Tetrodotoxin::Library::Language::Model::Pack& start,
@@ -196,7 +196,7 @@ auto Llvm::Emission::Storage::select_range(
 }
 
 auto Llvm::Emission::Storage::begin_slice(
-    const Ttx::Model::Type& element,
+    const Tetrodotoxin::Source::Type& element,
     const Tetrodotoxin::Library::Language::Model::Pack& receiver,
     const Tetrodotoxin::Library::Language::Model::Pack& index) const
     -> Core::Option<Choice> {
@@ -246,7 +246,7 @@ auto Llvm::Emission::Storage::begin_slice(
 
 auto Llvm::Emission::Storage::end_slice(
     Choice state,
-    const Ttx::Model::Type& element,
+    const Tetrodotoxin::Source::Type& element,
     const Tetrodotoxin::Library::Language::Model::Pack& result,
     const Tetrodotoxin::Library::Language::Model::Pack& fallback) const
     -> Bool {
@@ -287,7 +287,7 @@ auto Llvm::Emission::Storage::end_slice(
 }
 
 auto Llvm::Emission::Storage::begin_slice_range(
-    const Ttx::Model::Type& element,
+    const Tetrodotoxin::Source::Type& element,
     const Tetrodotoxin::Library::Language::Model::Pack& receiver,
     const Tetrodotoxin::Library::Language::Model::Pack& start) const
     -> Core::Option<SliceRange> {
@@ -361,7 +361,7 @@ auto Llvm::Emission::Storage::begin_slice_slot(
 
 auto Llvm::Emission::Storage::end_slice_slot(
     Choice state,
-    const Ttx::Model::Type& element,
+    const Tetrodotoxin::Source::Type& element,
     const Tetrodotoxin::Library::Language::Model::Pack& fallback) const
     -> Core::Option<LLVMValueRef> {
   Llvm::Module::Body& native_body = body;
@@ -444,7 +444,7 @@ static auto publish_storage(
 
 auto Llvm::Emission::Storage::select(
     const Tetrodotoxin::Library::Language::Model::Pack& result,
-    const Ttx::Model::Addressable& addressable) const -> Bool {
+    const Tetrodotoxin::Source::Addressable& addressable) const -> Bool {
   auto selected = select_storage_value(body);
   if (!selected) {
     return False;
@@ -463,13 +463,13 @@ auto Llvm::Emission::Storage::select(
         "LLVM cannot select storage before its exact Addressable publishes an address."_view);
   }
 
-  auto type = addressable.get_type().select<Ttx::Model::Type>();
+  auto type = addressable.get_type().select<Tetrodotoxin::Source::Type>();
   return type && selected->body.publish_target_address(result, *type, *address);
 }
 
 auto Llvm::Emission::Storage::select_member(
     const Tetrodotoxin::Library::Language::Model::Pack& result,
-    const Ttx::Model::Addressable& addressable,
+    const Tetrodotoxin::Source::Addressable& addressable,
     const Tetrodotoxin::Library::Language::Model::Pack& receiver) const
     -> Bool {
   auto selected = select_storage_value(body);
@@ -541,7 +541,7 @@ auto Llvm::Emission::Storage::select_member(
     }
   }
 
-  auto type = addressable.get_type().select<Ttx::Model::Type>();
+  auto type = addressable.get_type().select<Tetrodotoxin::Source::Type>();
   return type && selected->body.publish_target_address(result, *type, member);
 }
 
@@ -584,7 +584,7 @@ auto Llvm::Emission::Storage::compose(
     const Tetrodotoxin::Library::Language::Model::Pack& result) const -> Bool {
   Llvm::Module::Body& native_body = body;
   Memory::Dynamic::Vector<LLVMValueRef> composed;
-  for (const Ttx::Model::PackReference<
+  for (const Tetrodotoxin::Source::PackReference<
            Tetrodotoxin::Library::Language::Model::Pack>& entry :
        result.get_entries()) {
     auto source = native_body.find_values(entry.get());
@@ -654,7 +654,7 @@ static auto publish_write(
 
 static auto replace_written_value(
     WriteSelection& selected,
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     LLVMValueRef address,
     LLVMValueRef value,
     StoreOwnership ownership) -> Bool {
@@ -839,7 +839,7 @@ static auto assign_to_index(
 
 static auto create_compound_result(
     WriteSelection& selected,
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     LLVMValueRef left,
     LLVMValueRef right,
     Llvm::Emission::Storage::Write operation) -> LLVMValueRef {

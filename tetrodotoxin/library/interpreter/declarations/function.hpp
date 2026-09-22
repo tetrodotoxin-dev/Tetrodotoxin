@@ -8,7 +8,7 @@
 #include "tetrodotoxin/language/definition.hpp"
 #include "tetrodotoxin/library/interpreter/parsed.hpp"
 #include "tetrodotoxin/library/language/function.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Interpreter::Declarations {
 
@@ -20,7 +20,7 @@ class Function {
   Function() = delete;
 
   static auto parse(
-      Ttx::Lexical::Cursor& cursor,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
       Tetrodotoxin::Language::Definition& definition)
       -> Perimortem::Core::Option<Parsed<Language::Function>>;
 };

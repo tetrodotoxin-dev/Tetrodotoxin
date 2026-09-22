@@ -4,7 +4,7 @@
 #include "tetrodotoxin/app/interpreter/route.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 auto App::Interpreter::Route::parse(Cursor& cursor) -> Option<Language::Route> {

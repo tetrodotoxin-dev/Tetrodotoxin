@@ -7,12 +7,12 @@
 
 #include "tetrodotoxin/language/definition.hpp"
 #include "tetrodotoxin/library/language/type_reference.hpp"
-#include "ttx/concept/abstract.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/lexical/cursor.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 namespace Tetrodotoxin::Shader::Language {
 
@@ -25,7 +25,7 @@ namespace Tetrodotoxin::Shader::Language {
 // when the receiving side may observe them. These remain Shader meaning because
 // LLVM and Vulkan Terminals can realize the same relationship differently
 // without changing either Type.
-class Bridge : public Ttx::Concept::Abstract {
+class Bridge : public Tetrodotoxin::Source::Abstract {
  public:
   enum class Direction : U8 {
     Upload,
@@ -45,7 +45,7 @@ class Bridge : public Ttx::Concept::Abstract {
     Frame,
   };
 
-  TTX_CONTRACT(Bridge, Ttx::Concept::Abstract);
+  TTX_CONTRACT(Bridge, Tetrodotoxin::Source::Abstract);
 
   static auto create(
       Perimortem::Memory::Allocator::Arena& domain,
@@ -56,15 +56,15 @@ class Bridge : public Ttx::Concept::Abstract {
       Marshaling marshaling,
       Synchronization synchronization) -> Bridge&;
 
-  auto link(Ttx::Lexical::Cursor& cursor, const Ttx::Concept::Abstract& context)
+  auto link(Tetrodotoxin::Source::Lexical::Cursor& cursor, const Tetrodotoxin::Source::Abstract& context)
       -> Bool;
 
-  auto link_restored(const Ttx::Concept::Abstract& context) -> Bool;
+  auto link_restored(const Tetrodotoxin::Source::Abstract& context) -> Bool;
 
   TTX_NAME(definition.get_name());
   TTX_DOCUMENTATION(definition.get_documentation());
 
-  auto resolve() const -> const Ttx::Concept::Abstract& override;
+  auto resolve() const -> const Tetrodotoxin::Source::Abstract& override;
 
   constexpr auto get_direction() const -> Direction { return direction; }
   constexpr auto get_marshaling() const -> Marshaling { return marshaling; }
@@ -88,25 +88,25 @@ class Bridge : public Ttx::Concept::Abstract {
   }
 
   constexpr auto get_cpu_type() const
-      -> Perimortem::Core::Option<const Ttx::Model::Type&> {
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Type&> {
     return cpu_type.visit(
-        []() -> Perimortem::Core::Option<const Ttx::Model::Type&> {
+        []() -> Perimortem::Core::Option<const Tetrodotoxin::Source::Type&> {
           return {};
         },
-        [](const Ttx::Concept::Reference<const Ttx::Model::Type>& selected)
-            -> Perimortem::Core::Option<const Ttx::Model::Type&> {
+        [](const Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type>& selected)
+            -> Perimortem::Core::Option<const Tetrodotoxin::Source::Type&> {
           return selected.get();
         });
   }
 
   constexpr auto get_gpu_type() const
-      -> Perimortem::Core::Option<const Ttx::Model::Type&> {
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Type&> {
     return gpu_type.visit(
-        []() -> Perimortem::Core::Option<const Ttx::Model::Type&> {
+        []() -> Perimortem::Core::Option<const Tetrodotoxin::Source::Type&> {
           return {};
         },
-        [](const Ttx::Concept::Reference<const Ttx::Model::Type>& selected)
-            -> Perimortem::Core::Option<const Ttx::Model::Type&> {
+        [](const Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type>& selected)
+            -> Perimortem::Core::Option<const Tetrodotoxin::Source::Type&> {
           return selected.get();
         });
   }
@@ -132,9 +132,9 @@ class Bridge : public Ttx::Concept::Abstract {
   Direction direction;
   Marshaling marshaling;
   Synchronization synchronization;
-  Perimortem::Core::Option<Ttx::Concept::Reference<const Ttx::Model::Type>>
+  Perimortem::Core::Option<Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type>>
       cpu_type;
-  Perimortem::Core::Option<Ttx::Concept::Reference<const Ttx::Model::Type>>
+  Perimortem::Core::Option<Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type>>
       gpu_type;
 };
 

@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/render/interpreter/declaration.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "tetrodotoxin/language/definition.hpp"
 #include "tetrodotoxin/language/parser/comment.hpp"
 #include "tetrodotoxin/language/parser/type_reference.hpp"
@@ -14,8 +16,8 @@
 #include "tetrodotoxin/render/language/structure.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Render;
 
 enum class DeclarationCategory : U8 {
@@ -58,8 +60,12 @@ static auto complete(
     Tetrodotoxin::Language::Definition& definition,
     Token closing,
     Abstract& declaration) -> Bool {
-  BAIL_IF(!definition.complete(definition.get_qualifier(), closing));
-  cursor.get_associations().create(definition.get_name_anchor(), declaration);
+  BAIL_IF(!closing);
+  auto& authored = definition.get_authored();
+  authored.set_anchor(Anchor::create(
+      authored.get_qualifier(),
+      Span(authored.get_anchor().get_span().get_start(), closing)));
+  cursor.get_associations().create(Anchor::create(Span(authored.get_name())), declaration);
   return True;
 }
 
@@ -68,10 +74,10 @@ static auto has_supported_name(
     const Tetrodotoxin::Language::Definition& definition,
     Code::Type expected,
     View::Bytes message) -> Bool {
-  if (definition.get_name_token().get_code() == expected) {
+  if (definition.get_authored().get_name().get_code() == expected) {
     return True;
   }
-  cursor.create_token_error(definition.get_name_token(), message);
+  cursor.create_token_error(definition.get_authored().get_name(), message);
   return False;
 }
 
@@ -79,10 +85,10 @@ static auto has_no_modifiers(
     Cursor& cursor,
     const Tetrodotoxin::Language::Definition& definition,
     View::Bytes message) -> Bool {
-  if (definition.get_modifiers().is_empty()) {
+  if (definition.get_authored().get_modifiers().is_empty()) {
     return True;
   }
-  cursor.create_token_error(definition.get_modifiers().get_data()[0], message);
+  cursor.create_token_error(definition.get_authored().get_modifiers().get_data()[0], message);
   return False;
 }
 
@@ -130,7 +136,7 @@ static auto parse_binding(
   Language::Binding::Access access = Language::Binding::Access::None;
   Language::Attributes::Placement placement =
       Language::Attributes::Placement::Value;
-  auto modifiers = definition.get_modifiers();
+  auto modifiers = definition.get_authored().get_modifiers();
   if (qualifier == "push"_view || qualifier == "resource"_view) {
     BAIL_IF(!has_no_modifiers(
         cursor, definition,
@@ -247,7 +253,7 @@ static auto parse_structure(
   // boundary without introducing a general language Scope object.
   while (!cursor.matches(Code::Type::ScopeEnd) &&
          !cursor.matches(Code::Type::Terminal)) {
-    const Documentation& documentation =
+    const Tetrodotoxin::Source::Documentation& documentation =
         Tetrodotoxin::Language::Parser::Comment::parse(cursor);
     if (!Interpreter::Declaration::parse(structure, cursor, documentation)) {
       cursor.recover_to_statement();
@@ -263,12 +269,12 @@ static auto parse_structure(
 auto Interpreter::Declaration::parse(
     Abstract& host,
     Cursor& cursor,
-    const Documentation& documentation) -> Bool {
+    const Tetrodotoxin::Source::Documentation& documentation) -> Bool {
   auto definition =
       Tetrodotoxin::Language::Definition::parse(cursor, documentation, host);
   BAIL_IF(!definition);
 
-  Token qualifier = definition->get_qualifier();
+  Token qualifier = definition->get_authored().get_qualifier();
   View::Bytes name = qualifier.caculate_text(cursor.get_source_text());
   if (name == "stage"_view) {
     return parse_stage(host, cursor, *definition);

@@ -6,13 +6,13 @@
 #include "tetrodotoxin/library/language/constants/false.hpp"
 #include "tetrodotoxin/library/language/constants/true.hpp"
 #include "tetrodotoxin/library/language/model/types/flag.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
 using namespace Tetrodotoxin::Library;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 
 static auto select_result_type(const Language::Model::Pack& operand)
     -> const Abstract& {
@@ -37,7 +37,7 @@ static auto make_result(
 
 TTX_UNARY_OP(Not);
 
-auto Language::Operations::Not::select_type(const Ttx::Concept::Abstract&) const
+auto Language::Operations::Not::select_type(const Tetrodotoxin::Source::Abstract&) const
     -> Core::Option<const Language::Model::Type&> {
   const Model::Pack& operand = get_inputs().get_data()[0].get();
   return select_result_type(operand).select<Language::Model::Type>();

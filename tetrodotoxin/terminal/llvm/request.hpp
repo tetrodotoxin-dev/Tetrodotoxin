@@ -13,7 +13,7 @@
 #include "tetrodotoxin/terminal/graphics/products.hpp"
 #include "tetrodotoxin/terminal/llvm/module/debug.hpp"
 #include "tetrodotoxin/terminal/llvm/target.hpp"
-#include "ttx/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
 
 namespace Tetrodotoxin::Terminal::Llvm {
 
@@ -24,7 +24,7 @@ class Request {
  public:
   constexpr Request(
       const Tetrodotoxin::Library::Language::Monograph& monograph,
-      Ttx::Lexical::Errors& errors,
+      Tetrodotoxin::Source::Lexical::Errors& errors,
       Perimortem::Core::View::Bytes source_path,
       Perimortem::Core::View::Bytes source_text,
       Target target,
@@ -33,7 +33,7 @@ class Request {
       const Tetrodotoxin::Terminal::Abi::Products& native_interface,
       Perimortem::Core::Option<
           const Tetrodotoxin::Terminal::Graphics::Products&> graphics = {},
-      Perimortem::Core::View::Vector<Ttx::Concept::Reference<
+      Perimortem::Core::View::Vector<Tetrodotoxin::Source::Reference<
           const Tetrodotoxin::Library::Language::Model::Callable>> excluded =
           {})
       : monograph(monograph),
@@ -52,7 +52,7 @@ class Request {
     return monograph;
   }
 
-  constexpr auto get_errors() const -> Ttx::Lexical::Errors& { return errors; }
+  constexpr auto get_errors() const -> Tetrodotoxin::Source::Lexical::Errors& { return errors; }
 
   constexpr auto get_source_path() const -> Perimortem::Core::View::Bytes {
     return source_path;
@@ -82,14 +82,14 @@ class Request {
   }
 
   constexpr auto get_excluded() const
-      -> Perimortem::Core::View::Vector<Ttx::Concept::Reference<
+      -> Perimortem::Core::View::Vector<Tetrodotoxin::Source::Reference<
           const Tetrodotoxin::Library::Language::Model::Callable>> {
     return excluded;
   }
 
  private:
   const Tetrodotoxin::Library::Language::Monograph& monograph;
-  Ttx::Lexical::Errors& errors;
+  Tetrodotoxin::Source::Lexical::Errors& errors;
   Perimortem::Core::View::Bytes source_path;
   Perimortem::Core::View::Bytes source_text;
   Target target;
@@ -98,7 +98,7 @@ class Request {
   const Tetrodotoxin::Terminal::Abi::Products& native_interface;
   Perimortem::Core::Option<const Tetrodotoxin::Terminal::Graphics::Products&>
       graphics;
-  Perimortem::Core::View::Vector<Ttx::Concept::Reference<
+  Perimortem::Core::View::Vector<Tetrodotoxin::Source::Reference<
       const Tetrodotoxin::Library::Language::Model::Callable>>
       excluded;
 };

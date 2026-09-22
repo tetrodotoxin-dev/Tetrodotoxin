@@ -12,13 +12,13 @@
 
 #include "tetrodotoxin/library/language/generics/fixed.hpp"
 #include "tetrodotoxin/library/language/types/u8.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Tetrodotoxin::Library::Language;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Validation;
 
 static Harness LibraryFixed = {
@@ -28,10 +28,10 @@ static Harness LibraryFixed = {
 PERIMORTEM_UNIT_TEST(LibraryFixed, direct_contract) {
   Tetrodotoxin::Library::Language::Types::U8 element;
   Types::Fixed fixed("Fixed[U8,4]"_view, element, ::U64(4));
-  const Ttx::Model::Layouts::Ranged& layout = fixed.get_layout();
+  const Tetrodotoxin::Source::Layouts::Ranged& layout = fixed.get_layout();
 
   EXPECT(fixed.is<Types::Fixed>());
-  EXPECT(fixed.is<Ttx::Model::Type>());
+  EXPECT(fixed.is<Tetrodotoxin::Source::Type>());
   EXPECT(fixed.is<Abstract>());
   EXPECT_NOT(fixed.is<Generic>());
   EXPECT_TEXT(fixed.get_name(), "Fixed[U8,4]"_view);

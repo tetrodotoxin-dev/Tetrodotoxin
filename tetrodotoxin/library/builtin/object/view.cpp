@@ -10,7 +10,7 @@ auto Builtin::Object::View::create(
     Memory::Allocator::Arena& domain,
     const Language::Model::Type& receiver,
     const Language::Model::Type& result) -> View& {
-  auto& self = Ttx::Model::Layouts::Addressable::create_synthetic(
+  auto& self = Tetrodotoxin::Source::Layouts::Addressable::create_synthetic(
       domain, "self"_view, receiver);
   return domain.construct_from<View>(
       [&]() -> View { return View(self, result); });

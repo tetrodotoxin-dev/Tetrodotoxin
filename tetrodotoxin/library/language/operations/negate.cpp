@@ -9,13 +9,13 @@
 #include "tetrodotoxin/library/language/constants/signed.hpp"
 #include "tetrodotoxin/library/language/model/types/real.hpp"
 #include "tetrodotoxin/library/language/model/types/signed.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
 using namespace Tetrodotoxin::Library;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 
 static auto is_negatable_type(const Abstract& selected) -> Bool {
   return selected.visit<Tetrodotoxin::Library::Language::Model::Types::Signed>(
@@ -60,7 +60,7 @@ static auto signed_inverse(
 
 TTX_UNARY_OP(Negate);
 
-auto Language::Operations::Negate::select_type(const Ttx::Concept::Abstract&)
+auto Language::Operations::Negate::select_type(const Tetrodotoxin::Source::Abstract&)
     const -> Core::Option<const Language::Model::Type&> {
   const Model::Pack& operand = get_inputs().get_data()[0].get();
   return select_result_type(operand).select<Language::Model::Type>();

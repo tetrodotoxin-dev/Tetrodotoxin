@@ -4,7 +4,7 @@
 #pragma once
 
 #include "tetrodotoxin/render/language/monograph.hpp"
-#include "ttx/concept/documentation.hpp"
+#include "tetrodotoxin/source/documentation.hpp"
 
 namespace Tetrodotoxin::Render::Interpreter {
 
@@ -13,9 +13,9 @@ class Declaration {
   Declaration() = delete;
 
   static auto parse(
-      Ttx::Concept::Abstract& host,
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Documentation& documentation) -> Bool;
+      Tetrodotoxin::Source::Abstract& host,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Documentation& documentation) -> Bool;
 };
 
 }  // namespace Tetrodotoxin::Render::Interpreter

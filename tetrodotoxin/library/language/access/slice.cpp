@@ -12,13 +12,13 @@
 #include "tetrodotoxin/library/language/model/types/signed.hpp"
 #include "tetrodotoxin/library/language/model/types/unsigned.hpp"
 #include "tetrodotoxin/library/language/types/contiguous.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
 using namespace Tetrodotoxin::Library;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 
 auto Language::Access::Slice::create_authored(
     Memory::Allocator::Arena& domain,
@@ -60,7 +60,7 @@ Language::Access::Slice::Slice(
       domain(domain),
       receiver(receiver),
       first(start),
-      count(Ttx::Model::PackReference<Model::Pack>(count)) {}
+      count(Tetrodotoxin::Source::PackReference<Model::Pack>(count)) {}
 
 // Slice links one homogeneous receiver and folds retained values without
 // manufacturing an aggregate Type. Compact Bytes and general folded Packs use
@@ -151,7 +151,7 @@ static auto fold_pack(Language::Model::Pack& pack) -> Utility::
 }
 
 static auto pack_anchor(const Language::Model::Pack& pack)
-    -> Core::Option<Ttx::Lexical::Anchor> {
+    -> Core::Option<Tetrodotoxin::Source::Lexical::Anchor> {
   auto expression = pack.select_identity<Language::Expression>();
   if (expression) {
     return expression->get_anchor();
@@ -202,8 +202,8 @@ static auto create_layout(
     Memory::Allocator::Arena& domain,
     const Language::Access::Slice& source,
     const Language::Model::Type& element,
-    Count size) -> const Ttx::Concept::Layout& {
-  class Layout final : public Ttx::Concept::Layout {
+    Count size) -> const Tetrodotoxin::Source::Layout& {
+  class Layout final : public Tetrodotoxin::Source::Layout {
    public:
     constexpr Layout(
         const Language::Access::Slice& source,
@@ -220,7 +220,7 @@ static auto create_layout(
     }
 
     auto fits_entry(
-        const Ttx::Concept::Layout& target,
+        const Tetrodotoxin::Source::Layout& target,
         Count source_index,
         Count target_index) const -> Bool override {
       BAIL_IF(source_index >= size || target_index >= target.get_size());
@@ -236,7 +236,7 @@ static auto create_layout(
               });
     }
 
-    auto fits_at(const Ttx::Concept::Layout& target, Count target_offset) const
+    auto fits_at(const Tetrodotoxin::Source::Layout& target, Count target_offset) const
         -> Bool override {
       BAIL_IF(!has_target_segment(target, target_offset));
       for (Count index = 0; index < size; index++) {
@@ -246,7 +246,7 @@ static auto create_layout(
     }
 
     auto get_fitted_at(
-        const Ttx::Concept::Layout& target,
+        const Tetrodotoxin::Source::Layout& target,
         Count target_offset,
         Count target_index) const
         -> Utility::Result<const Abstract&, Errors> override {
@@ -278,7 +278,7 @@ static auto create_layout(
 }
 
 auto Language::Access::Slice::link(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& lexical_context,
     Core::Option<const Abstract&> access_scope) -> Bool {
   Bool failed = !receiver.link(cursor, lexical_context, access_scope);
@@ -310,7 +310,7 @@ auto Language::Access::Slice::link(
   if (!count) {
     auto selected_fallback = element.create_default(cursor.get_arena());
     BAIL_IF(!selected_fallback);
-    fallback = Ttx::Model::PackReference<Model::Pack>(*selected_fallback);
+    fallback = Tetrodotoxin::Source::PackReference<Model::Pack>(*selected_fallback);
     return Expression::link(cursor, lexical_context, access_scope);
   }
 
@@ -397,7 +397,7 @@ auto Language::Access::Slice::get_value_type(Count index) const
 }
 
 auto Language::Access::Slice::get_layout() const
-    -> const Ttx::Concept::Layout& {
+    -> const Tetrodotoxin::Source::Layout& {
   if (!count) {
     return Expression::get_layout();
   }
@@ -417,7 +417,7 @@ auto Language::Access::Slice::resolve() const -> const Abstract& {
   return *this;
 }
 
-auto Language::Access::Slice::fits(const Ttx::Model::Type& target) const
+auto Language::Access::Slice::fits(const Tetrodotoxin::Source::Type& target) const
     -> Bool {
   if (!count) {
     return Expression::fits(target);
@@ -509,7 +509,7 @@ auto Language::Access::Slice::evaluate()
                 Expression::Error::Type::InvalidConstant, *this);
           }
 
-          Memory::Managed::Vector<Ttx::Model::PackReference<Model::Pack>>
+          Memory::Managed::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>>
               entries(domain);
           entries.reset(*range_count);
           for (Count offset = 0; offset < *range_count; offset++) {
@@ -593,7 +593,7 @@ auto Language::Access::Slice::evaluate()
 
               constexpr Count maximum_entries =
                   (Count(-1) - sizeof(U8*)) /
-                  sizeof(Ttx::Model::PackReference<Model::Pack>);
+                  sizeof(Tetrodotoxin::Source::PackReference<Model::Pack>);
               if (*range_count > maximum_entries) {
                 // The semantic Pack can describe this count but no host Vector
                 // can retain its folded producers without overflowing its byte
@@ -601,7 +601,7 @@ auto Language::Access::Slice::evaluate()
                 return Core::Option<Model::Pack&>{};
               }
 
-              Memory::Managed::Vector<Ttx::Model::PackReference<Model::Pack>>
+              Memory::Managed::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>>
                   entries(domain);
               entries.reset(*range_count);
               for (Count offset = 0; offset < *range_count; offset++) {

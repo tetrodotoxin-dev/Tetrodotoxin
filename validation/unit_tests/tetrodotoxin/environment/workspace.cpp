@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/environment/workspace.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "validation/unit_test.hpp"
 
 #include "perimortem/core/algorithm/search.hpp"
@@ -16,16 +18,16 @@
 #include "tetrodotoxin/package/archive/member.hpp"
 #include "tetrodotoxin/package/dialect.hpp"
 #include "tetrodotoxin/package/language/monograph.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/errors.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::System;
 using namespace Tetrodotoxin;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Validation;
 
 class WorkspaceMonograph final : public Language::Monograph {
@@ -35,7 +37,7 @@ class WorkspaceMonograph final : public Language::Monograph {
   WorkspaceMonograph(
       Allocator::Arena& arena,
       const Language::Dialect& dialect,
-      const Documentation& documentation,
+      const Tetrodotoxin::Source::Documentation& documentation,
       Abstract& context,
       View::Bytes fact,
       Span fact_span,
@@ -93,7 +95,7 @@ class WorkspaceDialect : public Language::Dialect {
 
   auto interpret(
       Cursor& cursor,
-      const Documentation& documentation,
+      const Tetrodotoxin::Source::Documentation& documentation,
       const Anchor&,
       Abstract& context) -> Option<Language::Monograph&> override {
     if (cursor.matches(Code::Type::Terminal)) {
@@ -133,7 +135,7 @@ class WorkspaceDialect : public Language::Dialect {
   auto restore(
       Allocator::Arena& arena,
       View::Bytes payload,
-      const Documentation& documentation,
+      const Tetrodotoxin::Source::Documentation& documentation,
       Abstract& context) -> Option<Language::Monograph&> override {
     View::Bytes fact = arena.proxy(payload);
     auto& monograph = arena.construct<WorkspaceMonograph>(
@@ -370,7 +372,7 @@ PERIMORTEM_UNIT_TEST(EnvironmentWorkspace, imports_package) {
   EXPECT(hidden.is<None>());
   EXPECT(repeated.is<Library::Language::Types::Source>());
   EXPECT(second.is<Library::Language::Types::Source>());
-  EXPECT(deep.is<Ttx::Model::Type>());
+  EXPECT(deep.is<Tetrodotoxin::Source::Type>());
   EXPECT_EQ(package.get_resources().get_values().get_size(), Count(2));
   EXPECT(&workspace.resolve_concept("Resources"_view) == &package);
   EXPECT(&workspace.resolve_concept("SharedA"_view) == &Unknown::get_unknown());

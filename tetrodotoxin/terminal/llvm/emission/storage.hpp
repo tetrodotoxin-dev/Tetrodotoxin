@@ -9,12 +9,12 @@
 #include "llvm-c/Types.h"
 #include "tetrodotoxin/library/language/model/pack.hpp"
 #include "tetrodotoxin/terminal/llvm/module/body.hpp"
-#include "ttx/concept/layout.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/model/addressable.hpp"
-#include "ttx/model/callable.hpp"
-#include "ttx/model/pack.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/layout.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/addressable.hpp"
+#include "tetrodotoxin/source/callable.hpp"
+#include "tetrodotoxin/source/pack.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 namespace Tetrodotoxin::Terminal::Llvm::Emission {
 
@@ -57,13 +57,13 @@ class Storage {
   class SliceRange {
    public:
     constexpr SliceRange(
-        const Ttx::Model::Type& element,
+        const Tetrodotoxin::Source::Type& element,
         LLVMValueRef data,
         LLVMValueRef length,
         LLVMValueRef first)
         : element(element), data(data), length(length), first(first) {}
 
-    constexpr auto get_element() const -> const Ttx::Model::Type& {
+    constexpr auto get_element() const -> const Tetrodotoxin::Source::Type& {
       return element.get();
     }
 
@@ -74,7 +74,7 @@ class Storage {
     constexpr auto get_first() const -> LLVMValueRef { return first; }
 
    private:
-    Ttx::Concept::Reference<const Ttx::Model::Type> element;
+    Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type> element;
     LLVMValueRef data;
     LLVMValueRef length;
     LLVMValueRef first;
@@ -91,38 +91,38 @@ class Storage {
   }
 
   auto range(
-      const Ttx::Model::Type& carrier,
+      const Tetrodotoxin::Source::Type& carrier,
       const Tetrodotoxin::Library::Language::Model::Pack& result,
       const Tetrodotoxin::Library::Language::Model::Pack& start,
       const Tetrodotoxin::Library::Language::Model::Pack& end) const -> Bool;
   auto empty_range(
-      const Ttx::Model::Type& carrier,
+      const Tetrodotoxin::Source::Type& carrier,
       const Tetrodotoxin::Library::Language::Model::Pack& result) const -> Bool;
   auto select_index(
-      const Ttx::Model::Type& element,
+      const Tetrodotoxin::Source::Type& element,
       const Tetrodotoxin::Library::Language::Model::Pack& result,
       const Tetrodotoxin::Library::Language::Model::Pack& receiver,
       const Tetrodotoxin::Library::Language::Model::Pack& index) const -> Bool;
   auto select_range(
-      const Ttx::Model::Type& element,
+      const Tetrodotoxin::Source::Type& element,
       const Tetrodotoxin::Library::Language::Model::Pack& result,
       const Tetrodotoxin::Library::Language::Model::Pack& receiver,
       const Tetrodotoxin::Library::Language::Model::Pack& start,
       const Tetrodotoxin::Library::Language::Model::Pack& count,
       Count size) const -> Bool;
   auto begin_slice(
-      const Ttx::Model::Type& element,
+      const Tetrodotoxin::Source::Type& element,
       const Tetrodotoxin::Library::Language::Model::Pack& receiver,
       const Tetrodotoxin::Library::Language::Model::Pack& index) const
       -> Perimortem::Core::Option<Choice>;
   auto end_slice(
       Choice state,
-      const Ttx::Model::Type& element,
+      const Tetrodotoxin::Source::Type& element,
       const Tetrodotoxin::Library::Language::Model::Pack& result,
       const Tetrodotoxin::Library::Language::Model::Pack& fallback) const
       -> Bool;
   auto begin_slice_range(
-      const Ttx::Model::Type& element,
+      const Tetrodotoxin::Source::Type& element,
       const Tetrodotoxin::Library::Language::Model::Pack& receiver,
       const Tetrodotoxin::Library::Language::Model::Pack& start) const
       -> Perimortem::Core::Option<SliceRange>;
@@ -130,7 +130,7 @@ class Storage {
       -> Perimortem::Core::Option<Choice>;
   auto end_slice_slot(
       Choice state,
-      const Ttx::Model::Type& element,
+      const Tetrodotoxin::Source::Type& element,
       const Tetrodotoxin::Library::Language::Model::Pack& fallback) const
       -> Perimortem::Core::Option<LLVMValueRef>;
   auto end_slice_range(
@@ -138,10 +138,10 @@ class Storage {
       Perimortem::Core::View::Vector<LLVMValueRef> values) const -> Bool;
   auto select(
       const Tetrodotoxin::Library::Language::Model::Pack& result,
-      const Ttx::Model::Addressable& addressable) const -> Bool;
+      const Tetrodotoxin::Source::Addressable& addressable) const -> Bool;
   auto select_member(
       const Tetrodotoxin::Library::Language::Model::Pack& result,
-      const Ttx::Model::Addressable& addressable,
+      const Tetrodotoxin::Source::Addressable& addressable,
       const Tetrodotoxin::Library::Language::Model::Pack& receiver) const
       -> Bool;
   auto load(const Tetrodotoxin::Library::Language::Model::Pack& result) const

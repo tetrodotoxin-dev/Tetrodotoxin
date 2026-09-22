@@ -15,8 +15,8 @@ auto Builtin::Enum::Name::create(
     Memory::Allocator::Arena& domain,
     const Language::Types::Enumeration& enumeration,
     const Language::Model::Type& result) -> Name& {
-  Ttx::Model::Layouts::Addressable& self =
-      Ttx::Model::Layouts::Addressable::create_synthetic(
+  Tetrodotoxin::Source::Layouts::Addressable& self =
+      Tetrodotoxin::Source::Layouts::Addressable::create_synthetic(
           domain, "self"_view, enumeration);
   return domain.construct_from<Name>(
       [&]() -> Name { return Name(self, enumeration, result); });

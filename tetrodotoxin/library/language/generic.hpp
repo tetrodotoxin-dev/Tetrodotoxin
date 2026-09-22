@@ -13,10 +13,10 @@
 #include "perimortem/utility/result.hpp"
 
 #include "tetrodotoxin/library/language/model/type.hpp"
-#include "ttx/concept/abstract.hpp"
-#include "ttx/concept/layout.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/layout.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 namespace Tetrodotoxin::Library::Language {
 
@@ -24,7 +24,7 @@ namespace Tetrodotoxin::Library::Language {
 // formula. It generates Types but is not itself a Type. Each formula owns its
 // canonical generated Types in the same Arena as its Library root. Its retained
 // construction context proves scalar arguments but is not a lexical parent.
-class Generic : public Ttx::Concept::Abstract {
+class Generic : public Tetrodotoxin::Source::Abstract {
  public:
   enum class Parameters : U8 {
     Type,
@@ -40,21 +40,21 @@ class Generic : public Ttx::Concept::Abstract {
   // accident.
   class SemanticType {
    public:
-    static constexpr auto create(const Ttx::Model::Type& type) -> SemanticType {
+    static constexpr auto create(const Tetrodotoxin::Source::Type& type) -> SemanticType {
       return SemanticType(type);
     }
 
-    constexpr auto get() const -> const Ttx::Model::Type& { return type.get(); }
+    constexpr auto get() const -> const Tetrodotoxin::Source::Type& { return type.get(); }
 
     constexpr auto operator==(const SemanticType& rhs) const -> Bool {
       return &type.get() == &rhs.type.get();
     }
 
    private:
-    explicit constexpr SemanticType(const Ttx::Model::Type& type)
+    explicit constexpr SemanticType(const Tetrodotoxin::Source::Type& type)
         : type(type) {}
 
-    Ttx::Concept::Reference<const Ttx::Model::Type> type;
+    Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type> type;
   };
 
   // Semantic graph queries expose const references. Scalar arguments are
@@ -88,11 +88,11 @@ class Generic : public Ttx::Concept::Abstract {
   using Materialization =
       Perimortem::Utility::Result<const Model::Type&, Failure>;
 
-  TTX_CONTRACT(Generic, Ttx::Concept::Abstract);
+  TTX_CONTRACT(Generic, Tetrodotoxin::Source::Abstract);
 
   Generic(
       Perimortem::Memory::Allocator::Arena& domain,
-      const Ttx::Concept::Abstract& context)
+      const Tetrodotoxin::Source::Abstract& context)
       : domain(domain), context(context), entries(domain), active(nullptr) {}
 
   Generic(const Generic&) = delete;
@@ -106,16 +106,16 @@ class Generic : public Ttx::Concept::Abstract {
   auto materialize(Perimortem::Core::View::Vector<Argument> arguments) const
       -> Materialization;
 
-  auto materialize(const Ttx::Concept::Layout& arguments) const
+  auto materialize(const Tetrodotoxin::Source::Layout& arguments) const
       -> Materialization;
 
   // Forward Type arguments may settle their Layouts after materialization.
   // Validate every retained result only after the complete authored graph
   // links.
-  auto validate_materializations(Ttx::Lexical::Cursor& cursor) const -> Bool;
+  auto validate_materializations(Tetrodotoxin::Source::Lexical::Cursor& cursor) const -> Bool;
 
   auto resolve_concept(Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract& override;
+      -> const Tetrodotoxin::Source::Abstract& override;
 
  protected:
   // None means the supplied values do not satisfy this formula. Returning an
@@ -127,7 +127,7 @@ class Generic : public Ttx::Concept::Abstract {
     return domain;
   }
 
-  constexpr auto get_context() const -> const Ttx::Concept::Abstract& {
+  constexpr auto get_context() const -> const Tetrodotoxin::Source::Abstract& {
     return context;
   }
 
@@ -155,11 +155,11 @@ class Generic : public Ttx::Concept::Abstract {
 
   auto normalize_argument(
       Parameters parameter,
-      const Ttx::Concept::Abstract& argument) const
+      const Tetrodotoxin::Source::Abstract& argument) const
       -> Perimortem::Core::Option<Argument>;
 
   Perimortem::Memory::Allocator::Arena& domain;
-  const Ttx::Concept::Abstract& context;
+  const Tetrodotoxin::Source::Abstract& context;
   mutable Perimortem::Memory::Managed::Vector<Entry*> entries;
   mutable Active* active;
 };

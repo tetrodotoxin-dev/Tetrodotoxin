@@ -3,17 +3,19 @@
 
 #include "tetrodotoxin/app/language/scene.hpp"
 
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/documentation.hpp"
+
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 auto App::Language::Scene::create_authored(
     Allocator::Arena& arena,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     Route initial,
     View::Vector<Reference<Transition>> transitions,
     Anchor anchor) -> Scene& {

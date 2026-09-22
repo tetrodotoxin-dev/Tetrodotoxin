@@ -3,17 +3,19 @@
 
 #include "tetrodotoxin/library/interpreter/types/enumeration.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "perimortem/memory/managed/vector.hpp"
 
 #include "tetrodotoxin/language/parser/comment.hpp"
 #include "tetrodotoxin/library/interpreter/type_reference.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 
-static auto parse_case(Cursor& cursor, const Documentation& documentation)
+static auto parse_case(Cursor& cursor, const Tetrodotoxin::Source::Documentation& documentation)
     -> Core::Option<Language::Types::Enumeration::Case> {
   Token name_token = cursor.require(
       Code::Type::Addressable,
@@ -61,22 +63,22 @@ auto Interpreter::Types::Enumeration::parse(
     Cursor& cursor,
     Tetrodotoxin::Language::Definition& definition)
     -> Core::Option<Parsed<Language::Types::Enumeration>> {
-  if (definition.get_name_token().get_code() != Code::Type::Type) {
+  if (definition.get_authored().get_name().get_code() != Code::Type::Type) {
     cursor.create_token_error(
-        definition.get_name_token(),
+        definition.get_authored().get_name(),
         "Library Enumerations require an authored Type shaped name."_view);
     return {};
   }
   if (definition.get_visibility() ==
       Tetrodotoxin::Language::Visibility::Exposed) {
     cursor.create_token_error(
-        definition.get_visibility_token(),
+        definition.get_authored().get_visibility(),
         "Library Enumerations accept only `public` or `private` visibility."_view);
     return {};
   }
-  if (!definition.get_modifiers().is_empty()) {
+  if (!definition.get_authored().get_modifiers().is_empty()) {
     cursor.create_token_error(
-        definition.get_modifiers().get_data()[0],
+        definition.get_authored().get_modifiers().get_data()[0],
         "Library Enumerations do not accept evaluation modifiers."_view);
     return {};
   }
@@ -109,7 +111,7 @@ auto Interpreter::Types::Enumeration::parse(
       break;
     }
 
-    const Documentation& documentation =
+    const Tetrodotoxin::Source::Documentation& documentation =
         Tetrodotoxin::Language::Parser::Comment::parse(cursor);
     auto parsed = parse_case(cursor, documentation);
     if (!parsed) {
@@ -131,10 +133,12 @@ auto Interpreter::Types::Enumeration::parse(
 
   if (cursor.matches(Code::Type::ScopeEnd)) {
     Token closing = cursor.consume();
-    if (!definition.complete(enumeration_token, closing)) {
-      state = ParseState::Rejected;
-    }
+    auto& authored = definition.get_authored();
+    authored.set_anchor(Anchor::create(
+        enumeration_token,
+        Span(authored.get_anchor().get_span().get_start(), closing)));
   }
+
   auto& enumeration = Language::Types::Enumeration::create_authored(
       cursor.get_arena(), definition, *storage, cases.get_view());
   return Parsed<Language::Types::Enumeration>(enumeration, state);

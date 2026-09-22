@@ -9,12 +9,12 @@
 #include "llvm-c/Types.h"
 #include "tetrodotoxin/library/language/model/pack.hpp"
 #include "tetrodotoxin/terminal/llvm/module/body.hpp"
-#include "ttx/concept/layout.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/model/addressable.hpp"
-#include "ttx/model/callable.hpp"
-#include "ttx/model/pack.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/layout.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/addressable.hpp"
+#include "tetrodotoxin/source/callable.hpp"
+#include "tetrodotoxin/source/pack.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 namespace Tetrodotoxin::Terminal::Llvm::Emission {
 
@@ -121,31 +121,31 @@ class ControlFlow {
       const Tetrodotoxin::Library::Language::Model::Pack& values) const -> Bool;
   auto escape_values(
       const Tetrodotoxin::Library::Language::Model::Pack& values) const -> Bool;
-  auto leave_loop(LoopAction action, const Ttx::Concept::Abstract& target) const
+  auto leave_loop(LoopAction action, const Tetrodotoxin::Source::Abstract& target) const
       -> Bool;
   auto begin_branch(
       const Tetrodotoxin::Library::Language::Model::Pack& condition) const
       -> Perimortem::Core::Option<Branch>;
   auto begin_alternate(Branch& state) const -> Bool;
   auto end_branch(Branch state) const -> Bool;
-  auto begin_while(const Ttx::Concept::Abstract& owner) const -> Bool;
+  auto begin_while(const Tetrodotoxin::Source::Abstract& owner) const -> Bool;
   auto select_while(
-      const Ttx::Concept::Abstract& owner,
+      const Tetrodotoxin::Source::Abstract& owner,
       const Tetrodotoxin::Library::Language::Model::Pack& condition) const
       -> Bool;
-  auto end_while(const Ttx::Concept::Abstract& owner) const -> Bool;
+  auto end_while(const Tetrodotoxin::Source::Abstract& owner) const -> Bool;
   auto begin_sequence(
-      const Ttx::Concept::Abstract& owner,
-      const Ttx::Model::Addressable& binding,
-      const Ttx::Model::Type& input_type,
+      const Tetrodotoxin::Source::Abstract& owner,
+      const Tetrodotoxin::Source::Addressable& binding,
+      const Tetrodotoxin::Source::Type& input_type,
       const Tetrodotoxin::Library::Language::Model::Pack& input) const -> Bool;
   auto begin_enumeration(
-      const Ttx::Concept::Abstract& owner,
-      const Ttx::Concept::Layout& bindings,
+      const Tetrodotoxin::Source::Abstract& owner,
+      const Tetrodotoxin::Source::Layout& bindings,
       Perimortem::Core::View::Vector<U64> values,
       Perimortem::Core::View::Vector<Perimortem::Core::View::Bytes> names) const
       -> Bool;
-  auto end_iteration(const Ttx::Concept::Abstract& owner) const -> Bool;
+  auto end_iteration(const Tetrodotoxin::Source::Abstract& owner) const -> Bool;
   auto begin_match(const Tetrodotoxin::Library::Language::Model::Pack& input)
       const -> Perimortem::Core::Option<Match>;
   auto begin_constant_case(
@@ -154,34 +154,34 @@ class ControlFlow {
       -> Perimortem::Core::Option<MatchCase>;
   auto begin_value_case(
       Match& state,
-      const Ttx::Model::Addressable& payload,
-      Ttx::Lexical::Anchor anchor) const -> Perimortem::Core::Option<MatchCase>;
+      const Tetrodotoxin::Source::Addressable& payload,
+      Tetrodotoxin::Source::Lexical::Anchor anchor) const -> Perimortem::Core::Option<MatchCase>;
   auto end_match_case(Match& state, MatchCase selected) const -> Bool;
   auto begin_default_case() const -> MatchCase;
   auto end_match(Match state, Bool unmatched_reaches_next) const -> Bool;
   auto begin_function(
-      const Ttx::Model::Callable& callable,
+      const Tetrodotoxin::Source::Callable& callable,
       const Tetrodotoxin::Language::Definition& definition) const -> Bool;
   auto parameter(
-      const Ttx::Model::Addressable& parameter,
-      Ttx::Lexical::Anchor anchor,
+      const Tetrodotoxin::Source::Addressable& parameter,
+      Tetrodotoxin::Source::Lexical::Anchor anchor,
       Count index) const -> Bool;
   auto end_function() const -> Bool;
   auto begin_block(
-      const Ttx::Concept::Abstract& block,
-      Ttx::Lexical::Anchor anchor) const -> Bool;
-  auto end_block(const Ttx::Concept::Abstract& block) const -> Bool;
-  auto statement(Ttx::Lexical::Anchor anchor) const -> Bool;
-  auto local(const Ttx::Model::Addressable& local, Ttx::Lexical::Anchor anchor)
+      const Tetrodotoxin::Source::Abstract& block,
+      Tetrodotoxin::Source::Lexical::Anchor anchor) const -> Bool;
+  auto end_block(const Tetrodotoxin::Source::Abstract& block) const -> Bool;
+  auto statement(Tetrodotoxin::Source::Lexical::Anchor anchor) const -> Bool;
+  auto local(const Tetrodotoxin::Source::Addressable& local, Tetrodotoxin::Source::Lexical::Anchor anchor)
       const -> Bool;
   auto has_full_debug() const -> Bool;
   auto constant_local(
-      const Ttx::Model::Addressable& local,
+      const Tetrodotoxin::Source::Addressable& local,
       const Tetrodotoxin::Library::Language::Model::Pack& value,
-      Ttx::Lexical::Anchor anchor) const -> Bool;
+      Tetrodotoxin::Source::Lexical::Anchor anchor) const -> Bool;
   auto end_statement() const -> Bool;
   auto bind_local(
-      const Ttx::Model::Addressable& local,
+      const Tetrodotoxin::Source::Addressable& local,
       const Tetrodotoxin::Library::Language::Model::Pack& value) const -> Bool;
 
  private:

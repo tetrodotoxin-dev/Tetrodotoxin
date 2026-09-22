@@ -3,15 +3,17 @@
 
 #include "tetrodotoxin/app/interpreter/runtime.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "perimortem/core/reader/textual.hpp"
 
 #include "tetrodotoxin/language/resource.hpp"
-#include "ttx/lexical/lexicon.hpp"
+#include "tetrodotoxin/source/lexical/lexicon.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 struct RuntimeSettings {
@@ -205,7 +207,7 @@ static auto parse_setting(
 
 auto App::Interpreter::Runtime::parse(
     Cursor& cursor,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     Abstract& context) -> Option<App::Language::Runtime&> {
   Token opening = require_text(
       cursor, Code::Type::Addressable, "runtime"_view,

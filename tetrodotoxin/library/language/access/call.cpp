@@ -3,17 +3,19 @@
 
 #include "tetrodotoxin/library/language/access/call.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "perimortem/memory/managed/vector.hpp"
 
 #include "tetrodotoxin/library/language/diagnostics.hpp"
 #include "tetrodotoxin/library/language/function.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
 static auto select_type(const Abstract& candidate)
@@ -51,7 +53,7 @@ auto Language::Access::Call::create_authored(
 
 static auto select_result_type(const Abstract& result)
     -> Core::Option<const Language::Model::Type&> {
-  auto addressable = result.select<Ttx::Model::Addressable>();
+  auto addressable = result.select<Tetrodotoxin::Source::Addressable>();
   if (addressable) {
     return select_type(addressable->get_type());
   }
@@ -62,7 +64,7 @@ static auto select_result_type(const Abstract& result)
   }
 
   const Abstract& resolved = result.resolve();
-  addressable = resolved.select<Ttx::Model::Addressable>();
+  addressable = resolved.select<Tetrodotoxin::Source::Addressable>();
   return addressable ? select_type(addressable->get_type())
                      : select_type(resolved);
 }
@@ -74,8 +76,8 @@ static auto select_result_type(const Abstract& result)
 static auto create_layout(
     Memory::Allocator::Arena& domain,
     const Language::Access::Call& call,
-    const Language::Model::Callable& callable) -> const Ttx::Concept::Layout& {
-  class Layout final : public Ttx::Concept::Layout {
+    const Language::Model::Callable& callable) -> const Tetrodotoxin::Source::Layout& {
+  class Layout final : public Tetrodotoxin::Source::Layout {
    public:
     constexpr Layout(
         const Language::Access::Call& call,
@@ -98,20 +100,20 @@ static auto create_layout(
     }
 
     auto fits_entry(
-        const Ttx::Concept::Layout& target,
+        const Tetrodotoxin::Source::Layout& target,
         Count source_index,
         Count target_index) const -> Bool override {
       return callable.get_results().fits_entry(
           target, source_index, target_index);
     }
 
-    auto fits_at(const Ttx::Concept::Layout& target, Count target_offset) const
+    auto fits_at(const Tetrodotoxin::Source::Layout& target, Count target_offset) const
         -> Bool override {
       return callable.get_results().fits_at(target, target_offset);
     }
 
     auto get_fitted_at(
-        const Ttx::Concept::Layout& target,
+        const Tetrodotoxin::Source::Layout& target,
         Count target_offset,
         Count target_index) const
         -> Utility::Result<const Abstract&, Errors> override {
@@ -143,8 +145,8 @@ static auto create_layout(
 static auto create_inputs(
     Memory::Allocator::Arena& domain,
     const Language::Model::Pack& receiver,
-    const Language::Model::Pack& arguments) -> const Ttx::Concept::Layout& {
-  class Inputs final : public Ttx::Concept::Layout {
+    const Language::Model::Pack& arguments) -> const Tetrodotoxin::Source::Layout& {
+  class Inputs final : public Tetrodotoxin::Source::Layout {
    public:
     constexpr Inputs(
         const Language::Model::Pack& receiver,
@@ -170,7 +172,7 @@ static auto create_inputs(
     }
 
     auto fits_entry(
-        const Ttx::Concept::Layout& target,
+        const Tetrodotoxin::Source::Layout& target,
         Count source,
         Count target_index) const -> Bool override {
       BAIL_IF(source >= get_size() || target_index >= target.get_size());
@@ -188,7 +190,7 @@ static auto create_inputs(
               });
     }
 
-    auto fits_at(const Ttx::Concept::Layout& target, Count target_offset) const
+    auto fits_at(const Tetrodotoxin::Source::Layout& target, Count target_offset) const
         -> Bool override {
       BAIL_IF(
           target_offset > target.get_size() ||
@@ -198,7 +200,7 @@ static auto create_inputs(
     }
 
     auto get_fitted_at(
-        const Ttx::Concept::Layout& target,
+        const Tetrodotoxin::Source::Layout& target,
         Count target_offset,
         Count target_index) const
         -> Utility::Result<const Abstract&, Errors> override {
@@ -233,7 +235,7 @@ static auto create_inputs(
 }
 
 auto Language::Access::Call::link(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& lexical_context,
     Core::Option<const Abstract&> access_scope) -> Bool {
   if (!get_anchor() && callable && output) {
@@ -265,7 +267,7 @@ auto Language::Access::Call::link(
         return type.resolve_concept("static"_view).resolve_concept(name);
       },
       [&](const Abstract& receiver) -> const Abstract& {
-        auto addressable = receiver.resolve().select<Ttx::Model::Addressable>();
+        auto addressable = receiver.resolve().select<Tetrodotoxin::Source::Addressable>();
         if (addressable) {
           return addressable->get_type()
               .resolve()
@@ -318,7 +320,7 @@ auto Language::Access::Call::link(
     return False;
   }
 
-  const Ttx::Concept::Layout& parameters = selected->get_parameters();
+  const Tetrodotoxin::Source::Layout& parameters = selected->get_parameters();
   Bool arguments_fit = arguments.fits(parameters);
   if (selected->is_type_bound()) {
     if (!input_layout) {
@@ -370,7 +372,7 @@ auto Language::Access::Call::link(
     return False;
   }
 
-  const Ttx::Concept::Layout& retained_output =
+  const Tetrodotoxin::Source::Layout& retained_output =
       create_layout(domain, *this, *selected);
   callable = Reference<const Language::Model::Callable>(*selected);
   output = retained_output;
@@ -402,7 +404,7 @@ auto Language::Access::Call::link_restored(
         return type.resolve_concept("static"_view).resolve_concept(name);
       },
       [&](const Abstract& selected) -> const Abstract& {
-        auto addressable = selected.resolve().select<Ttx::Model::Addressable>();
+        auto addressable = selected.resolve().select<Tetrodotoxin::Source::Addressable>();
         if (addressable) {
           return addressable->get_type()
               .resolve()
@@ -440,11 +442,11 @@ auto Language::Access::Call::link_restored(
   return True;
 }
 
-auto Language::Access::Call::get_documentation() const -> const Documentation& {
+auto Language::Access::Call::get_documentation() const -> const Tetrodotoxin::Source::Documentation& {
   return callable.visit(
-      []() -> const Documentation& { return Documentation::get_empty(); },
+      []() -> const Tetrodotoxin::Source::Documentation& { return Tetrodotoxin::Source::Documentation::get_empty(); },
       [](const Reference<const Language::Model::Callable>& selected)
-          -> const Documentation& {
+          -> const Tetrodotoxin::Source::Documentation& {
         return selected.get().get_documentation();
       });
 }
@@ -464,7 +466,7 @@ auto Language::Access::Call::get_type() const -> const Abstract& {
   if (!callable) {
     return Unknown::get_unknown();
   }
-  const Ttx::Concept::Layout& results = callable->get().get_results();
+  const Tetrodotoxin::Source::Layout& results = callable->get().get_results();
   if (results.get_size() != 1) {
     return Unknown::get_unknown();
   }
@@ -485,7 +487,7 @@ auto Language::Access::Call::get_value_type(Count index) const
   if (!callable) {
     return Unknown::get_unknown();
   }
-  const Ttx::Concept::Layout& results = callable->get().get_results();
+  const Tetrodotoxin::Source::Layout& results = callable->get().get_results();
   auto result = results.get_abstract(index);
   if (!result) {
     return Unknown::get_unknown();
@@ -497,7 +499,7 @@ auto Language::Access::Call::get_value_type(Count index) const
       });
 }
 
-auto Language::Access::Call::get_layout() const -> const Ttx::Concept::Layout& {
+auto Language::Access::Call::get_layout() const -> const Tetrodotoxin::Source::Layout& {
   return *output;
 }
 
@@ -519,20 +521,20 @@ auto Language::Access::Call::finalize(Cursor& cursor) -> void {
 
 static auto select_parameter(
     const Language::Model::Callable& callable,
-    Count index) -> Core::Option<const Ttx::Model::Addressable&> {
+    Count index) -> Core::Option<const Tetrodotoxin::Source::Addressable&> {
   auto entry = callable.get_parameters().get_abstract(index);
-  return entry ? entry->select<Ttx::Model::Addressable>()
-               : Core::Option<const Ttx::Model::Addressable&>();
+  return entry ? entry->select<Tetrodotoxin::Source::Addressable>()
+               : Core::Option<const Tetrodotoxin::Source::Addressable&>();
 }
 
 auto Language::Access::Call::fit_inputs(
     const Language::Model::Callable& callable,
-    Core::Option<const Ttx::Concept::Layout&> input_layout) -> Bool {
-  const Ttx::Concept::Layout& parameters = callable.get_parameters();
+    Core::Option<const Tetrodotoxin::Source::Layout&> input_layout) -> Bool {
+  const Tetrodotoxin::Source::Layout& parameters = callable.get_parameters();
   Count receiver_offset = callable.declares_self() ? 1 : 0;
   Count source_size = receiver_offset + arguments.get_layout().get_size();
   if (source_size == parameters.get_size()) {
-    const Ttx::Concept::Layout& source =
+    const Tetrodotoxin::Source::Layout& source =
         input_layout ? *input_layout : arguments.get_layout();
     for (Count target_index = 0; target_index < parameters.get_size();
          target_index++) {
@@ -617,8 +619,8 @@ auto Language::Access::Call::get_callable() const
 }
 
 auto Language::Access::Call::get_argument_parameter(Count index) const
-    -> Core::Option<const Ttx::Model::Addressable&> {
-  const Ttx::Concept::Layout& layout = arguments.get_layout();
+    -> Core::Option<const Tetrodotoxin::Source::Addressable&> {
+  const Tetrodotoxin::Source::Layout& layout = arguments.get_layout();
   BAIL_IF(index >= layout.get_size() || layout.get_name(index));
   for (const Input& input : fitted_inputs.get_view()) {
     if (&input.get_source() != &arguments || index < input.get_offset() ||
@@ -626,9 +628,9 @@ auto Language::Access::Call::get_argument_parameter(Count index) const
       continue;
     }
     return index == input.get_offset()
-               ? Core::Option<const Ttx::Model::Addressable&>(
+               ? Core::Option<const Tetrodotoxin::Source::Addressable&>(
                      input.get_parameter())
-               : Core::Option<const Ttx::Model::Addressable&>();
+               : Core::Option<const Tetrodotoxin::Source::Addressable&>();
   }
   return {};
 }

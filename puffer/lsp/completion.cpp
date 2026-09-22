@@ -8,11 +8,11 @@
 #include "perimortem/serialization/json/blueprint.hpp"
 
 #include "puffer/lsp/hover.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/model/addressable.hpp"
-#include "ttx/model/callable.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/addressable.hpp"
+#include "tetrodotoxin/source/callable.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 using namespace Perimortem;
 using namespace Perimortem::Serialization;
@@ -21,13 +21,13 @@ using namespace Ttx;
 
 static auto completion_item(
     Memory::Allocator::Arena& arena,
-    const Concept::Abstract& candidate) -> Json::Node {
+    const Tetrodotoxin::Source::Abstract& candidate) -> Json::Node {
   S64 kind = 6;
-  if (candidate.is<Model::Callable>()) {
+  if (candidate.is<Tetrodotoxin::Source::Callable>()) {
     kind = 3;
-  } else if (candidate.is<Model::Addressable>()) {
+  } else if (candidate.is<Tetrodotoxin::Source::Addressable>()) {
     kind = 5;
-  } else if (candidate.is<Model::Type>()) {
+  } else if (candidate.is<Tetrodotoxin::Source::Type>()) {
     kind = 7;
   }
 
@@ -53,69 +53,69 @@ static constexpr auto is_suffix(Core::View::Bytes source) -> Bool {
 }
 
 static auto select_authority(
-    const Concept::Abstract& authored,
-    Ttx::Lexical::Code::Type operation) -> const Concept::Abstract& {
-  auto addressable = authored.select<Model::Addressable>();
+    const Tetrodotoxin::Source::Abstract& authored,
+    Tetrodotoxin::Source::Lexical::Code::Type operation) -> const Tetrodotoxin::Source::Abstract& {
+  auto addressable = authored.select<Tetrodotoxin::Source::Addressable>();
   if (addressable) {
     return addressable->get_type().resolve_concept("instance"_view);
   }
 
-  auto type = authored.select<Model::Type>();
+  auto type = authored.select<Tetrodotoxin::Source::Type>();
   if (type) {
     return type->resolve_concept("static"_view);
   }
 
-  const Concept::Abstract& authored_static =
+  const Tetrodotoxin::Source::Abstract& authored_static =
       authored.resolve_concept("static"_view);
-  if (!authored_static.is<Concept::Unknown>() &&
-      !authored_static.is<Concept::None>()) {
+  if (!authored_static.is<Tetrodotoxin::Source::Unknown>() &&
+      !authored_static.is<Tetrodotoxin::Source::None>()) {
     return authored_static;
   }
 
-  const Concept::Abstract& represented = authored.resolve();
-  addressable = represented.select<Model::Addressable>();
+  const Tetrodotoxin::Source::Abstract& represented = authored.resolve();
+  addressable = represented.select<Tetrodotoxin::Source::Addressable>();
   if (addressable) {
     return addressable->get_type().resolve_concept("instance"_view);
   }
-  type = represented.select<Model::Type>();
+  type = represented.select<Tetrodotoxin::Source::Type>();
   if (type) {
     return type->resolve_concept("static"_view);
   }
 
-  const Concept::Abstract& selected_type = authored.get_type().resolve();
-  return operation == Ttx::Lexical::Code::Type::TypeAccessOp
+  const Tetrodotoxin::Source::Abstract& selected_type = authored.get_type().resolve();
+  return operation == Tetrodotoxin::Source::Lexical::Code::Type::TypeAccessOp
              ? selected_type.resolve_concept("static"_view)
              : selected_type.resolve_concept("instance"_view);
 }
 
 static auto accepts(
-    const Concept::Abstract& candidate,
-    Ttx::Lexical::Code::Type operation) -> Bool {
-  if (operation == Ttx::Lexical::Code::Type::CallOp) {
-    return candidate.is<Model::Callable>();
+    const Tetrodotoxin::Source::Abstract& candidate,
+    Tetrodotoxin::Source::Lexical::Code::Type operation) -> Bool {
+  if (operation == Tetrodotoxin::Source::Lexical::Code::Type::CallOp) {
+    return candidate.is<Tetrodotoxin::Source::Callable>();
   }
-  if (operation == Ttx::Lexical::Code::Type::AddressOp) {
-    return candidate.is<Model::Addressable>();
+  if (operation == Tetrodotoxin::Source::Lexical::Code::Type::AddressOp) {
+    return candidate.is<Tetrodotoxin::Source::Addressable>();
   }
-  return !candidate.is<Model::Callable>() &&
-         !candidate.is<Model::Addressable>();
+  return !candidate.is<Tetrodotoxin::Source::Callable>() &&
+         !candidate.is<Tetrodotoxin::Source::Addressable>();
 }
 
 static auto complete(
     Memory::Allocator::Arena& arena,
     Memory::Managed::Vector<Json::Node>& items,
-    const Concept::Abstract& authority,
-    Ttx::Lexical::Code::Type operation) -> void {
-  if (authority.is<Concept::Unknown>() || authority.is<Concept::None>()) {
+    const Tetrodotoxin::Source::Abstract& authority,
+    Tetrodotoxin::Source::Lexical::Code::Type operation) -> void {
+  if (authority.is<Tetrodotoxin::Source::Unknown>() || authority.is<Tetrodotoxin::Source::None>()) {
     return;
   }
 
-  auto receive = [&](Core::View::Bytes, const Concept::Abstract& candidate) {
+  auto receive = [&](Core::View::Bytes, const Tetrodotoxin::Source::Abstract& candidate) {
     if (accepts(candidate, operation)) {
       items.insert(completion_item(arena, candidate));
     }
   };
-  authority.visit_concepts(Concept::Abstract::Visitor(receive));
+  authority.visit_concepts(Tetrodotoxin::Source::Abstract::Visitor(receive));
 }
 
 auto Puffer::Lsp::completion(Documents& documents, const Rpc::Message& message)
@@ -144,14 +144,14 @@ auto Puffer::Lsp::completion(Documents& documents, const Rpc::Message& message)
 
   Count operation_index = Count(-1);
   for (Count index = 0; index < tokens.get_size(); index++) {
-    Ttx::Lexical::Token token = tokens.get_data()[index];
+    Tetrodotoxin::Source::Lexical::Token token = tokens.get_data()[index];
     if (!token || Count(token.get_offset()) + token.get_size() > *offset) {
       continue;
     }
     auto code = token.get_code().get_type();
-    if (code == Ttx::Lexical::Code::Type::AddressOp ||
-        code == Ttx::Lexical::Code::Type::TypeAccessOp ||
-        code == Ttx::Lexical::Code::Type::CallOp) {
+    if (code == Tetrodotoxin::Source::Lexical::Code::Type::AddressOp ||
+        code == Tetrodotoxin::Source::Lexical::Code::Type::TypeAccessOp ||
+        code == Tetrodotoxin::Source::Lexical::Code::Type::CallOp) {
       operation_index = index;
     }
   }
@@ -159,18 +159,18 @@ auto Puffer::Lsp::completion(Documents& documents, const Rpc::Message& message)
     return message.report_result(Json::Node(items.get_view()));
   }
 
-  Ttx::Lexical::Token operation = tokens.get_data()[operation_index];
+  Tetrodotoxin::Source::Lexical::Token operation = tokens.get_data()[operation_index];
   Count operation_end = Count(operation.get_offset()) + operation.get_size();
   if (*offset < operation_end ||
       !is_suffix(source.slice(operation_end, *offset - operation_end))) {
     return message.report_result(Json::Node(items.get_view()));
   }
 
-  Ttx::Lexical::Token receiver = tokens.get_data()[operation_index - 1];
+  Tetrodotoxin::Source::Lexical::Token receiver = tokens.get_data()[operation_index - 1];
   auto semantic = associations->find_at(
       Count(receiver.get_offset()) + receiver.get_size() - 1);
   if (semantic) {
-    const Concept::Abstract& authority =
+    const Tetrodotoxin::Source::Abstract& authority =
         select_authority(*semantic, operation.get_code().get_type());
     complete(arena, items, authority, operation.get_code().get_type());
   }

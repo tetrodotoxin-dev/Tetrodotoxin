@@ -8,7 +8,7 @@
 
 #include "llvm-c/Types.h"
 #include "tetrodotoxin/terminal/llvm/lowering/execution.hpp"
-#include "ttx/model/callable.hpp"
+#include "tetrodotoxin/source/callable.hpp"
 
 namespace Tetrodotoxin::Terminal::Llvm::Lowering {
 
@@ -19,7 +19,7 @@ class Builtins {
  public:
   static auto lower(
       const Execution& execution,
-      const Ttx::Model::Callable& callable,
+      const Tetrodotoxin::Source::Callable& callable,
       const Tetrodotoxin::Library::Language::Model::Pack& result,
       Perimortem::Core::View::Vector<LLVMValueRef> inputs,
       Perimortem::Core::Option<

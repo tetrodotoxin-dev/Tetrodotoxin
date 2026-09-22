@@ -12,8 +12,8 @@
 #include "tetrodotoxin/app/language/monograph.hpp"
 #include "tetrodotoxin/scene/language/monograph.hpp"
 #include "tetrodotoxin/terminal/vulkan/products.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 namespace Tetrodotoxin::Terminal::Application {
 
@@ -39,7 +39,7 @@ class Generator {
     }
 
    private:
-    Ttx::Concept::Reference<const Tetrodotoxin::Scene::Language::Monograph>
+    Tetrodotoxin::Source::Reference<const Tetrodotoxin::Scene::Language::Monograph>
         scene;
     Perimortem::Core::View::Bytes route;
   };
@@ -52,9 +52,9 @@ class Generator {
       Perimortem::Core::View::Bytes package,
       Perimortem::Core::View::Bytes artifact,
       Perimortem::Core::View::Vector<MemberBinding> members,
-      const Ttx::Model::Type& graphics_placement,
+      const Tetrodotoxin::Source::Type& graphics_placement,
       Perimortem::Core::View::Vector<
-          Ttx::Concept::Reference<const Ttx::Model::Type>> graphics_types,
+          Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type>> graphics_types,
       Perimortem::Core::View::Vector<Perimortem::Core::View::Bytes>
           graphics_placements,
       Perimortem::Core::View::Vector<Perimortem::Core::View::Bytes>

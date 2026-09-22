@@ -9,8 +9,8 @@
 #include "perimortem/memory/allocator/arena.hpp"
 
 #include "tetrodotoxin/terminal/abi/unit.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 namespace Tetrodotoxin::Terminal::Abi::Representation {
 
@@ -22,12 +22,12 @@ class TypeName {
   static auto create(
       Perimortem::Memory::Allocator::Arena& arena,
       const Unit& unit,
-      const Ttx::Model::Type& type,
+      const Tetrodotoxin::Source::Type& type,
       Perimortem::Core::View::Bytes inherited_package = {},
       Perimortem::Core::View::Bytes inherited_member = {})
       -> Perimortem::Core::Option<TypeName>;
 
-  constexpr auto get_type() const -> const Ttx::Model::Type& {
+  constexpr auto get_type() const -> const Tetrodotoxin::Source::Type& {
     return type.get();
   }
 
@@ -45,13 +45,13 @@ class TypeName {
 
  private:
   constexpr TypeName(
-      const Ttx::Model::Type& type,
+      const Tetrodotoxin::Source::Type& type,
       Perimortem::Core::View::Bytes value,
       Perimortem::Core::View::Bytes package,
       Perimortem::Core::View::Bytes member)
       : type(type), value(value), package(package), member(member) {}
 
-  Ttx::Concept::Reference<const Ttx::Model::Type> type;
+  Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type> type;
   Perimortem::Core::View::Bytes value;
   Perimortem::Core::View::Bytes package;
   Perimortem::Core::View::Bytes member;

@@ -7,8 +7,8 @@
 #include "perimortem/core/option.hpp"
 
 #include "tetrodotoxin/library/language/type_reference.hpp"
-#include "ttx/concept/documentation.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/documentation.hpp"
 
 namespace Tetrodotoxin::Library::Language {
 
@@ -18,15 +18,15 @@ namespace Tetrodotoxin::Library::Language {
 class Import {
  public:
   constexpr Import(
-      const Ttx::Concept::Documentation& documentation,
+      const Tetrodotoxin::Source::Documentation& documentation,
       TypeReference type_reference,
-      Ttx::Lexical::Span span)
+      Tetrodotoxin::Source::Lexical::Span span)
       : documentation(documentation),
         type_reference(type_reference),
         span(span) {}
 
   constexpr auto get_documentation() const
-      -> const Ttx::Concept::Documentation& {
+      -> const Tetrodotoxin::Source::Documentation& {
     return documentation;
   }
 
@@ -38,12 +38,12 @@ class Import {
     return type_reference;
   }
 
-  constexpr auto get_span() const -> Ttx::Lexical::Span { return span; }
+  constexpr auto get_span() const -> Tetrodotoxin::Source::Lexical::Span { return span; }
 
  private:
-  const Ttx::Concept::Documentation& documentation;
+  const Tetrodotoxin::Source::Documentation& documentation;
   TypeReference type_reference;
-  Ttx::Lexical::Span span;
+  Tetrodotoxin::Source::Lexical::Span span;
 };
 
 }  // namespace Tetrodotoxin::Library::Language

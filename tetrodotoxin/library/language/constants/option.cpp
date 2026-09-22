@@ -6,7 +6,7 @@
 #include "tetrodotoxin/library/language/expression.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library::Language;
 
 static auto append_pack(Memory::Managed::Bytes& output, const Model::Pack& pack)
@@ -34,8 +34,8 @@ Constants::Option::Option(
     Memory::Allocator::Arena& domain,
     const Types::Option& type,
     Types::Option::Kind kind,
-    Core::Option<Ttx::Model::PackReference<Model::Pack>> payload,
-    Core::Option<Ttx::Lexical::Anchor> anchor)
+    Core::Option<Tetrodotoxin::Source::PackReference<Model::Pack>> payload,
+    Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor)
     : Constant(anchor),
       type(type),
       kind(kind),
@@ -70,7 +70,7 @@ auto Constants::Option::create_present(
   return Constant::create_synthetic<Option>(domain, [&](auto source) -> Option {
     return Option(
         domain, type, Types::Option::Kind::Present,
-        Ttx::Model::PackReference<Model::Pack>(payload), source);
+        Tetrodotoxin::Source::PackReference<Model::Pack>(payload), source);
   });
 }
 
@@ -108,7 +108,7 @@ auto Constants::Option::get_payload() const
     -> Core::Option<const Model::Pack&> {
   return payload.visit(
       []() -> Core::Option<const Model::Pack&> { return {}; },
-      [](const Ttx::Model::PackReference<Model::Pack>& selected)
+      [](const Tetrodotoxin::Source::PackReference<Model::Pack>& selected)
           -> Core::Option<const Model::Pack&> { return selected.get(); });
 }
 

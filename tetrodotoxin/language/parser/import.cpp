@@ -3,11 +3,13 @@
 
 #include "tetrodotoxin/language/parser/import.hpp"
 
-#include "ttx/lexical/lexicon.hpp"
+#include "tetrodotoxin/source/documentation.hpp"
+
+#include "tetrodotoxin/source/lexical/lexicon.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Language;
 using Perimortem::System::Version;
 
@@ -129,7 +131,7 @@ static auto parse_package(
   return True;
 }
 
-auto Parser::Import::parse(Cursor& cursor, const Documentation& documentation)
+auto Parser::Import::parse(Cursor& cursor, const Tetrodotoxin::Source::Documentation& documentation)
     -> Option<Language::Import::Description> {
   Token opening = cursor.current();
   Visibility visibility = Visibility::Private;
@@ -161,7 +163,7 @@ auto Parser::Import::parse(Cursor& cursor, const Documentation& documentation)
 
 auto Parser::Import::parse_expression(
     Cursor& cursor,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     View::Bytes name,
     Visibility visibility,
     Token opening,

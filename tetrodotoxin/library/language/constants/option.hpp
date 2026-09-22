@@ -10,7 +10,7 @@
 #include "tetrodotoxin/library/language/constant.hpp"
 #include "tetrodotoxin/library/language/model/pack.hpp"
 #include "tetrodotoxin/library/language/types/option.hpp"
-#include "ttx/concept/reference.hpp"
+#include "tetrodotoxin/source/reference.hpp"
 
 namespace Tetrodotoxin::Library::Language::Constants {
 
@@ -54,12 +54,12 @@ class Option : public Tetrodotoxin::Library::Language::Constant {
       Perimortem::Memory::Allocator::Arena& domain,
       const Types::Option& type,
       Types::Option::Kind kind,
-      Perimortem::Core::Option<Ttx::Model::PackReference<Model::Pack>> payload,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor);
+      Perimortem::Core::Option<Tetrodotoxin::Source::PackReference<Model::Pack>> payload,
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor);
 
   const Types::Option& type;
   Types::Option::Kind kind;
-  Perimortem::Core::Option<Ttx::Model::PackReference<Model::Pack>> payload;
+  Perimortem::Core::Option<Tetrodotoxin::Source::PackReference<Model::Pack>> payload;
   Perimortem::Memory::Managed::Bytes name;
 };
 

@@ -12,10 +12,10 @@
 
 #include "tetrodotoxin/language/import.hpp"
 #include "tetrodotoxin/library/language/generic.hpp"
-#include "ttx/concept/abstract.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
 #include "ttx/concept/domain.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Language {
 
@@ -39,15 +39,15 @@ class TypeReference {
   // The bound reference resolves to itself so it cannot erase this policy edge.
   // Native and bound navigation both ask the retained subject, while the
   // resolve operations below return the native answer needed for compilation.
-  auto get_interface() const -> Ttx::Concept::Abstract::Handle;
+  auto get_interface() const -> Ttx::Concept::Abstract;
   auto bind_interface(Perimortem::System::Uuid requested) const -> Perimortem::
-      Utility::Result<Ttx::Semantic::Binding, Ttx::Semantic::Binding::Failure>;
+      Utility::Result<Ttx::Semantic::Negotiation::Binding, Ttx::Semantic::Negotiation::Binding::Failure>;
   auto resolve_concept(Perimortem::Core::View::Bytes name) const
-      -> const Ttx::Concept::Abstract&;
-  auto visit_concepts(Ttx::Concept::Abstract::Visitor visitor) const -> void;
+      -> const Tetrodotoxin::Source::Abstract&;
+  auto visit_concepts(Tetrodotoxin::Source::Abstract::Visitor visitor) const -> void;
 
   using Argument = Perimortem::Core::Static::
-      Union<const TypeReference&, const Ttx::Concept::Abstract&>;
+      Union<const TypeReference&, const Tetrodotoxin::Source::Abstract&>;
 
   class Failure {
    public:
@@ -62,28 +62,28 @@ class TypeReference {
       Formula,
     };
 
-    constexpr Failure(Type type, Ttx::Lexical::Anchor anchor, Count index = 0)
+    constexpr Failure(Type type, Tetrodotoxin::Source::Lexical::Anchor anchor, Count index = 0)
         : type(type), anchor(anchor), index(index) {}
 
     constexpr auto get_type() const -> Type { return type; }
 
     constexpr auto get_index() const -> Count { return index; }
 
-    constexpr auto get_anchor() const -> Ttx::Lexical::Anchor { return anchor; }
+    constexpr auto get_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor { return anchor; }
 
    private:
     Type type;
-    Ttx::Lexical::Anchor anchor;
+    Tetrodotoxin::Source::Lexical::Anchor anchor;
     Count index;
   };
 
   using Resolution =
-      Perimortem::Utility::Result<const Ttx::Concept::Abstract&, Failure>;
+      Perimortem::Utility::Result<const Tetrodotoxin::Source::Abstract&, Failure>;
 
   static constexpr auto create_authored(
       Perimortem::Core::View::Bytes route,
-      Ttx::Lexical::Anchor anchor,
-      Ttx::Lexical::Token terminal,
+      Tetrodotoxin::Source::Lexical::Anchor anchor,
+      Tetrodotoxin::Source::Lexical::Token terminal,
       Perimortem::Core::Option<Perimortem::Core::View::Vector<Argument>>
           arguments = {}) -> TypeReference {
     return TypeReference(route, anchor, terminal, arguments);
@@ -91,8 +91,8 @@ class TypeReference {
 
   static constexpr auto create(
       Perimortem::Core::View::Bytes route,
-      Ttx::Lexical::Anchor anchor,
-      Ttx::Lexical::Token terminal,
+      Tetrodotoxin::Source::Lexical::Anchor anchor,
+      Tetrodotoxin::Source::Lexical::Token terminal,
       Perimortem::Core::Option<Perimortem::Core::View::Vector<Argument>>
           arguments = {}) -> TypeReference {
     return TypeReference(route, anchor, terminal, arguments);
@@ -104,7 +104,7 @@ class TypeReference {
 
   // Authored routes are contiguous, so each segment Token remains recoverable
   // without retaining a second parser representation.
-  auto get_token(Count index) const -> Ttx::Lexical::Token;
+  auto get_token(Count index) const -> Tetrodotoxin::Source::Lexical::Token;
 
   constexpr auto get_root() const -> Perimortem::Core::View::Bytes {
     return get_name(0);
@@ -114,7 +114,7 @@ class TypeReference {
     return route;
   }
 
-  constexpr auto get_anchor() const -> Ttx::Lexical::Anchor { return anchor; }
+  constexpr auto get_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor { return anchor; }
 
   constexpr auto has_arguments() const -> Bool { return Bool(arguments); }
 
@@ -142,23 +142,23 @@ class TypeReference {
   // Public resolution follows the route exactly as another graph consumer sees
   // it. The supplied context resolves the root, then each selected identity
   // answers the next segment.
-  auto resolve(const Ttx::Concept::Abstract& context) const -> Resolution;
+  auto resolve(const Tetrodotoxin::Source::Abstract& context) const -> Resolution;
 
   // Alias completion starts from the declaration's real host, where the root
   // name has its lexical authority. Each suffix then follows the identity
   // selected by the segment before it.
-  auto resolve_lexical(const Ttx::Concept::Abstract& context) const
+  auto resolve_lexical(const Tetrodotoxin::Source::Abstract& context) const
       -> Resolution;
 
   // Declaration owners can publish a typed failure as soon as the route
   // settles. Alias closure has no Cursor, but its forward target may still
   // complete during the same Type barrier.
   auto resolve_authored(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& context) const
-      -> Perimortem::Core::Option<const Ttx::Concept::Abstract&>;
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& context) const
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&>;
 
-  auto report(Ttx::Lexical::Cursor& cursor, const Failure& failure) const
+  auto report(Tetrodotoxin::Source::Lexical::Cursor& cursor, const Failure& failure) const
       -> void;
 
  private:
@@ -171,15 +171,15 @@ class TypeReference {
   };
 
   auto resolve_with_root(
-      const Ttx::Concept::Abstract& context,
+      const Tetrodotoxin::Source::Abstract& context,
       Root root,
-      Perimortem::Core::Option<Ttx::Lexical::Cursor&> cursor = {}) const
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Cursor&> cursor = {}) const
       -> Resolution;
 
   constexpr TypeReference(
       Perimortem::Core::View::Bytes route,
-      Ttx::Lexical::Anchor anchor,
-      Ttx::Lexical::Token terminal,
+      Tetrodotoxin::Source::Lexical::Anchor anchor,
+      Tetrodotoxin::Source::Lexical::Token terminal,
       Perimortem::Core::Option<Perimortem::Core::View::Vector<Argument>>
           arguments = {})
       : route(route),
@@ -198,11 +198,11 @@ class TypeReference {
   // Two imports can select the same native Type while answering differently.
   // A completed reference commits both identities so revisiting its route
   // cannot silently exchange the policy behind a previously borrowed view.
-  mutable const Ttx::Concept::Abstract* subject = nullptr;
-  mutable const Ttx::Concept::Abstract* target = nullptr;
+  mutable const Tetrodotoxin::Source::Abstract* subject = nullptr;
+  mutable const Tetrodotoxin::Source::Abstract* target = nullptr;
   Perimortem::Core::View::Bytes route;
-  Ttx::Lexical::Anchor anchor;
-  Ttx::Lexical::Token terminal;
+  Tetrodotoxin::Source::Lexical::Anchor anchor;
+  Tetrodotoxin::Source::Lexical::Token terminal;
   Perimortem::Core::Option<Perimortem::Core::View::Vector<Argument>> arguments;
 };
 

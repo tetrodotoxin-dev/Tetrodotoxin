@@ -3,15 +3,17 @@
 
 #include "tetrodotoxin/app/language/monograph.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::App;
 
 auto Language::Monograph::create_program(
     Allocator::Arena& arena,
     const Abstract& language,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     Abstract& context,
     Runtime& runtime,
     Program& program) -> Monograph& {
@@ -24,7 +26,7 @@ auto Language::Monograph::create_program(
 auto Language::Monograph::create_scene(
     Allocator::Arena& arena,
     const Abstract& language,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     Abstract& context,
     Runtime& runtime,
     Scene& scene) -> Monograph& {

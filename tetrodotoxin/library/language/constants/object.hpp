@@ -34,7 +34,7 @@ class Object : public Tetrodotoxin::Library::Language::Constant {
  private:
   constexpr Object(
       const Model::Type& type,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor)
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor)
       : Tetrodotoxin::Library::Language::Constant(anchor), type(type) {}
 
   const Model::Type& type;

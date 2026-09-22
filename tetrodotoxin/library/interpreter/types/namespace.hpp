@@ -5,7 +5,7 @@
 
 #include "tetrodotoxin/library/interpreter/parsed.hpp"
 #include "tetrodotoxin/library/language/types/namespace.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Interpreter::Types {
 
@@ -14,7 +14,7 @@ class Namespace {
   Namespace() = delete;
 
   static auto parse(
-      Ttx::Lexical::Cursor& cursor,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
       Tetrodotoxin::Language::Definition& definition)
       -> Perimortem::Core::Option<Parsed<Language::Types::Namespace>>;
 };

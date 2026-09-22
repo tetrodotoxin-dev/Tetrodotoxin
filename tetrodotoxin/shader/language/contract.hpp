@@ -4,7 +4,7 @@
 #pragma once
 
 #include "tetrodotoxin/shader/language/program.hpp"
-#include "ttx/concept/interface.hpp"
+#include "tetrodotoxin/source/interface.hpp"
 
 namespace Tetrodotoxin::Shader::Language {
 
@@ -12,23 +12,23 @@ namespace Tetrodotoxin::Shader::Language {
 // Render Structure. Callable Layouts provide data flow evidence while Render
 // Attributes and Shader binding relationships restore the policy that Layout
 // intentionally omits. Neither side is copied into the other language.
-class Contract : public Ttx::Concept::Interface {
+class Contract : public Tetrodotoxin::Source::Interface {
  public:
   auto negotiate(
-      const Ttx::Concept::Abstract& requirement,
-      const Ttx::Concept::Abstract& candidate) const -> Relation override;
+      const Tetrodotoxin::Source::Abstract& requirement,
+      const Tetrodotoxin::Source::Abstract& candidate) const -> Relation override;
 
   auto validate(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& requirement,
-      const Ttx::Concept::Abstract& candidate) const -> Bool;
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& requirement,
+      const Tetrodotoxin::Source::Abstract& candidate) const -> Bool;
 
   // Source free validation has no Cursor for authored presentation. It applies
   // the same relation and publishes the exact lost contract fact through the
   // process diagnostic boundary owned by Archive restoration.
   auto validate_restored(
-      const Ttx::Concept::Abstract& requirement,
-      const Ttx::Concept::Abstract& candidate) const -> Bool;
+      const Tetrodotoxin::Source::Abstract& requirement,
+      const Tetrodotoxin::Source::Abstract& candidate) const -> Bool;
 };
 
 }  // namespace Tetrodotoxin::Shader::Language

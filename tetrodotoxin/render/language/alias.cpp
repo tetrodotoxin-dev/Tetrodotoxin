@@ -6,9 +6,9 @@
 #include "tetrodotoxin/render/language/declarations.hpp"
 
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using Ttx::Semantic::Binding;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using Ttx::Semantic::Negotiation::Binding;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Render;
 
 auto Language::Alias::create(
@@ -29,7 +29,7 @@ auto Language::Alias::link(Cursor& cursor, const Abstract& context) -> Bool {
   if (selected_type && &selected_type->get() != &*selected) {
     return False;
   }
-  selected_type = Reference<const Ttx::Model::Type>(*selected);
+  selected_type = Reference<const Tetrodotoxin::Source::Type>(*selected);
   return True;
 }
 
@@ -43,7 +43,7 @@ auto Language::Alias::link_restored(const Abstract& context) -> Bool {
   if (selected_type && &selected_type->get() != &*selected) {
     return False;
   }
-  selected_type = Reference<const Ttx::Model::Type>(*selected);
+  selected_type = Reference<const Tetrodotoxin::Source::Type>(*selected);
   return True;
 }
 

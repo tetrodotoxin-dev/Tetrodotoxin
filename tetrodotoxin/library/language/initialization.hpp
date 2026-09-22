@@ -7,8 +7,8 @@
 
 #include "perimortem/system/uuid.hpp"
 
-#include "ttx/concept/abstract.hpp"
-#include "ttx/semantic/bound.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/bound.hpp"
 
 namespace Tetrodotoxin::Library::Language {
 
@@ -24,15 +24,15 @@ class Initialization {
   };
 
   using Answer = Perimortem::Utility::Result<
-      Perimortem::Core::Option<Ttx::Concept::Abstract::Handle>,
-      Ttx::Semantic::Binding::Failure>;
+      Perimortem::Core::Option<Ttx::Concept::Abstract>,
+      Ttx::Semantic::Negotiation::Binding::Failure>;
 
   struct Operations {
     auto (*get_default)(const void*, Perimortem::Memory::Allocator::Arena&)
         -> Answer;
   };
 
-  class Handle : public Ttx::Semantic::Bound<Operations> {
+  class Handle : public Tetrodotoxin::Source::Bound<Operations> {
    public:
     using Bound::Bound;
 

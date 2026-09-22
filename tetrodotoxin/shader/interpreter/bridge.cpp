@@ -6,8 +6,8 @@
 #include "tetrodotoxin/library/interpreter/type_reference.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 using namespace Tetrodotoxin::Shader;
 
@@ -56,22 +56,22 @@ auto Interpreter::Bridge::parse(
     Tetrodotoxin::Language::Definition& definition) -> Bool {
   auto attributes = definition.get_attributes();
   BAIL_IF(!validate_attributes(cursor, attributes));
-  if (definition.get_name_token().get_code() != Code::Type::Addressable) {
+  if (definition.get_authored().get_name().get_code() != Code::Type::Addressable) {
     cursor.create_token_error(
-        definition.get_name_token(),
+        definition.get_authored().get_name(),
         "Shader Bridges use one addressable relationship name."_view);
     return False;
   }
   if (definition.get_visibility() !=
       Tetrodotoxin::Language::Visibility::Public) {
     cursor.create_token_error(
-        definition.get_visibility_token(),
+        definition.get_authored().get_visibility(),
         "Shader Bridges use public visibility."_view);
     return False;
   }
-  if (!definition.get_modifiers().is_empty()) {
+  if (!definition.get_authored().get_modifiers().is_empty()) {
     cursor.create_token_error(
-        definition.get_modifiers().get_data()[0],
+        definition.get_authored().get_modifiers().get_data()[0],
         "Shader Bridges do not accept evaluation modifiers."_view);
     return False;
   }
@@ -93,7 +93,7 @@ auto Interpreter::Bridge::parse(
   auto sync_name = read_policy(attributes, "sync"_view);
   if (!direction_name || !marshal_name || !sync_name) {
     cursor.create_expression_error(
-        definition.get_anchor(),
+        definition.get_authored().get_anchor(),
         "Shader Bridge requires `@direction`, `@marshal`, and `@sync` policies."_view);
     return False;
   }
@@ -107,7 +107,7 @@ auto Interpreter::Bridge::parse(
     direction = Shader::Language::Bridge::Direction::Bidirectional;
   } else {
     cursor.create_expression_error(
-        definition.get_anchor(),
+        definition.get_authored().get_anchor(),
         "Shader Bridge direction is `upload`, `download`, or `bidirectional`."_view);
     return False;
   }
@@ -121,7 +121,7 @@ auto Interpreter::Bridge::parse(
     marshaling = Shader::Language::Bridge::Marshaling::Pack;
   } else {
     cursor.create_expression_error(
-        definition.get_anchor(),
+        definition.get_authored().get_anchor(),
         "Shader Bridge marshaling is `identity`, `copy`, or `pack`."_view);
     return False;
   }
@@ -135,15 +135,18 @@ auto Interpreter::Bridge::parse(
     synchronization = Shader::Language::Bridge::Synchronization::Frame;
   } else {
     cursor.create_expression_error(
-        definition.get_anchor(),
+        definition.get_authored().get_anchor(),
         "Shader Bridge synchronization is `none`, `submission`, or `frame`."_view);
     return False;
   }
 
-  BAIL_IF(!definition.complete(qualifier, closing));
+  auto& authored = definition.get_authored();
+  authored.set_anchor(Anchor::create(
+      qualifier, Span(authored.get_anchor().get_span().get_start(), closing)));
   auto& bridge = Shader::Language::Bridge::create(
       cursor.get_arena(), definition, *cpu, *gpu, direction, marshaling,
       synchronization);
-  cursor.get_associations().create(definition.get_name_anchor(), bridge);
+  cursor.get_associations().create(
+      Anchor::create(Span(definition.get_authored().get_name())), bridge);
   return monograph.retain_bridge(bridge);
 }

@@ -11,12 +11,12 @@
 #include "tetrodotoxin/library/language/constants/bytes.hpp"
 #include "tetrodotoxin/library/language/constants/unsigned.hpp"
 #include "tetrodotoxin/library/language/expressions/initializer.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library::Language;
 
 Types::Fixed::Fixed(
@@ -40,7 +40,7 @@ auto Types::Fixed::create_default(Allocator::Arena& arena) const
     -> Option<Model::Pack&> {
   BAIL_IF(get_extent() == 0 || get_extent() > U64(Count(-1)));
 
-  Managed::Vector<Ttx::Model::PackReference<Model::Pack>> values(arena);
+  Managed::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>> values(arena);
   values.reset(Count(get_extent()));
   for (Count index = 0; index < Count(get_extent()); index++) {
     auto value = get_element_type().create_default(arena);
@@ -86,7 +86,7 @@ static auto fold_output(Model::Pack& source, Count index)
 static auto create_bytes(
     Allocator::Arena& arena,
     const Types::Fixed& type,
-    View::Vector<Ttx::Model::PackReference<Model::Pack>> values)
+    View::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>> values)
     -> Option<Model::Pack&> {
   auto element =
       type.get_element_type().resolve().select<Model::Types::Unsigned>();
@@ -94,7 +94,7 @@ static auto create_bytes(
 
   auto storage = arena.allocate(values.get_size());
   Count index = 0;
-  for (const Ttx::Model::PackReference<Model::Pack>& selected : values) {
+  for (const Tetrodotoxin::Source::PackReference<Model::Pack>& selected : values) {
     auto value = selected.get().select_identity<Constants::Unsigned>();
     BAIL_IF(!value || value->get_value() > U64(U8(-1)));
     storage.get_data()[index] = U8(value->get_value());
@@ -109,7 +109,7 @@ auto Types::Fixed::create_fitted(Allocator::Arena& arena, Model::Pack& source)
     const -> Option<Model::Pack&> {
   BAIL_IF(!source.fits(*this));
 
-  Managed::Vector<Ttx::Model::PackReference<Model::Pack>> values(arena);
+  Managed::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>> values(arena);
   values.reset(Count(get_extent()));
   for (Count index = 0; index < Count(get_extent()); index++) {
     auto value = fold_output(source, index);

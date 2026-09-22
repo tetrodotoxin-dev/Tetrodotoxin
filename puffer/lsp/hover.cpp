@@ -3,6 +3,8 @@
 
 #include "puffer/lsp/hover.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "perimortem/memory/managed/bytes.hpp"
 
 #include "perimortem/serialization/json/blueprint.hpp"
@@ -10,16 +12,16 @@
 
 #include "tetrodotoxin/language/definition.hpp"
 #include "tetrodotoxin/language/import.hpp"
-#include "ttx/concept/constant.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/model/addressable.hpp"
-#include "ttx/model/callable.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/constant.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/addressable.hpp"
+#include "tetrodotoxin/source/callable.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using Ttx::Semantic::Binding;
+using namespace Tetrodotoxin::Source;
+using Ttx::Semantic::Negotiation::Binding;
 
 static auto append_name(
     Serialization::Stream::Textual<Memory::Managed::Bytes>& output,
@@ -48,18 +50,18 @@ static auto append_name(
 static auto append_type(
     Serialization::Stream::Textual<Memory::Managed::Bytes>& output,
     const Abstract& semantic) -> void {
-  auto type = semantic.select<Ttx::Model::Type>();
+  auto type = semantic.select<Tetrodotoxin::Source::Type>();
   const Abstract* answer = &semantic;
-  auto addressable = semantic.select<Ttx::Model::Addressable>();
+  auto addressable = semantic.select<Tetrodotoxin::Source::Addressable>();
   if (!type && addressable) {
     answer = &addressable->get_type();
-    type = answer->select<Ttx::Model::Type>();
+    type = answer->select<Tetrodotoxin::Source::Type>();
   } else if (!type) {
     answer = &semantic.get_type();
-    type = answer->select<Ttx::Model::Type>();
+    type = answer->select<Tetrodotoxin::Source::Type>();
   }
   if (!type && !answer->is<Unknown>() && !answer->is<None>()) {
-    type = answer->resolve().select<Ttx::Model::Type>();
+    type = answer->resolve().select<Tetrodotoxin::Source::Type>();
   }
   if (type) {
     append_name(output, type->get_name());
@@ -131,7 +133,7 @@ static auto append_identity(
     return True;
   }
 
-  auto callable = semantic.select<Ttx::Model::Callable>();
+  auto callable = semantic.select<Tetrodotoxin::Source::Callable>();
   if (callable) {
     output << "func "_view;
     append_name(output, callable->get_name());
@@ -141,7 +143,7 @@ static auto append_identity(
     return True;
   }
 
-  auto addressable = semantic.select<Ttx::Model::Addressable>();
+  auto addressable = semantic.select<Tetrodotoxin::Source::Addressable>();
   if (addressable) {
     append_name(output, addressable->get_name());
     output << " : "_view;
@@ -154,7 +156,7 @@ static auto append_identity(
     append_name(output, semantic.get_name());
     return True;
   }
-  if (semantic.is<Ttx::Model::Type>()) {
+  if (semantic.is<Tetrodotoxin::Source::Type>()) {
     output << "Type "_view;
     append_name(output, semantic.get_name());
     return True;
@@ -177,7 +179,7 @@ auto Puffer::Lsp::semantic_hover(
   }
   output << "\n```"_view;
 
-  const Documentation& documentation = semantic.get_documentation();
+  const Tetrodotoxin::Source::Documentation& documentation = semantic.get_documentation();
   if (!documentation.is_empty()) {
     output << "\n\n"_view;
     for (Count index = 0; index < documentation.line_count(); index++) {

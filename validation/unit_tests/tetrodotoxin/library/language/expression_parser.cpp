@@ -3,6 +3,8 @@
 
 #include "validation/unit_test.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "perimortem/core/algorithm/search.hpp"
 
 #include "perimortem/memory/allocator/arena.hpp"
@@ -32,16 +34,16 @@
 #include "tetrodotoxin/library/language/operations/or.hpp"
 #include "tetrodotoxin/library/language/operations/range.hpp"
 #include "tetrodotoxin/library/language/operations/subtract.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Utility;
 using namespace Tetrodotoxin;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Validation;
 
 static Harness ExpressionParserTests = {
@@ -71,8 +73,8 @@ class ExpressionParserContext : public Abstract {
       : observations(observations), table(domain, "0123456789"_view) {}
 
   auto get_name() const -> View::Bytes override { return "Context"_view; }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
   auto resolve_concept(View::Bytes route) const -> const Abstract& override {
     if (route == "$[table]"_view) {
@@ -93,11 +95,11 @@ static auto create_monograph(
     Abstract& context) -> Option<Library::Language::Monograph&> {
   Errors errors;
   Tokenizer tokenizer(domain, ""_view, "expression-source.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   Anchor source_anchor = Anchor::create(Span());
   auto interpretation = dialect.interpret(
-      cursor, Documentation::get_empty(), source_anchor, context);
+      cursor, Tetrodotoxin::Source::Documentation::get_empty(), source_anchor, context);
   if (!interpretation || !interpretation->is<Library::Language::Monograph>() ||
       !errors.is_empty()) {
     return {};
@@ -117,7 +119,7 @@ static auto parse_one(
     View::Bytes source,
     Errors& errors) -> Option<Library::Language::Model::Pack&> {
   Tokenizer tokenizer(domain, source, "expression-parser.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   auto parsed = Library::Interpreter::Expression::parse(context, cursor);
   if (parsed && !cursor.matches(Code::Type::Terminal)) {
@@ -134,7 +136,7 @@ static auto link_one(
     View::Bytes source,
     Errors& errors) -> Bool {
   Tokenizer tokenizer(domain, source, "expression-parser.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   return pack.link(cursor, root_context);
 }
@@ -145,7 +147,7 @@ static auto finalize_one(
     View::Bytes source,
     Errors& errors) -> void {
   Tokenizer tokenizer(domain, source, "expression-parser.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   pack.finalize(cursor);
 }
@@ -156,7 +158,7 @@ static auto rejects_grammar(
     View::Bytes source) -> Bool {
   Errors errors;
   Tokenizer tokenizer(domain, source, "rejected-expression.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   auto parsed = Library::Interpreter::Expression::parse(context, cursor);
   return !parsed && !errors.is_empty();

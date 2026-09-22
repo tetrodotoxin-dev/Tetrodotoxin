@@ -9,12 +9,12 @@
 
 #include "tetrodotoxin/library/language/model/pack.hpp"
 #include "tetrodotoxin/library/language/model/type.hpp"
-#include "ttx/concept/abstract.hpp"
-#include "ttx/concept/layout.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/layout.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Language::Flow {
 
@@ -22,13 +22,13 @@ namespace Tetrodotoxin::Library::Language::Flow {
 // enclosing Block supplies lexical lookup, host access, and the Function result
 // Layout required during linking. A bare `return` owns an empty Pack, so empty
 // flow and flow with several values share one lifecycle without optional state.
-class Return : public Ttx::Concept::Abstract {
+class Return : public Tetrodotoxin::Source::Abstract {
  public:
-  TTX_CONTRACT(Return, Ttx::Concept::Abstract);
+  TTX_CONTRACT(Return, Tetrodotoxin::Source::Abstract);
 
   static auto create_authored(
       Perimortem::Memory::Allocator::Arena& domain,
-      Ttx::Lexical::Anchor anchor,
+      Tetrodotoxin::Source::Lexical::Anchor anchor,
       Model::Pack& pack) -> Return&;
 
   Return(const Return&) = delete;
@@ -37,27 +37,27 @@ class Return : public Ttx::Concept::Abstract {
   auto operator=(Return&&) -> Return& = delete;
 
   auto link(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& lexical_context,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& lexical_context,
       const Model::Type& access_scope,
-      const Ttx::Concept::Layout& results) -> Bool;
+      const Tetrodotoxin::Source::Layout& results) -> Bool;
 
-  auto finalize(Ttx::Lexical::Cursor& cursor) -> void;
+  auto finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> void;
 
   TTX_NAME("Return"_view);
   TTX_EMPTY_DOCUMENTATION();
 
-  constexpr auto get_anchor() const -> Ttx::Lexical::Anchor { return anchor; }
+  constexpr auto get_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor { return anchor; }
   constexpr auto get_pack() const -> const Model::Pack& { return pack.get(); }
 
  private:
   constexpr Return(
-      Ttx::Lexical::Anchor anchor,
-      Ttx::Model::PackReference<Model::Pack> pack)
+      Tetrodotoxin::Source::Lexical::Anchor anchor,
+      Tetrodotoxin::Source::PackReference<Model::Pack> pack)
       : anchor(anchor), pack(pack) {}
 
-  Ttx::Lexical::Anchor anchor;
-  Ttx::Model::PackReference<Model::Pack> pack;
+  Tetrodotoxin::Source::Lexical::Anchor anchor;
+  Tetrodotoxin::Source::PackReference<Model::Pack> pack;
   Bool linked = False;
 };
 

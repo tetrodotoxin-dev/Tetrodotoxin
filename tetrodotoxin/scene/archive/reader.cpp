@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/scene/archive/reader.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "perimortem/core/reader/binary.hpp"
 
 #include "tetrodotoxin/language/definition.hpp"
@@ -10,12 +12,12 @@
 #include "tetrodotoxin/library/language/function.hpp"
 #include "tetrodotoxin/library/language/types/object.hpp"
 #include "tetrodotoxin/scene/language/signal.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/model/documentations/block.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/documentations/block.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin;
 
 auto Scene::Archive::Reader::open(View::Bytes payload) -> Option<Reader> {
@@ -35,7 +37,7 @@ auto Scene::Archive::Reader::restore(
     View::Bytes payload,
     const Abstract& language,
     const Library::Dialect& library,
-    Abstract& context) -> Option<Ttx::Concept::Abstract&> {
+    Abstract& context) -> Option<Tetrodotoxin::Source::Abstract&> {
   // Scene restoration requires the deferred Package projection decoder.
   return {};
 }
@@ -69,7 +71,7 @@ auto Scene::Archive::Reader::read_bytes() -> Option<View::Bytes> {
 }
 
 auto Scene::Archive::Reader::read_documentation(Allocator::Arena& arena)
-    -> Option<const Documentation&> {
+    -> Option<const Tetrodotoxin::Source::Documentation&> {
   auto count = read_u32();
   BAIL_IF(!count || Count(*count) > payload.get_size());
   auto lines = arena.reserve<View::Bytes>(*count);
@@ -78,6 +80,6 @@ auto Scene::Archive::Reader::read_documentation(Allocator::Arena& arena)
     BAIL_IF(!line);
     lines.get_data()[index] = arena.proxy(*line);
   }
-  return arena.construct<Ttx::Model::Documentations::Block>(
+  return arena.construct<Tetrodotoxin::Source::Documentations::Block>(
       View::Vector<View::Bytes>(lines.get_data(), lines.get_size()));
 }

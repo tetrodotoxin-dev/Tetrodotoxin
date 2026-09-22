@@ -138,7 +138,7 @@ auto Package::Archive::Writer::write(
   }
 
   Managed::Vector<Package::Archive::Resource> resources(arena);
-  for (const Ttx::Concept::Reference<Package::Resource>& retained :
+  for (const Tetrodotoxin::Source::Reference<Package::Resource>& retained :
        package.get_resources().get_values()) {
     const Package::Resource& resource = retained.get();
     resources.insert(

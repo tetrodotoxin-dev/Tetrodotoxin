@@ -3,20 +3,22 @@
 
 #include "tetrodotoxin/language/definition.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "perimortem/memory/managed/vector.hpp"
 
 #include "tetrodotoxin/language/parser/comment.hpp"
-#include "ttx/model/documentations/merged.hpp"
+#include "tetrodotoxin/source/documentations/merged.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 auto Language::Definition::parse(
     Cursor& cursor,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     Abstract& host,
     Option<View::Vector<Attribute>> supplied_attributes)
     -> Option<Definition&> {
@@ -25,7 +27,7 @@ auto Language::Definition::parse(
   // owner is constructed only after its complete common prefix is accepted.
   Token opening = cursor.current();
   Managed::Vector<Language::Attribute> parsed_attributes(cursor.get_arena());
-  const Documentation* retained_documentation = &documentation;
+  const Tetrodotoxin::Source::Documentation* retained_documentation = &documentation;
   View::Vector<Language::Attribute> retained_attributes;
   if (supplied_attributes) {
     // An embedding interpreter may discover the outer declaration only after
@@ -45,7 +47,7 @@ auto Language::Definition::parse(
         continue;
       }
 
-      const Documentation& continued = Language::Parser::Comment::parse(cursor);
+      const Tetrodotoxin::Source::Documentation& continued = Language::Parser::Comment::parse(cursor);
       if (continued.is_empty()) {
         continue;
       }
@@ -53,7 +55,7 @@ auto Language::Definition::parse(
         retained_documentation = &continued;
       } else {
         retained_documentation =
-            &cursor.get_arena().construct<Ttx::Model::Documentations::Merged>(
+            &cursor.get_arena().construct<Tetrodotoxin::Source::Documentations::Merged>(
                 *retained_documentation, continued);
       }
     }
@@ -121,14 +123,14 @@ auto Language::Definition::parse(
         return Definition(
             *retained_documentation, retained_attributes, modifiers.get_view(),
             visibility, visibility_token, name, name_token, qualifier, host,
-            Anchor::create(name_token, Span(opening, qualifier)), False);
+            Anchor::create(name_token, Span(opening, qualifier)));
       });
   return definition;
 }
 
 auto Language::Definition::create_synthetic(
     Allocator::Arena& domain,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     Abstract& host,
     View::Bytes reserved_name,
     Visibility visibility,
@@ -137,13 +139,13 @@ auto Language::Definition::create_synthetic(
   return domain.construct_from<Definition>([&]() -> Definition {
     return Definition(
         documentation, attributes, {}, visibility, {}, reserved_name, {}, {},
-        host, anchor, True);
+        host, anchor);
   });
 }
 
 auto Language::Definition::create_restored(
     Allocator::Arena& domain,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     Abstract& host,
     View::Vector<Attribute> attributes,
     View::Bytes name,
@@ -151,13 +153,13 @@ auto Language::Definition::create_restored(
   return domain.construct_from<Definition>([&]() -> Definition {
     return Definition(
         documentation, attributes, {}, visibility, {}, name, {}, {}, host,
-        Anchor::create(Span()), True);
+        Anchor::create(Span()));
   });
 }
 
 auto Language::Definition::create_authored(
     Cursor& cursor,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     Abstract& host,
     View::Vector<Attribute> attributes,
     View::Vector<Token> modifiers,
@@ -170,13 +172,13 @@ auto Language::Definition::create_authored(
   return cursor.get_arena().construct_from<Definition>([&]() -> Definition {
     return Definition(
         documentation, attributes, modifiers, visibility, visibility_token,
-        name, name_token, qualifier, host, anchor, True);
+        name, name_token, qualifier, host, anchor);
   });
 }
 
 auto Language::Definition::create_authored_prefix(
     Cursor& cursor,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     Abstract& host,
     View::Vector<Attribute> attributes,
     View::Vector<Token> modifiers,
@@ -189,17 +191,6 @@ auto Language::Definition::create_authored_prefix(
   return cursor.get_arena().construct_from<Definition>([&]() -> Definition {
     return Definition(
         documentation, attributes, modifiers, visibility, visibility_token,
-        name, name_token, qualifier, host, anchor, False);
+        name, name_token, qualifier, host, anchor);
   });
-}
-
-auto Language::Definition::complete(Token focus, Token closing) -> Bool {
-  if (anchor_complete || !is_authored() || !focus || !closing ||
-      !anchor.get_span()) {
-    return False;
-  }
-
-  anchor = Anchor::create(focus, Span(anchor.get_span().get_start(), closing));
-  anchor_complete = True;
-  return True;
 }

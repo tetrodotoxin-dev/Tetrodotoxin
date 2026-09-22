@@ -8,8 +8,8 @@
 #include "perimortem/memory/allocator/arena.hpp"
 
 #include "tetrodotoxin/library/language/constant.hpp"
-#include "ttx/concept/abstract.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Interpreter {
 
@@ -25,8 +25,8 @@ class Literal {
   Literal() = delete;
 
   static auto parse(
-      const Ttx::Concept::Abstract& context,
-      Ttx::Lexical::Cursor& cursor)
+      const Tetrodotoxin::Source::Abstract& context,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor)
       -> Perimortem::Core::Option<Language::Constant&>;
 };
 

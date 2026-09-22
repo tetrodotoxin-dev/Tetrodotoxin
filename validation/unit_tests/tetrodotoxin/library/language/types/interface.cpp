@@ -17,14 +17,14 @@
 #include "tetrodotoxin/library/language/types/implementation.hpp"
 #include "tetrodotoxin/library/language/types/implemented.hpp"
 #include "tetrodotoxin/library/language/types/object.hpp"
-#include "ttx/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Tetrodotoxin;
 using namespace Tetrodotoxin::Library;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Validation;
 
 static Harness InterfaceTypes = {

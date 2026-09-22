@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/library/language/operations/greater.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "validation/unit_test.hpp"
 #include "validation/unit_tests/tetrodotoxin/library/language/fixture.hpp"
 
@@ -24,17 +26,17 @@
 #include "tetrodotoxin/library/language/types/s8.hpp"
 #include "tetrodotoxin/library/language/types/u16.hpp"
 #include "tetrodotoxin/library/language/types/u8.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Utility;
 using namespace Tetrodotoxin::Library;
 using namespace Tetrodotoxin::Library::Language;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Validation;
 
 static Harness LibraryGreater = {
@@ -46,7 +48,7 @@ static auto link_operation(Operation& operation, const Abstract& context)
   Allocator::Arena transaction;
   Errors errors;
   Tokenizer tokenizer(transaction, {}, "<operation>"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   return operation.link(cursor, context);
 }
@@ -57,8 +59,8 @@ class GreaterExpression : public Expression {
       : Expression({}), name(name), type(type) {}
 
   auto get_name() const -> View::Bytes override { return name; }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
   auto get_type() const -> const Abstract& override { return type; }
 
@@ -67,11 +69,11 @@ class GreaterExpression : public Expression {
   const Abstract& type;
 };
 
-class GreaterUnresolvedType : public Ttx::Model::Type {
+class GreaterUnresolvedType : public Tetrodotoxin::Source::Type {
  public:
   auto get_name() const -> View::Bytes override { return "Unresolved"_view; }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
   auto resolve() const -> const Abstract& override {
     return Unknown::get_unknown();
@@ -91,15 +93,15 @@ class GreaterFoldInput : public Operation {
       Bool fails = False)
       : Operation(
             domain,
-            Static::Vector<Ttx::Model::PackReference<Model::Pack>, 1>{{input}},
+            Static::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>, 1>{{input}},
             {}),
         result(result),
         type(type),
         fails(fails) {}
 
   auto get_name() const -> View::Bytes override { return "Fold input"_view; }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
   auto get_evaluations() const -> Count { return evaluations; }
 
@@ -377,7 +379,7 @@ PERIMORTEM_UNIT_TEST(LibraryGreater, atomic_provenance) {
   const auto& parser_type = resolve_library_unsigned(source, "U64"_view);
   Errors success_errors;
   Tokenizer success_tokens(domain, "2 > 1"_view, "greater.ttx"_view);
-  Ttx::Lexical::Associations success_associations(success_tokens.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations success_associations(success_tokens.get_arena());
   Cursor success_cursor(success_tokens, success_errors, success_associations);
   Token success_left_token = success_cursor.consume();
   auto success_left_anchor =
@@ -389,7 +391,7 @@ PERIMORTEM_UNIT_TEST(LibraryGreater, atomic_provenance) {
       Span(success_left_token));
   Errors failure_errors;
   Tokenizer failure_tokens(domain, "2 > true"_view, "greater.ttx"_view);
-  Ttx::Lexical::Associations failure_associations(failure_tokens.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations failure_associations(failure_tokens.get_arena());
   Cursor failure_cursor(failure_tokens, failure_errors, failure_associations);
   Token failure_left_token = failure_cursor.consume();
   auto failure_left_anchor =

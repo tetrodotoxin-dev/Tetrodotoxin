@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/library/language/access/slice.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "validation/unit_test.hpp"
 #include "validation/unit_tests/tetrodotoxin/library/language/fixture.hpp"
 
@@ -33,15 +35,15 @@
 #include "tetrodotoxin/library/language/types/u64.hpp"
 #include "tetrodotoxin/library/language/types/u8.hpp"
 #include "tetrodotoxin/library/language/types/view.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Utility;
 using namespace Tetrodotoxin::Library::Language;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Validation;
 using Tetrodotoxin::Library::Language::Access::Slice;
 
@@ -53,10 +55,10 @@ static auto link_expression(
     Allocator::Arena& domain,
     Expression& expression,
     const Abstract& context) -> Bool {
-  Ttx::Lexical::Errors errors;
-  Ttx::Lexical::Tokenizer tokenizer(domain, {}, "slice-expression.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
-  Ttx::Lexical::Cursor cursor(tokenizer, errors, associations);
+  Tetrodotoxin::Source::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Tokenizer tokenizer(domain, {}, "slice-expression.ttx"_view);
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Cursor cursor(tokenizer, errors, associations);
   return expression.link(cursor, context);
 }
 
@@ -66,7 +68,7 @@ static auto create_slice(
     Model::Pack& index) -> Slice& {
   return Slice::create_authored(
       domain, receiver, index,
-      Ttx::Lexical::Anchor::create(Ttx::Lexical::Span()));
+      Tetrodotoxin::Source::Lexical::Anchor::create(Tetrodotoxin::Source::Lexical::Span()));
 }
 
 static auto create_slice(
@@ -76,23 +78,23 @@ static auto create_slice(
     Model::Pack& count) -> Slice& {
   return Slice::create_authored(
       domain, receiver, start, count,
-      Ttx::Lexical::Anchor::create(Ttx::Lexical::Span()));
+      Tetrodotoxin::Source::Lexical::Anchor::create(Tetrodotoxin::Source::Lexical::Span()));
 }
 
 class ValueExpression : public Expression {
  public:
-  ValueExpression(View::Bytes name, const Ttx::Model::Type& type)
+  ValueExpression(View::Bytes name, const Tetrodotoxin::Source::Type& type)
       : Expression({}), name(name), type(type) {}
 
   auto get_name() const -> View::Bytes override { return name; }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
-  auto get_type() const -> const Ttx::Model::Type& override { return type; }
+  auto get_type() const -> const Tetrodotoxin::Source::Type& override { return type; }
 
  private:
   View::Bytes name;
-  const Ttx::Model::Type& type;
+  const Tetrodotoxin::Source::Type& type;
 };
 
 class ValueConstant : public Tetrodotoxin::Library::Language::Constant {
@@ -122,15 +124,15 @@ class ValueFoldOperation : public Operation {
       Bool fails = False)
       : Operation(
             domain,
-            Static::Vector<Ttx::Model::PackReference<Model::Pack>, 1>{{input}},
+            Static::Vector<Tetrodotoxin::Source::PackReference<Model::Pack>, 1>{{input}},
             {}),
         result(result),
         type(type),
         fails(fails) {}
 
   auto get_name() const -> View::Bytes override { return "Fold size"_view; }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
 
  protected:

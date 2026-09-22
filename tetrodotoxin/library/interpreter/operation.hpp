@@ -7,8 +7,8 @@
 
 #include "tetrodotoxin/library/language/expression.hpp"
 #include "tetrodotoxin/library/language/model/pack.hpp"
-#include "ttx/concept/abstract.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Interpreter {
 
@@ -20,17 +20,17 @@ class Operation {
   Operation() = delete;
 
   static auto parse_binary(
-      Ttx::Lexical::Code::Type code,
-      const Ttx::Concept::Abstract& context,
-      Ttx::Lexical::Cursor& cursor,
+      Tetrodotoxin::Source::Lexical::Code::Type code,
+      const Tetrodotoxin::Source::Abstract& context,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
       Language::Model::Pack& left,
-      Ttx::Lexical::Span left_span)
+      Tetrodotoxin::Source::Lexical::Span left_span)
       -> Perimortem::Core::Option<Language::Expression&>;
 
   static auto parse_prefix(
-      Ttx::Lexical::Code::Type code,
-      const Ttx::Concept::Abstract& context,
-      Ttx::Lexical::Cursor& cursor)
+      Tetrodotoxin::Source::Lexical::Code::Type code,
+      const Tetrodotoxin::Source::Abstract& context,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor)
       -> Perimortem::Core::Option<Language::Expression&>;
 };
 

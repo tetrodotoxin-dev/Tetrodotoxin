@@ -3,13 +3,15 @@
 
 #include "tetrodotoxin/package/language/monograph.hpp"
 
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/documentation.hpp"
+
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 static auto is_resource_route(View::Bytes route) -> Bool {
@@ -20,7 +22,7 @@ static auto is_resource_route(View::Bytes route) -> Bool {
 auto Package::Language::Monograph::create_authored(
     Allocator::Arena& arena,
     const Abstract& language,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     const Anchor& source_anchor,
     View::Bytes identity,
     Perimortem::System::Version version,
@@ -44,7 +46,7 @@ auto Package::Language::Monograph::create_synthetic(
     -> Monograph& {
   Monograph& monograph = arena.construct_from<Monograph>([&]() -> Monograph {
     return Monograph(
-        arena, language, Documentation::get_empty(), Anchor::create(Span()),
+        arena, language, Tetrodotoxin::Source::Documentation::get_empty(), Anchor::create(Span()),
         identity, version, context, library_language, restored_resources, True);
   });
   return monograph;
@@ -53,7 +55,7 @@ auto Package::Language::Monograph::create_synthetic(
 Package::Language::Monograph::Monograph(
     Allocator::Arena& arena,
     const Abstract& language,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     const Anchor& source_anchor,
     View::Bytes identity,
     Perimortem::System::Version version,
@@ -96,7 +98,7 @@ auto Package::Language::Monograph::resolve_concept(View::Bytes route) const
 }
 
 auto Package::Language::Monograph::visit_concepts(
-    Ttx::Concept::Abstract::Visitor visitor) const -> void {
+    Tetrodotoxin::Source::Abstract::Visitor visitor) const -> void {
   visitor("static"_view, library.get_source());
 }
 

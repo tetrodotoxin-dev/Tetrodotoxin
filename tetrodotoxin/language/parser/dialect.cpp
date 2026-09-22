@@ -5,11 +5,11 @@
 
 #include "perimortem/memory/managed/vector.hpp"
 
-#include "ttx/lexical/lexicon.hpp"
-#include "ttx/lexical/token.hpp"
+#include "tetrodotoxin/source/lexical/lexicon.hpp"
+#include "tetrodotoxin/source/lexical/token.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Language;
 
 auto Parser::Dialect::parse(Cursor& cursor) -> View::Bytes {

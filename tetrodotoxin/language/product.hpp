@@ -5,16 +5,16 @@
 
 #include "perimortem/memory/allocator/arena.hpp"
 
-#include "ttx/concept/constant.hpp"
+#include "tetrodotoxin/source/constant.hpp"
 
 namespace Tetrodotoxin::Language {
 
 // Product is one immutable named byte result produced after graph completion.
 // Its relative name is publication intent rather than semantic identity inside
 // the source graph, and its bytes remain valid for the result Arena lifetime.
-class Product : public Ttx::Concept::Constant {
+class Product : public Tetrodotoxin::Source::Constant {
  public:
-  TTX_CONTRACT(Product, Ttx::Concept::Constant);
+  TTX_CONTRACT(Product, Tetrodotoxin::Source::Constant);
 
   static auto create(
       Perimortem::Memory::Allocator::Arena& arena,

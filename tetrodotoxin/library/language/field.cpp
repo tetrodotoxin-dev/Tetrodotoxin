@@ -5,14 +5,14 @@
 
 #include "tetrodotoxin/library/language/diagnostics.hpp"
 #include "tetrodotoxin/library/language/expression.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Utility;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
 auto Language::Field::complete_source(
@@ -388,7 +388,7 @@ auto Language::Field::get_constant() const -> Option<Model::Pack&> {
 
   return constant.visit(
       []() -> Option<Model::Pack&> { return {}; },
-      [](const Ttx::Model::PackReference<Model::Pack>& selected)
+      [](const Tetrodotoxin::Source::PackReference<Model::Pack>& selected)
           -> Option<Model::Pack&> { return selected.get(); });
 }
 
@@ -416,7 +416,7 @@ auto Language::Field::cache_constant() const -> Bool {
         return field_type->create_fitted(domain, source);
       });
   if (fitted) {
-    constant = Ttx::Model::PackReference<Model::Pack>(*fitted);
+    constant = Tetrodotoxin::Source::PackReference<Model::Pack>(*fitted);
     constant_state = ConstantState::Folded;
     return True;
   }
@@ -438,7 +438,7 @@ auto Language::Field::cache_constant() const -> Bool {
           constant_state = ConstantState::Unresolved;
           return;
         }
-        constant = Ttx::Model::PackReference<Model::Pack>(*folded);
+        constant = Tetrodotoxin::Source::PackReference<Model::Pack>(*folded);
         constant_state = ConstantState::Folded;
       },
       [&](const Expression::Error&) {

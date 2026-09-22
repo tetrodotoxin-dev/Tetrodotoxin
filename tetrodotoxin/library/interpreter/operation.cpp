@@ -25,8 +25,8 @@
 #include "tetrodotoxin/library/language/operations/subtract_assignment.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 
 template <typename operation_type>

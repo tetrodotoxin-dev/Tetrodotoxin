@@ -15,14 +15,14 @@
 #include "tetrodotoxin/library/language/types/structure.hpp"
 #include "tetrodotoxin/scene/language/monograph.hpp"
 #include "tetrodotoxin/terminal/graphics/compiler.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/errors.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Tetrodotoxin;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Validation;
 
 static Harness SceneDialect = {
@@ -191,12 +191,12 @@ PERIMORTEM_UNIT_TEST(SceneDialect, expands_fixed_hosted_objects) {
       static_cast<const Scene::Language::Monograph&>(*interpreted);
   auto requirement = scene.resolve_concept("Drawable"_view)
                          .resolve()
-                         .select<Ttx::Model::Type>();
+                         .select<Tetrodotoxin::Source::Type>();
   auto icon =
-      scene.resolve_concept("Icon"_view).resolve().select<Ttx::Model::Type>();
+      scene.resolve_concept("Icon"_view).resolve().select<Tetrodotoxin::Source::Type>();
   ASSERT(requirement && icon);
 
-  Static::Vector<Reference<const Ttx::Model::Type>, 1> configured = {{*icon}};
+  Static::Vector<Reference<const Tetrodotoxin::Source::Type>, 1> configured = {{*icon}};
   Allocator::Arena arena;
   auto products = Terminal::Graphics::Compiler().compile(
       arena, scene, *requirement, configured);

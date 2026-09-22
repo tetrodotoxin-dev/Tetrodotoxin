@@ -8,15 +8,15 @@
 #include "perimortem/memory/allocator/arena.hpp"
 
 #include "tetrodotoxin/language/resource.hpp"
-#include "ttx/concept/abstract.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/lexical/anchor.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
 
 namespace Tetrodotoxin::App::Language {
 
 // Runtime retains target neutral application startup policy. Profile specific
 // settings stay with their one owner and carry no host handle or backend state.
-class Runtime : public Ttx::Concept::Abstract {
+class Runtime : public Tetrodotoxin::Source::Abstract {
  public:
   enum class Profile : U8 {
     Terminal = 1,
@@ -32,7 +32,7 @@ class Runtime : public Ttx::Concept::Abstract {
         Perimortem::Core::Option<Perimortem::Core::View::Bytes> title,
         Perimortem::Core::Option<Perimortem::Core::View::Bytes> icon_route,
         Perimortem::Core::Option<
-            Ttx::Concept::Reference<const Tetrodotoxin::Language::Resource>>
+            Tetrodotoxin::Source::Reference<const Tetrodotoxin::Language::Resource>>
             icon,
         Perimortem::Core::Option<U32> width,
         Perimortem::Core::Option<U32> height,
@@ -59,7 +59,7 @@ class Runtime : public Ttx::Concept::Abstract {
       return icon.visit(
           []() -> Perimortem::Core::Option<
                    const Tetrodotoxin::Language::Resource&> { return {}; },
-          [](const Ttx::Concept::Reference<
+          [](const Tetrodotoxin::Source::Reference<
               const Tetrodotoxin::Language::Resource>& selected)
               -> Perimortem::Core::Option<
                   const Tetrodotoxin::Language::Resource&> {
@@ -83,25 +83,25 @@ class Runtime : public Ttx::Concept::Abstract {
     Perimortem::Core::Option<Perimortem::Core::View::Bytes> title;
     Perimortem::Core::Option<Perimortem::Core::View::Bytes> icon_route;
     Perimortem::Core::Option<
-        Ttx::Concept::Reference<const Tetrodotoxin::Language::Resource>>
+        Tetrodotoxin::Source::Reference<const Tetrodotoxin::Language::Resource>>
         icon;
     Perimortem::Core::Option<U32> width;
     Perimortem::Core::Option<U32> height;
     Perimortem::Core::Option<Bool> resizable;
   };
 
-  TTX_CONTRACT(Runtime, Ttx::Concept::Abstract);
+  TTX_CONTRACT(Runtime, Tetrodotoxin::Source::Abstract);
 
   static auto create_authored(
       Perimortem::Memory::Allocator::Arena& arena,
-      const Ttx::Concept::Documentation& documentation,
+      const Tetrodotoxin::Source::Documentation& documentation,
       Profile profile,
-      Ttx::Lexical::Anchor anchor) -> Runtime&;
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> Runtime&;
 
   static auto create_windowed(
       Perimortem::Memory::Allocator::Arena& arena,
-      const Ttx::Concept::Documentation& documentation,
-      Ttx::Lexical::Anchor anchor,
+      const Tetrodotoxin::Source::Documentation& documentation,
+      Tetrodotoxin::Source::Lexical::Anchor anchor,
       Perimortem::Core::Option<Perimortem::Core::View::Bytes> title,
       Perimortem::Core::Option<Perimortem::Core::View::Bytes> icon_route,
       Perimortem::Core::Option<const Tetrodotoxin::Language::Resource&> icon,
@@ -112,12 +112,12 @@ class Runtime : public Ttx::Concept::Abstract {
   // Format 1 App payloads contain only the accepted Terminal profile.
   static auto create_synthetic(
       Perimortem::Memory::Allocator::Arena& arena,
-      const Ttx::Concept::Documentation& documentation) -> Runtime&;
+      const Tetrodotoxin::Source::Documentation& documentation) -> Runtime&;
 
   auto get_name() const -> Perimortem::Core::View::Bytes override;
   TTX_DOCUMENTATION(documentation);
 
-  constexpr auto get_anchor() const -> Ttx::Lexical::Anchor { return anchor; }
+  constexpr auto get_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor { return anchor; }
 
   constexpr auto get_profile() const -> Profile { return profile; }
 
@@ -127,22 +127,22 @@ class Runtime : public Ttx::Concept::Abstract {
   }
 
   auto resolve_concept(Perimortem::Core::View::Bytes) const
-      -> const Ttx::Concept::Abstract& override;
+      -> const Tetrodotoxin::Source::Abstract& override;
 
  private:
   constexpr Runtime(
-      const Ttx::Concept::Documentation& documentation,
+      const Tetrodotoxin::Source::Documentation& documentation,
       Profile profile,
-      Ttx::Lexical::Anchor anchor,
+      Tetrodotoxin::Source::Lexical::Anchor anchor,
       Perimortem::Core::Option<const Windowed&> windowed)
       : documentation(documentation),
         profile(profile),
         anchor(anchor),
         windowed(windowed) {}
 
-  const Ttx::Concept::Documentation& documentation;
+  const Tetrodotoxin::Source::Documentation& documentation;
   Profile profile;
-  Ttx::Lexical::Anchor anchor;
+  Tetrodotoxin::Source::Lexical::Anchor anchor;
   Perimortem::Core::Option<const Windowed&> windowed;
 };
 

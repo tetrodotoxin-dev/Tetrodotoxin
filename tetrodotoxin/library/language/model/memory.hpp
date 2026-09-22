@@ -5,7 +5,7 @@
 
 #include "tetrodotoxin/library/language/model/type.hpp"
 #include "ttx/concept/domain.hpp"
-#include "ttx/model/addressable.hpp"
+#include "tetrodotoxin/source/addressable.hpp"
 
 namespace Tetrodotoxin::Library::Language::Model {
 
@@ -16,17 +16,17 @@ namespace Tetrodotoxin::Library::Language::Model {
 //
 // Instance members require the Library access operator, so ordinary context
 // lookup does not turn a memory location into its Type's member namespace.
-class Memory : public Ttx::Model::Addressable {
+class Memory : public Tetrodotoxin::Source::Addressable {
  public:
-  TTX_CONTRACT(Memory, Ttx::Model::Addressable);
+  TTX_CONTRACT(Memory, Tetrodotoxin::Source::Addressable);
 
   auto bind_interface(Perimortem::System::Uuid requested) const
-      -> Perimortem::Utility::Result<Ttx::Semantic::Binding,
-                                     Ttx::Semantic::Binding::Failure> override {
+      -> Perimortem::Utility::Result<Ttx::Semantic::Negotiation::Binding,
+                                     Ttx::Semantic::Negotiation::Binding::Failure> override {
     if (requested == Ttx::Concept::Domain::contract_id) {
       return Ttx::Concept::Domain::provide(*this);
     }
-    return Ttx::Model::Addressable::bind_interface(requested);
+    return Tetrodotoxin::Source::Addressable::bind_interface(requested);
   }
 
   // Instance Layout assembly retains this exact Addressable identity, but the
@@ -48,17 +48,17 @@ class Memory : public Ttx::Model::Addressable {
   }
 
   auto resolve_concept(Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract& override {
-    const Ttx::Concept::Abstract& resolved = resolve();
+      -> const Tetrodotoxin::Source::Abstract& override {
+    const Tetrodotoxin::Source::Abstract& resolved = resolve();
     if (&resolved != this) {
       return resolved.resolve_concept(route);
     }
 
-    return Ttx::Concept::Unknown::get_unknown();
+    return Tetrodotoxin::Source::Unknown::get_unknown();
   }
 
   virtual constexpr auto get_type() const
-      -> const Ttx::Concept::Abstract& override = 0;
+      -> const Tetrodotoxin::Source::Abstract& override = 0;
 
  protected:
   friend class Ttx::Concept::Domain;
@@ -67,8 +67,8 @@ class Memory : public Ttx::Model::Addressable {
   // native value Type. That override keeps import policy on Domain queries.
   virtual auto get_domain() const -> Ttx::Concept::Domain::Answer {
     const auto& type = get_type();
-    if (&type == &Ttx::Concept::Unknown::get_unknown()) {
-      return Ttx::Semantic::Binding::Failure::Pending;
+    if (&type == &Tetrodotoxin::Source::Unknown::get_unknown()) {
+      return Ttx::Semantic::Negotiation::Binding::Failure::Pending;
     }
     return type.get_interface();
   }

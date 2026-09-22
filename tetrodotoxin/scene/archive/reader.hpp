@@ -20,10 +20,10 @@ class Reader {
   static auto restore(
       Perimortem::Memory::Allocator::Arena& arena,
       Perimortem::Core::View::Bytes payload,
-      const Ttx::Concept::Abstract& language,
+      const Tetrodotoxin::Source::Abstract& language,
       const Tetrodotoxin::Library::Dialect& library,
-      Ttx::Concept::Abstract& context)
-      -> Perimortem::Core::Option<Ttx::Concept::Abstract&>;
+      Tetrodotoxin::Source::Abstract& context)
+      -> Perimortem::Core::Option<Tetrodotoxin::Source::Abstract&>;
 
  private:
   constexpr Reader(Perimortem::Core::View::Bytes payload) : payload(payload) {}
@@ -37,7 +37,7 @@ class Reader {
   auto read_u32() -> Perimortem::Core::Option<U32>;
   auto read_bytes() -> Perimortem::Core::Option<Perimortem::Core::View::Bytes>;
   auto read_documentation(Perimortem::Memory::Allocator::Arena& arena)
-      -> Perimortem::Core::Option<const Ttx::Concept::Documentation&>;
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Documentation&>;
 
   constexpr auto is_complete() const -> Bool {
     return location == payload.get_size();

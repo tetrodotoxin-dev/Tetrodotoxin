@@ -4,7 +4,7 @@
 #include "tetrodotoxin/library/language/types/range.hpp"
 
 #include "tetrodotoxin/library/language/constants/range.hpp"
-#include "ttx/model/addressable.hpp"
+#include "tetrodotoxin/source/addressable.hpp"
 
 using namespace Perimortem::Core;
 using namespace Tetrodotoxin::Library::Language;
@@ -14,11 +14,11 @@ auto Types::Range::create_default(
   return Constants::Range::create_synthetic(arena, *this);
 }
 
-auto Types::Range::accepts_iteration(const Ttx::Concept::Layout& bindings) const
+auto Types::Range::accepts_iteration(const Tetrodotoxin::Source::Layout& bindings) const
     -> Bool {
   auto binding = bindings.get_abstract(0);
-  auto addressable = binding ? binding->select<Ttx::Model::Addressable>()
-                             : Option<const Ttx::Model::Addressable&>();
+  auto addressable = binding ? binding->select<Tetrodotoxin::Source::Addressable>()
+                             : Option<const Tetrodotoxin::Source::Addressable&>();
   return bindings.get_size() == 1 && addressable &&
          &addressable->get_type().resolve() == &element.resolve();
 }

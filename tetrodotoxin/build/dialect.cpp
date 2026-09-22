@@ -3,14 +3,16 @@
 
 #include "tetrodotoxin/build/dialect.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 auto Build::Dialect::interpret(
     Cursor& cursor,
-    const Documentation&,
+    const Tetrodotoxin::Source::Documentation&,
     const Anchor&,
     Abstract&) -> Option<Language::Monograph&> {
   // The host can install Build before its command language is available. An

@@ -10,7 +10,7 @@
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Render;
 
 auto Interpreter::Layout::parse(Cursor& cursor, Bool parameters)

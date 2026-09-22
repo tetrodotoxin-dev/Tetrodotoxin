@@ -37,7 +37,7 @@ class Range : public Tetrodotoxin::Library::Language::Constant {
  private:
   constexpr Range(
       const Types::Range& type,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor)
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor)
       : Tetrodotoxin::Library::Language::Constant(anchor), type(type) {}
 
   const Types::Range& type;

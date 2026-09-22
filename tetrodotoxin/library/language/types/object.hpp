@@ -36,16 +36,16 @@ class Object : public Structure {
       -> Perimortem::Core::Option<Model::Pack&> override;
 
   auto create_supplied(
-      Ttx::Lexical::Cursor& cursor,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
       Model::Pack& arguments,
-      Perimortem::Core::Option<const Ttx::Concept::Abstract&> access_scope,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor) const
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&> access_scope,
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor) const
       -> Perimortem::Core::Option<Model::Pack&> override;
 
   auto create_supplied_restored(
       Perimortem::Memory::Allocator::Arena& arena,
       Model::Pack& arguments,
-      Perimortem::Core::Option<const Ttx::Concept::Abstract&> access_scope)
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&> access_scope)
       const -> Perimortem::Core::Option<Model::Pack&> override;
 };
 

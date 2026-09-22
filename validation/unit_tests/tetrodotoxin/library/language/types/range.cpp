@@ -13,14 +13,14 @@
 #include "tetrodotoxin/library/dialect.hpp"
 #include "tetrodotoxin/library/language/generics/range.hpp"
 #include "tetrodotoxin/library/language/types/s16.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Tetrodotoxin::Library;
 using namespace Tetrodotoxin::Library::Language;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Validation;
 
 static Harness LibraryRange = {
@@ -32,7 +32,7 @@ PERIMORTEM_UNIT_TEST(LibraryRange, direct_contract) {
   Types::Range range("Range[S16]"_view, element);
 
   EXPECT(range.is<Types::Range>());
-  EXPECT(range.is<Ttx::Model::Type>());
+  EXPECT(range.is<Tetrodotoxin::Source::Type>());
   EXPECT(range.is<Abstract>());
   EXPECT_NOT(range.is<Generic>());
   EXPECT_TEXT(range.get_name(), "Range[S16]"_view);

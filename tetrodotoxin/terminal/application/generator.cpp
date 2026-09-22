@@ -18,7 +18,7 @@ using namespace Perimortem;
 using namespace Tetrodotoxin;
 
 struct ApplicationSceneSelection {
-  Ttx::Concept::Reference<const Scene::Language::Monograph> scene;
+  Tetrodotoxin::Source::Reference<const Scene::Language::Monograph> scene;
   Core::View::Bytes route;
 };
 
@@ -113,8 +113,8 @@ auto Terminal::Application::Generator::create(
     Core::View::Bytes package,
     Core::View::Bytes artifact,
     Core::View::Vector<MemberBinding> members,
-    const Ttx::Model::Type& graphics_placement,
-    Core::View::Vector<Ttx::Concept::Reference<const Ttx::Model::Type>>
+    const Tetrodotoxin::Source::Type& graphics_placement,
+    Core::View::Vector<Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type>>
         graphics_types,
     Core::View::Vector<Core::View::Bytes> graphics_placements,
     Core::View::Vector<Core::View::Bytes> graphics_children,
@@ -148,7 +148,7 @@ auto Terminal::Application::Generator::create(
 
   Memory::Managed::Vector<ApplicationSceneSelection> scenes(arena);
   BAIL_IF(!retain_scene(scenes, *initial, *initial_route));
-  for (const Ttx::Concept::Reference<App::Language::Transition>& retained :
+  for (const Tetrodotoxin::Source::Reference<App::Language::Transition>& retained :
        policy->get_transitions()) {
     const App::Language::Transition& transition = retained.get();
     auto source = transition.get_source_scene();
@@ -245,7 +245,7 @@ auto Terminal::Application::Generator::create(
         "void*, Count, void**"_view);
   }
 
-  for (const Ttx::Concept::Reference<App::Language::Transition>& retained :
+  for (const Tetrodotoxin::Source::Reference<App::Language::Transition>& retained :
        policy->get_transitions()) {
     const App::Language::Transition& transition = retained.get();
     auto source_scene = transition.get_source_scene();
@@ -455,7 +455,7 @@ auto Terminal::Application::Generator::create(
   output << "};\n\n"_view
          << "static const Tetrodotoxin::Runtime::Application::Transition "
             "application_transitions[] = {\n"_view;
-  for (const Ttx::Concept::Reference<App::Language::Transition>& retained :
+  for (const Tetrodotoxin::Source::Reference<App::Language::Transition>& retained :
        policy->get_transitions()) {
     const App::Language::Transition& transition = retained.get();
     auto source_scene = transition.get_source_scene();

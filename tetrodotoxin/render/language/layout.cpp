@@ -5,13 +5,13 @@
 
 #include "tetrodotoxin/render/language/attributes.hpp"
 #include "tetrodotoxin/render/language/declarations.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Utility;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Render;
 
 auto Language::Layout::create(
@@ -39,7 +39,7 @@ auto Language::Layout::link(Cursor& cursor, const Abstract& context) -> Bool {
 
     auto retained = slot.get_edge();
     if (retained) {
-      auto parameter = retained->select<Ttx::Model::Addressable>();
+      auto parameter = retained->select<Tetrodotoxin::Source::Addressable>();
       Bool stable =
           parameters ? Bool(parameter && &parameter->get_type() == &*selected)
                      : &*retained == &*selected;
@@ -153,13 +153,13 @@ auto Language::Layout::get_name(Count index) const -> Option<View::Bytes> {
 }
 
 static auto represented_type(const Abstract& value) -> const Abstract& {
-  auto addressable = value.select<Ttx::Model::Addressable>();
+  auto addressable = value.select<Tetrodotoxin::Source::Addressable>();
   return addressable ? static_cast<const Abstract&>(addressable->get_type())
                      : value.resolve();
 }
 
 auto Language::Layout::find_target(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count source_index,
     Count target_offset) const -> Option<Count> {
   BAIL_IF(source_index >= get_size());
@@ -182,7 +182,7 @@ auto Language::Layout::find_target(
 }
 
 auto Language::Layout::fits_entry(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count source_index,
     Count target_index) const -> Bool {
   auto source = get_abstract(source_index);
@@ -192,7 +192,7 @@ auto Language::Layout::fits_entry(
 }
 
 auto Language::Layout::fits_at(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count target_offset) const -> Bool {
   BAIL_IF(!has_target_segment(target, target_offset));
   for (Count index = 0; index < get_size(); index++) {
@@ -203,7 +203,7 @@ auto Language::Layout::fits_at(
 }
 
 auto Language::Layout::get_fitted_at(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count target_offset,
     Count target_index) const -> Result<const Abstract&, Errors> {
   if (target_index >= get_size()) {

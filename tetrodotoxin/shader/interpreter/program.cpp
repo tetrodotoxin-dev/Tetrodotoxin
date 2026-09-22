@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/shader/interpreter/program.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "tetrodotoxin/language/parser/comment.hpp"
 #include "tetrodotoxin/language/parser/import.hpp"
 #include "tetrodotoxin/language/parser/type_reference.hpp"
@@ -13,8 +15,8 @@
 #include "tetrodotoxin/shader/interpreter/value.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 using namespace Tetrodotoxin::Shader;
 
@@ -41,7 +43,7 @@ static auto begins_uniform(const Cursor& cursor) -> Bool {
 auto Interpreter::Program::parse(
     Shader::Language::Monograph& monograph,
     Cursor& cursor,
-    const Documentation& documentation) -> Bool {
+    const Tetrodotoxin::Source::Documentation& documentation) -> Bool {
   Token relationship = cursor.require(
       Code::Type::Addressable,
       "Shader sources begin with `implements source(...)`."_view);
@@ -98,7 +100,7 @@ auto Interpreter::Program::parse(
   BAIL_IF(!monograph.retain_program(program));
 
   while (!cursor.matches(Code::Type::Terminal)) {
-    const Documentation& documentation =
+    const Tetrodotoxin::Source::Documentation& documentation =
         Tetrodotoxin::Language::Parser::Comment::parse(cursor);
     if (Interpreter::Stage::is_next(cursor)) {
       if (!Interpreter::Stage::parse(program, cursor, documentation)) {
@@ -114,7 +116,7 @@ auto Interpreter::Program::parse(
         Tetrodotoxin::Language::Definition::parse(cursor, documentation, host);
     Bool parsed = False;
     if (member_definition) {
-      Token member_qualifier = member_definition->get_qualifier();
+      Token member_qualifier = member_definition->get_authored().get_qualifier();
       View::Bytes qualifier_name =
           member_qualifier.caculate_text(cursor.get_source_text());
       if (qualifier_name == "bridge"_view) {
@@ -126,7 +128,7 @@ auto Interpreter::Program::parse(
       } else if (Interpreter::Value::matches(*member_definition, cursor)) {
         parsed = Interpreter::Value::parse(program, cursor, *member_definition);
       } else {
-        auto report = cursor.create_report(member_definition->get_anchor());
+        auto report = cursor.create_report(member_definition->get_authored().get_anchor());
         report
             << "Shader Programs author only Stage bodies, storage values, uniforms, and Bridges, not `"_view
             << qualifier_name << "`."_view;

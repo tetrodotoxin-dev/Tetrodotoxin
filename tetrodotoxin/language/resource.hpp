@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "ttx/concept/abstract.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 namespace Tetrodotoxin::Language {
 
@@ -12,9 +12,9 @@ namespace Tetrodotoxin::Language {
 // keeps both contents and lifetime stable. A consumer may borrow get_value only
 // when its domain cannot outlive that dependency domain. A shared domain
 // satisfies that contract without another allocation.
-class Resource : public Ttx::Concept::Abstract {
+class Resource : public Tetrodotoxin::Source::Abstract {
  public:
-  TTX_CONTRACT(Resource, Ttx::Concept::Abstract);
+  TTX_CONTRACT(Resource, Tetrodotoxin::Source::Abstract);
 
   TTX_NAME("Resource"_view);
 

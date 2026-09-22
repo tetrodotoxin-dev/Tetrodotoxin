@@ -61,7 +61,7 @@ static auto publish_literal(
 }
 
 auto Llvm::Emission::States::unsigned_value(
-    const Ttx::Model::Type& carrier,
+    const Tetrodotoxin::Source::Type& carrier,
     const Tetrodotoxin::Library::Language::Model::Pack& result,
     U64 value) const -> Bool {
   auto selected = select_literal_target(body);
@@ -74,7 +74,7 @@ auto Llvm::Emission::States::unsigned_value(
 }
 
 auto Llvm::Emission::States::signed_value(
-    const Ttx::Model::Type& carrier,
+    const Tetrodotoxin::Source::Type& carrier,
     const Tetrodotoxin::Library::Language::Model::Pack& result,
     S64 value) const -> Bool {
   auto selected = select_literal_target(body);
@@ -88,7 +88,7 @@ auto Llvm::Emission::States::signed_value(
 }
 
 auto Llvm::Emission::States::real_value(
-    const Ttx::Model::Type& carrier,
+    const Tetrodotoxin::Source::Type& carrier,
     const Tetrodotoxin::Library::Language::Model::Pack& result,
     R64 value) const -> Bool {
   auto selected = select_literal_target(body);
@@ -101,7 +101,7 @@ auto Llvm::Emission::States::real_value(
 }
 
 auto Llvm::Emission::States::bytes_value(
-    const Ttx::Model::Type& carrier,
+    const Tetrodotoxin::Source::Type& carrier,
     const Tetrodotoxin::Library::Language::Model::Pack& result,
     Core::View::Bytes value,
     Core::Option<const Tetrodotoxin::Language::Resource&> resource) const
@@ -134,7 +134,7 @@ auto Llvm::Emission::States::bytes_value(
 }
 
 auto Llvm::Emission::States::object_value(
-    const Ttx::Model::Type& carrier,
+    const Tetrodotoxin::Source::Type& carrier,
     const Tetrodotoxin::Library::Language::Model::Pack& result) const -> Bool {
   auto selected = select_literal_target(body);
   BAIL_IF(!selected);
@@ -146,7 +146,7 @@ auto Llvm::Emission::States::object_value(
 
 auto Llvm::Emission::States::enumeration_name(
     const Tetrodotoxin::Library::Language::Model::Pack& result,
-    const Ttx::Model::Type& result_type,
+    const Tetrodotoxin::Source::Type& result_type,
     LLVMValueRef value,
     Core::View::Vector<U64> values,
     Core::View::Vector<Core::View::Bytes> names) const -> Bool {
@@ -324,7 +324,7 @@ static auto publish_option(
 }
 
 auto Llvm::Emission::States::absent(
-    const Ttx::Model::Type& carrier,
+    const Tetrodotoxin::Source::Type& carrier,
     const Tetrodotoxin::Library::Language::Model::Pack& result) const -> Bool {
   Llvm::Module::Body& native_body = body;
   auto carriers = option_select_carriers(body);
@@ -337,8 +337,8 @@ auto Llvm::Emission::States::absent(
 }
 
 auto Llvm::Emission::States::present(
-    const Ttx::Model::Type& carrier,
-    const Ttx::Model::Type& element,
+    const Tetrodotoxin::Source::Type& carrier,
+    const Tetrodotoxin::Source::Type& element,
     const Tetrodotoxin::Library::Language::Model::Pack& result,
     const Tetrodotoxin::Library::Language::Model::Pack& payload) const -> Bool {
   Llvm::Module::Body& native_body = body;
@@ -376,7 +376,7 @@ auto Llvm::Emission::States::present(
 }
 
 auto Llvm::Emission::States::result(
-    const Ttx::Model::Type& carrier,
+    const Tetrodotoxin::Source::Type& carrier,
     const Tetrodotoxin::Library::Language::Model::Pack& result,
     const Tetrodotoxin::Library::Language::Model::Pack& payload) const -> Bool {
   Llvm::Module::Body& native_body = body;
@@ -392,8 +392,8 @@ auto Llvm::Emission::States::result(
 }
 
 auto Llvm::Emission::States::begin_unwrap(
-    const Ttx::Model::Type& carrier,
-    const Ttx::Model::Type& element,
+    const Tetrodotoxin::Source::Type& carrier,
+    const Tetrodotoxin::Source::Type& element,
     const Tetrodotoxin::Library::Language::Model::Pack& option) const
     -> Core::Option<Choice> {
   Llvm::Module::Body& native_body = body;
@@ -445,7 +445,7 @@ auto Llvm::Emission::States::begin_unwrap(
 
 auto Llvm::Emission::States::end_unwrap(
     Choice state,
-    const Ttx::Model::Type& element,
+    const Tetrodotoxin::Source::Type& element,
     const Tetrodotoxin::Library::Language::Model::Pack& result,
     const Tetrodotoxin::Library::Language::Model::Pack& fallback) const
     -> Bool {
@@ -486,8 +486,8 @@ auto Llvm::Emission::States::end_unwrap(
 }
 
 auto Llvm::Emission::States::propagate_option(
-    const Ttx::Model::Type& carrier,
-    const Ttx::Model::Type& element,
+    const Tetrodotoxin::Source::Type& carrier,
+    const Tetrodotoxin::Source::Type& element,
     const Tetrodotoxin::Library::Language::Model::Pack& result,
     const Tetrodotoxin::Library::Language::Model::Pack& option,
     const Tetrodotoxin::Library::Language::Model::Pack& escape) const -> Bool {
@@ -541,7 +541,7 @@ auto Llvm::Emission::States::propagate_option(
 }
 
 auto Llvm::Emission::States::propagate_flag(
-    const Ttx::Model::Type& carrier,
+    const Tetrodotoxin::Source::Type& carrier,
     const Tetrodotoxin::Library::Language::Model::Pack& result,
     const Tetrodotoxin::Library::Language::Model::Pack& flag,
     const Tetrodotoxin::Library::Language::Model::Pack& escape) const -> Bool {
@@ -576,9 +576,9 @@ auto Llvm::Emission::States::propagate_flag(
 }
 
 auto Llvm::Emission::States::propagate_result(
-    const Ttx::Model::Type& carrier,
-    const Ttx::Model::Type& value,
-    const Ttx::Model::Type& error,
+    const Tetrodotoxin::Source::Type& carrier,
+    const Tetrodotoxin::Source::Type& value,
+    const Tetrodotoxin::Source::Type& error,
     const Tetrodotoxin::Library::Language::Model::Pack& result,
     const Tetrodotoxin::Library::Language::Model::Pack& source,
     const Tetrodotoxin::Library::Language::Model::Pack& escape) const -> Bool {

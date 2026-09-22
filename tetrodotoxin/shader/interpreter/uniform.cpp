@@ -8,7 +8,7 @@
 #include "tetrodotoxin/library/language/field.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 using namespace Tetrodotoxin::Shader;
 
@@ -16,23 +16,23 @@ auto Interpreter::Uniform::parse(
     Shader::Language::Program& program,
     Cursor& cursor,
     Tetrodotoxin::Language::Definition& definition) -> Bool {
-  if (definition.get_name_token().get_code() != Code::Type::Addressable) {
+  if (definition.get_authored().get_name().get_code() != Code::Type::Addressable) {
     cursor.create_token_error(
-        definition.get_name_token(),
+        definition.get_authored().get_name(),
         "Shader uniforms use one addressable name."_view);
     return False;
   }
   if (definition.get_visibility() !=
       Tetrodotoxin::Language::Visibility::Public) {
     cursor.create_token_error(
-        definition.get_visibility_token(),
+        definition.get_authored().get_visibility(),
         "Shader uniforms use public visibility."_view);
     return False;
   }
-  if (!definition.get_modifiers().is_empty() ||
+  if (!definition.get_authored().get_modifiers().is_empty() ||
       !definition.get_attributes().is_empty()) {
     cursor.create_expression_error(
-        definition.get_anchor(),
+        definition.get_authored().get_anchor(),
         "Shader uniforms do not accept modifiers or Attributes."_view);
     return False;
   }
@@ -51,7 +51,10 @@ auto Interpreter::Uniform::parse(
   Token closing = cursor.require(
       Code::Type::EndStatement,
       "Shader uniform declarations require one trailing `;`."_view);
-  BAIL_IF(!closing || !definition.complete(qualifier, closing));
+  BAIL_IF(!closing);
+  auto& authored = definition.get_authored();
+  authored.set_anchor(Anchor::create(
+      qualifier, Span(authored.get_anchor().get_span().get_start(), closing)));
 
   auto& field = Library::Language::Field::create_authored(
       cursor.get_arena(), definition, Library::Language::Writability::Internal,

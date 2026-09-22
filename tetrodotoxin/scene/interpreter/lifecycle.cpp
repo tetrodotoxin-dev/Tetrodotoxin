@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/scene/interpreter/lifecycle.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "tetrodotoxin/language/definition.hpp"
 #include "tetrodotoxin/language/visibility.hpp"
 #include "tetrodotoxin/library/interpreter/declarations/signature.hpp"
@@ -11,8 +13,8 @@
 #include "tetrodotoxin/scene/interpreter/emission.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 static auto select_role(View::Bytes name)
@@ -44,7 +46,7 @@ auto Scene::Interpreter::Lifecycle::is_next(const Cursor& cursor) -> Bool {
 auto Scene::Interpreter::Lifecycle::parse(
     Language::Monograph& monograph,
     Cursor& cursor,
-    const Documentation& documentation) -> Bool {
+    const Tetrodotoxin::Source::Documentation& documentation) -> Bool {
   BAIL_IF(!is_next(cursor));
   Token qualifier = cursor.consume();
   Token name_token = cursor.require(
@@ -80,8 +82,9 @@ auto Scene::Interpreter::Lifecycle::parse(
       cursor, function, function, monograph.get_instance(), {}, emission);
   BAIL_IF(!body);
 
-  Bool complete =
-      definition.complete(qualifier, body->get_anchor().get_span().get_end()) &&
-      function.complete_body(*body);
-  return complete;
+  auto& authored = definition.get_authored();
+  authored.set_anchor(Anchor::create(
+      qualifier, Span(authored.get_anchor().get_span().get_start(),
+                      body->get_anchor().get_span().get_end())));
+  return function.complete_body(*body);
 }

@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/library/language/types/enumeration.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "perimortem/core/static/vector.hpp"
 #include "perimortem/core/math.hpp"
 #include "perimortem/core/reader/textual.hpp"
@@ -16,14 +18,14 @@
 #include "tetrodotoxin/library/language/model/types/signed.hpp"
 #include "tetrodotoxin/library/language/model/types/unsigned.hpp"
 #include "tetrodotoxin/library/language/types/view.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Utility;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library::Language;
 
 static auto select_intrinsic_type(
@@ -152,7 +154,7 @@ auto Tetrodotoxin::Library::Language::Types::Enumeration::create(
 auto Tetrodotoxin::Library::Language::Types::Enumeration::retain_restored_case(
     Core::View::Bytes name,
     U64 value,
-    const Documentation& documentation) -> Bool {
+    const Tetrodotoxin::Source::Documentation& documentation) -> Bool {
   BAIL_IF(stage != Stage::Authored || name.is_empty());
   for (const Case& retained : source_cases.get_view()) {
     BAIL_IF(retained.name == name);
@@ -496,8 +498,8 @@ auto Tetrodotoxin::Library::Language::Types::Enumeration::find_case_name(
 auto Tetrodotoxin::Library::Language::Types::Enumeration::accepts_iteration(
     const Layout& bindings) const -> Bool {
   auto value_entry = bindings.get_abstract(0);
-  auto value = value_entry ? value_entry->select<Ttx::Model::Addressable>()
-                           : Option<const Ttx::Model::Addressable&>();
+  auto value = value_entry ? value_entry->select<Tetrodotoxin::Source::Addressable>()
+                           : Option<const Tetrodotoxin::Source::Addressable&>();
   auto value_name = bindings.get_name(0);
   if (!value || !value_name || *value_name != "value"_view) {
     return False;
@@ -513,8 +515,8 @@ auto Tetrodotoxin::Library::Language::Types::Enumeration::accepts_iteration(
   }
 
   auto name_entry = bindings.get_abstract(1);
-  auto name = name_entry ? name_entry->select<Ttx::Model::Addressable>()
-                         : Option<const Ttx::Model::Addressable&>();
+  auto name = name_entry ? name_entry->select<Tetrodotoxin::Source::Addressable>()
+                         : Option<const Tetrodotoxin::Source::Addressable&>();
   auto name_name = bindings.get_name(1);
   auto view = name ? name->get_type().resolve().select<Types::View>()
                    : Option<const Types::View&>();

@@ -24,8 +24,8 @@ class Unsigned : public Tetrodotoxin::Library::Language::Constant {
 
   auto bind_interface(Perimortem::System::Uuid requested) const
       -> Perimortem::Utility::Result<
-          Ttx::Semantic::Binding,
-          Ttx::Semantic::Binding::Failure> override {
+          Ttx::Semantic::Negotiation::Binding,
+          Ttx::Semantic::Negotiation::Binding::Failure> override {
     using Contract = Tetrodotoxin::Library::Language::Value;
     if (requested == Contract::contract_id) {
       return Contract::scalar(*this);
@@ -37,7 +37,7 @@ class Unsigned : public Tetrodotoxin::Library::Language::Constant {
       Perimortem::Memory::Allocator::Arena& domain,
       const Tetrodotoxin::Library::Language::Model::Types::Unsigned& type,
       Value value,
-      Ttx::Lexical::Anchor anchor) -> Unsigned& {
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> Unsigned& {
     return Constant::create_authored<Unsigned>(
         domain, anchor, [&](auto source) -> Unsigned {
           return Unsigned(domain, type, value, source);
@@ -73,17 +73,17 @@ class Unsigned : public Tetrodotoxin::Library::Language::Constant {
                      ? ::True
                      : ::False;
         },
-        [](const Ttx::Concept::Abstract&) { return ::False; });
+        [](const Tetrodotoxin::Source::Abstract&) { return ::False; });
   }
 
-  constexpr auto fits(const Ttx::Model::Type& target) const -> Bool override {
+  constexpr auto fits(const Tetrodotoxin::Source::Type& target) const -> Bool override {
     if (!get_type()
              .resolve()
              .is<Tetrodotoxin::Library::Language::Model::Types::Unsigned>()) {
       return ::False;
     }
 
-    const Ttx::Concept::Abstract& target_type = target.resolve();
+    const Tetrodotoxin::Source::Abstract& target_type = target.resolve();
     return target_type
         .visit<Tetrodotoxin::Library::Language::Model::Types::Unsigned>(
             [this](
@@ -100,7 +100,7 @@ class Unsigned : public Tetrodotoxin::Library::Language::Constant {
 
               return get_value() < (U64(1) << (size * 8)) ? ::True : ::False;
             },
-            [](const Ttx::Concept::Abstract&) { return ::False; });
+            [](const Tetrodotoxin::Source::Abstract&) { return ::False; });
   }
 
  private:
@@ -108,7 +108,7 @@ class Unsigned : public Tetrodotoxin::Library::Language::Constant {
       Perimortem::Memory::Allocator::Arena& domain,
       const Tetrodotoxin::Library::Language::Model::Types::Unsigned& type,
       Value value,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor)
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor)
       : Tetrodotoxin::Library::Language::Constant(anchor),
         type(type),
         value(value),

@@ -12,7 +12,7 @@
 using namespace Tetrodotoxin::Library::Language;
 
 static auto materialize_contiguous(
-    const Ttx::Concept::Abstract& context,
+    const Tetrodotoxin::Source::Abstract& context,
     Perimortem::Core::View::Bytes name,
     const Model::Type& element)
     -> Perimortem::Core::Option<const Model::Type&> {

@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/environment/toolchain.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "validation/unit_test.hpp"
 
 #include <cstdlib>
@@ -17,8 +19,8 @@
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Tetrodotoxin;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Validation;
 
 class SourceFile {
@@ -50,7 +52,7 @@ class ProcessedSource : public Language::Monograph {
   ProcessedSource(
       Allocator::Arena& arena,
       Language::Dialect& dialect,
-      const Documentation& documentation,
+      const Tetrodotoxin::Source::Documentation& documentation,
       Abstract& context,
       View::Bytes body,
       Lifetime& lifetime)
@@ -82,7 +84,7 @@ class ProbeDialect : public Language::Dialect {
   TTX_NAME("Probe"_view);
   auto interpret(
       Cursor& cursor,
-      const Documentation& documentation,
+      const Tetrodotoxin::Source::Documentation& documentation,
       const Anchor&,
       Abstract& context) -> Option<Language::Monograph&> override {
     auto body = cursor.get_source_text().slice(cursor.current().get_offset());

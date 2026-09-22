@@ -17,15 +17,15 @@
 #include "tetrodotoxin/library/language/access/type.hpp"
 #include "tetrodotoxin/library/language/access/unwrap.hpp"
 #include "tetrodotoxin/library/language/expressions/identifier.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Tetrodotoxin;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 
 // Prefix operators keep Slice access inside their operand and stop before
 // multiplicative grammar, so concrete unary owners never replay either level.
@@ -213,7 +213,7 @@ static auto parse_expression(
   BAIL_IF(!primary);
   associate_pack(cursor, *primary);
 
-  Ttx::Model::PackReference<Library::Language::Model::Pack> parsed(*primary);
+  Tetrodotoxin::Source::PackReference<Library::Language::Model::Pack> parsed(*primary);
   Span parsed_span(start, cursor.peek(-1));
 
   // Postfix Access binds to the complete receiver before binary grammar. Each
@@ -226,7 +226,7 @@ static auto parse_expression(
       BAIL_IF(!selected);
 
       parsed =
-          Ttx::Model::PackReference<Library::Language::Model::Pack>(*selected);
+          Tetrodotoxin::Source::PackReference<Library::Language::Model::Pack>(*selected);
       parsed_span = Span(start, cursor.peek(-1));
       associate_pack(cursor, parsed.get());
       continue;
@@ -250,7 +250,7 @@ static auto parse_expression(
     BAIL_IF(!selected);
 
     parsed =
-        Ttx::Model::PackReference<Library::Language::Model::Pack>(*selected);
+        Tetrodotoxin::Source::PackReference<Library::Language::Model::Pack>(*selected);
     parsed_span = Span(start, cursor.peek(-1));
     associate_pack(cursor, parsed.get());
   }
@@ -267,7 +267,7 @@ static auto parse_expression(
     BAIL_IF(!selected);
 
     parsed =
-        Ttx::Model::PackReference<Library::Language::Model::Pack>(*selected);
+        Tetrodotoxin::Source::PackReference<Library::Language::Model::Pack>(*selected);
     parsed_span = Span(start, cursor.peek(-1));
     associate_pack(cursor, parsed.get());
   }

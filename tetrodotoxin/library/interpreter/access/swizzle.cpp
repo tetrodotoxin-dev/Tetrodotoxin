@@ -4,8 +4,8 @@
 #include "tetrodotoxin/library/interpreter/access/swizzle.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 
 auto Interpreter::Access::Swizzle::parse(

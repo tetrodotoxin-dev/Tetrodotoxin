@@ -8,13 +8,13 @@
 #include "tetrodotoxin/render/language/monograph.hpp"
 #include "tetrodotoxin/render/language/stage.hpp"
 #include "tetrodotoxin/render/language/structure.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Render;
 
 auto Language::Declarations::retain(
@@ -57,7 +57,7 @@ auto Language::Declarations::Authority::resolve_concept(View::Bytes name) const
 }
 
 auto Language::Declarations::Authority::visit_concepts(
-    Ttx::Concept::Abstract::Visitor visitor) const -> void {
+    Tetrodotoxin::Source::Abstract::Visitor visitor) const -> void {
   auto visit = [&](View::Vector<Reference<Abstract>> declarations) {
     for (const Reference<Abstract>& declaration : declarations) {
       auto publication = owner.published.find(&declaration.get());
@@ -72,7 +72,7 @@ auto Language::Declarations::Authority::visit_concepts(
 }
 
 auto Language::Declarations::visit_concepts(
-    Ttx::Concept::Abstract::Visitor visitor) const -> void {
+    Tetrodotoxin::Source::Abstract::Visitor visitor) const -> void {
   visitor("static"_view, authority);
 }
 

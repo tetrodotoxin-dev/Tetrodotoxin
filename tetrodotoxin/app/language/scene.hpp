@@ -8,30 +8,30 @@
 #include "tetrodotoxin/app/language/route.hpp"
 #include "tetrodotoxin/app/language/transition.hpp"
 #include "tetrodotoxin/scene/language/monograph.hpp"
-#include "ttx/concept/abstract.hpp"
-#include "ttx/concept/documentation.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/documentation.hpp"
 
 namespace Tetrodotoxin::App::Language {
 
 // Scene owns the application policy for one initial Scene and an ordered set of
 // Signal transitions. It does not own the live stack. Linking replaces every
 // route with relationships to the real Scene and Signal graph identities.
-class Scene : public Ttx::Concept::Abstract {
+class Scene : public Tetrodotoxin::Source::Abstract {
  public:
-  TTX_CONTRACT(Scene, Ttx::Concept::Abstract);
+  TTX_CONTRACT(Scene, Tetrodotoxin::Source::Abstract);
 
   static auto create_authored(
       Perimortem::Memory::Allocator::Arena& arena,
-      const Ttx::Concept::Documentation& documentation,
+      const Tetrodotoxin::Source::Documentation& documentation,
       Route initial,
-      Perimortem::Core::View::Vector<Ttx::Concept::Reference<Transition>>
+      Perimortem::Core::View::Vector<Tetrodotoxin::Source::Reference<Transition>>
           transitions,
-      Ttx::Lexical::Anchor anchor) -> Scene&;
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> Scene&;
 
-  auto link(Ttx::Lexical::Cursor& cursor, const Ttx::Concept::Abstract& context)
+  auto link(Tetrodotoxin::Source::Lexical::Cursor& cursor, const Tetrodotoxin::Source::Abstract& context)
       -> Bool;
 
   constexpr auto get_initial_route() const -> const Route& { return initial; }
@@ -42,7 +42,7 @@ class Scene : public Ttx::Concept::Abstract {
                  const Tetrodotoxin::Scene::Language::Monograph&> {
           return {};
         },
-        [](const Ttx::Concept::Reference<
+        [](const Tetrodotoxin::Source::Reference<
             const Tetrodotoxin::Scene::Language::Monograph>& selected)
             -> Perimortem::Core::Option<
                 const Tetrodotoxin::Scene::Language::Monograph&> {
@@ -55,27 +55,27 @@ class Scene : public Ttx::Concept::Abstract {
   TTX_DOCUMENTATION(documentation);
 
   auto resolve_concept(Perimortem::Core::View::Bytes) const
-      -> const Ttx::Concept::Abstract& override;
+      -> const Tetrodotoxin::Source::Abstract& override;
 
  private:
   constexpr Scene(
-      const Ttx::Concept::Documentation& documentation,
+      const Tetrodotoxin::Source::Documentation& documentation,
       Route initial,
-      Perimortem::Core::View::Vector<Ttx::Concept::Reference<Transition>>
+      Perimortem::Core::View::Vector<Tetrodotoxin::Source::Reference<Transition>>
           transitions,
-      Ttx::Lexical::Anchor anchor)
+      Tetrodotoxin::Source::Lexical::Anchor anchor)
       : documentation(documentation),
         initial(initial),
         transitions(transitions),
         anchor(anchor) {}
 
-  const Ttx::Concept::Documentation& documentation;
+  const Tetrodotoxin::Source::Documentation& documentation;
   Route initial;
-  Perimortem::Core::View::Vector<Ttx::Concept::Reference<Transition>>
+  Perimortem::Core::View::Vector<Tetrodotoxin::Source::Reference<Transition>>
       transitions;
-  Ttx::Lexical::Anchor anchor;
+  Tetrodotoxin::Source::Lexical::Anchor anchor;
   Perimortem::Core::Option<
-      Ttx::Concept::Reference<const Tetrodotoxin::Scene::Language::Monograph>>
+      Tetrodotoxin::Source::Reference<const Tetrodotoxin::Scene::Language::Monograph>>
       initial_scene;
 };
 

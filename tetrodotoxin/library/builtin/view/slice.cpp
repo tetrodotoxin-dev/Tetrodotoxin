@@ -8,13 +8,13 @@
 #include "tetrodotoxin/library/language/expression.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
 static auto create_parameter_entries(
-    Ttx::Model::Layouts::Addressable& self,
-    Ttx::Model::Layouts::Addressable& start,
-    Ttx::Model::Layouts::Addressable& count)
+    Tetrodotoxin::Source::Layouts::Addressable& self,
+    Tetrodotoxin::Source::Layouts::Addressable& start,
+    Tetrodotoxin::Source::Layouts::Addressable& count)
     -> Core::Static::Vector<Reference<const Abstract>, 3> {
   const Core::Static::Vector<Reference<const Abstract>, 3> entries = {{
     Reference<const Abstract>(self),
@@ -25,9 +25,9 @@ static auto create_parameter_entries(
 }
 
 Builtin::View::Slice::Slice(
-    Ttx::Model::Layouts::Addressable& self,
-    Ttx::Model::Layouts::Addressable& start,
-    Ttx::Model::Layouts::Addressable& count,
+    Tetrodotoxin::Source::Layouts::Addressable& self,
+    Tetrodotoxin::Source::Layouts::Addressable& start,
+    Tetrodotoxin::Source::Layouts::Addressable& count,
     const Language::Model::Type& result)
     : parameter_entries(create_parameter_entries(self, start, count)),
       parameters(parameter_entries.get_view()),
@@ -39,20 +39,20 @@ auto Builtin::View::Slice::create(
     const Language::Model::Type& receiver,
     const Language::Model::Type& count,
     const Language::Model::Type& result) -> Slice& {
-  Ttx::Model::Layouts::Addressable& self =
-      Ttx::Model::Layouts::Addressable::create_synthetic(
+  Tetrodotoxin::Source::Layouts::Addressable& self =
+      Tetrodotoxin::Source::Layouts::Addressable::create_synthetic(
           domain, "self"_view, receiver);
-  Ttx::Model::Layouts::Addressable& start =
-      Ttx::Model::Layouts::Addressable::create_synthetic(
+  Tetrodotoxin::Source::Layouts::Addressable& start =
+      Tetrodotoxin::Source::Layouts::Addressable::create_synthetic(
           domain, "start"_view, count);
-  Ttx::Model::Layouts::Addressable& size =
-      Ttx::Model::Layouts::Addressable::create_synthetic(
+  Tetrodotoxin::Source::Layouts::Addressable& size =
+      Tetrodotoxin::Source::Layouts::Addressable::create_synthetic(
           domain, "count"_view, count);
   return domain.construct_from<Slice>(
       [&]() -> Slice { return Slice(self, start, size, result); });
 }
 
-static auto select_unsigned(const Ttx::Model::Pack& values, Count index)
+static auto select_unsigned(const Tetrodotoxin::Source::Pack& values, Count index)
     -> Core::Option<U64> {
   auto producer = values.get_layout().get_abstract(index);
   BAIL_IF(!producer);

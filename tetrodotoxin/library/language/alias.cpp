@@ -3,15 +3,17 @@
 
 #include "tetrodotoxin/library/language/alias.hpp"
 
-#include "ttx/concept/unknown.hpp"
-#include "ttx/model/documentations/merged.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/documentation.hpp"
+
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/documentations/merged.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using Ttx::Semantic::Binding;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using Ttx::Semantic::Negotiation::Binding;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library::Language;
 
 auto Tetrodotoxin::Library::Language::Alias::create_authored(
@@ -40,19 +42,19 @@ auto Alias::link() -> Bool {
           [](const TypeReference::Failure&) {});
   BAIL_IF(!selected);
 
-  auto target = selected->select<Ttx::Model::Type>();
+  auto target = selected->select<Tetrodotoxin::Source::Type>();
   BAIL_IF(!target);
 
-  this->target = Reference<const Ttx::Model::Type>(*target);
+  this->target = Reference<const Tetrodotoxin::Source::Type>(*target);
 
   // The declaration can explain why this name was introduced without changing
   // the selected Type's own documentation. Borrowing a merged view preserves
   // both explanations without moving that policy into transparent Alias.
-  const Documentation& local = get_definition().get_documentation();
+  const Tetrodotoxin::Source::Documentation& local = get_definition().get_documentation();
   if (local.is_empty()) {
     documentation = target->get_documentation();
   } else {
-    documentation = domain.construct<Ttx::Model::Documentations::Merged>(
+    documentation = domain.construct<Tetrodotoxin::Source::Documentations::Merged>(
         local, target->get_documentation());
   }
 
@@ -72,7 +74,7 @@ auto Alias::report_unresolved(Cursor& cursor) const -> void {
     return;
   }
 
-  if (selected && selected->is<Ttx::Model::Type>()) {
+  if (selected && selected->is<Tetrodotoxin::Source::Type>()) {
     return;
   }
   cursor.create_expression_error(
@@ -81,12 +83,12 @@ auto Alias::report_unresolved(Cursor& cursor) const -> void {
       "Publish the selected Type and remove any Alias cycle before linking."_view);
 }
 
-auto Alias::get_documentation() const -> const Documentation& {
+auto Alias::get_documentation() const -> const Tetrodotoxin::Source::Documentation& {
   return documentation.visit(
-      [&]() -> const Documentation& {
+      [&]() -> const Tetrodotoxin::Source::Documentation& {
         return get_definition().get_documentation();
       },
-      [](const Documentation& selected) -> const Documentation& {
+      [](const Tetrodotoxin::Source::Documentation& selected) -> const Tetrodotoxin::Source::Documentation& {
         return selected;
       });
 }

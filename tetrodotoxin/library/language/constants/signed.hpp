@@ -23,8 +23,8 @@ class Signed : public Tetrodotoxin::Library::Language::Constant {
 
   auto bind_interface(Perimortem::System::Uuid requested) const
       -> Perimortem::Utility::Result<
-          Ttx::Semantic::Binding,
-          Ttx::Semantic::Binding::Failure> override {
+          Ttx::Semantic::Negotiation::Binding,
+          Ttx::Semantic::Negotiation::Binding::Failure> override {
     using Contract = Tetrodotoxin::Library::Language::Value;
     if (requested == Contract::contract_id) {
       return Contract::scalar(*this);
@@ -36,7 +36,7 @@ class Signed : public Tetrodotoxin::Library::Language::Constant {
       Perimortem::Memory::Allocator::Arena& domain,
       const Tetrodotoxin::Library::Language::Model::Types::Signed& type,
       Value value,
-      Ttx::Lexical::Anchor anchor) -> Signed& {
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> Signed& {
     return Constant::create_authored<Signed>(
         domain, anchor, [&](auto source) -> Signed {
           return Signed(domain, type, value, source);
@@ -72,17 +72,17 @@ class Signed : public Tetrodotoxin::Library::Language::Constant {
                      ? ::True
                      : ::False;
         },
-        [](const Ttx::Concept::Abstract&) { return ::False; });
+        [](const Tetrodotoxin::Source::Abstract&) { return ::False; });
   }
 
-  constexpr auto fits(const Ttx::Model::Type& target) const -> Bool override {
+  constexpr auto fits(const Tetrodotoxin::Source::Type& target) const -> Bool override {
     if (!get_type()
              .resolve()
              .is<Tetrodotoxin::Library::Language::Model::Types::Signed>()) {
       return ::False;
     }
 
-    const Ttx::Concept::Abstract& target_type = target.resolve();
+    const Tetrodotoxin::Source::Abstract& target_type = target.resolve();
     return target_type
         .visit<Tetrodotoxin::Library::Language::Model::Types::Signed>(
             [this](
@@ -101,7 +101,7 @@ class Signed : public Tetrodotoxin::Library::Language::Constant {
               return get_value() >= -limit && get_value() < limit ? ::True
                                                                   : ::False;
             },
-            [](const Ttx::Concept::Abstract&) { return ::False; });
+            [](const Tetrodotoxin::Source::Abstract&) { return ::False; });
   }
 
  private:
@@ -109,7 +109,7 @@ class Signed : public Tetrodotoxin::Library::Language::Constant {
       Perimortem::Memory::Allocator::Arena& domain,
       const Tetrodotoxin::Library::Language::Model::Types::Signed& type,
       Value value,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor)
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor)
       : Tetrodotoxin::Library::Language::Constant(anchor),
         type(type),
         value(value),

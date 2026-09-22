@@ -11,7 +11,7 @@
 #include "tetrodotoxin/library/language/monograph.hpp"
 #include "tetrodotoxin/terminal/abi/products.hpp"
 #include "tetrodotoxin/terminal/abi/unit.hpp"
-#include "ttx/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
 
 namespace Tetrodotoxin::Terminal::Abi {
 
@@ -23,9 +23,9 @@ class Compiler {
   auto compile_graph(
       Perimortem::Memory::Allocator::Arena& arena,
       const Tetrodotoxin::Library::Language::Monograph& monograph,
-      const Ttx::Concept::Abstract& root,
+      const Tetrodotoxin::Source::Abstract& root,
       const Abi::Unit& unit,
-      Ttx::Lexical::Errors& errors,
+      Tetrodotoxin::Source::Lexical::Errors& errors,
       Perimortem::Core::View::Bytes source_path,
       Perimortem::Core::View::Bytes source_text) const
       -> Perimortem::Core::Option<Products>;
@@ -34,12 +34,12 @@ class Compiler {
       Perimortem::Memory::Allocator::Arena& arena,
       const Tetrodotoxin::Library::Language::Monograph& monograph,
       const Abi::Unit& unit,
-      Ttx::Lexical::Errors& errors,
+      Tetrodotoxin::Source::Lexical::Errors& errors,
       Perimortem::Core::View::Bytes source_path,
       Perimortem::Core::View::Bytes source_text,
-      Perimortem::Core::View::Vector<Ttx::Concept::Reference<
+      Perimortem::Core::View::Vector<Tetrodotoxin::Source::Reference<
           const Tetrodotoxin::Library::Language::Model::Type>> roots = {},
-      Perimortem::Core::View::Vector<Ttx::Concept::Reference<
+      Perimortem::Core::View::Vector<Tetrodotoxin::Source::Reference<
           const Tetrodotoxin::Library::Language::Model::Callable>> excluded =
           {},
       Perimortem::Core::View::Vector<Abi::Projection> projections = {}) const

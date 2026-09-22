@@ -7,15 +7,15 @@
 #include "tetrodotoxin/library/interpreter/execution/block.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 
 static auto validate_function(
     Cursor& cursor,
     const Tetrodotoxin::Language::Definition& definition) -> Bool {
-  if (definition.get_name_token().get_code() != Code::Type::Addressable) {
+  if (definition.get_authored().get_name().get_code() != Code::Type::Addressable) {
     cursor.create_token_error(
-        definition.get_name_token(),
+        definition.get_authored().get_name(),
         "Library Functions require an authored addressable name."_view);
     return False;
   }
@@ -23,14 +23,14 @@ static auto validate_function(
   if (definition.get_visibility() ==
       Tetrodotoxin::Language::Visibility::Exposed) {
     cursor.create_token_error(
-        definition.get_visibility_token(),
+        definition.get_authored().get_visibility(),
         "Library Functions accept only `public` or `private` visibility."_view);
     return False;
   }
 
-  if (!definition.get_modifiers().is_empty()) {
+  if (!definition.get_authored().get_modifiers().is_empty()) {
     cursor.create_token_error(
-        definition.get_modifiers().get_data()[0],
+        definition.get_authored().get_modifiers().get_data()[0],
         "Library Functions do not accept evaluation modifiers."_view);
     return False;
   }
@@ -68,10 +68,13 @@ auto Interpreter::Declarations::Function::parse(
   if (!body) {
     return Parsed<Language::Function>(function, ParseState::Incomplete);
   }
-  Bool accepted = definition.complete(
-                      definition.get_qualifier(),
-                      body->get_anchor().get_span().get_end()) &&
-                  function.complete_body(*body) &&
+
+  auto& authored = definition.get_authored();
+  authored.set_anchor(Anchor::create(
+      authored.get_qualifier(),
+      Span(authored.get_anchor().get_span().get_start(),
+           body->get_anchor().get_span().get_end())));
+  Bool accepted = function.complete_body(*body) &&
                   cursor.get_error_count() == error_count;
   return Parsed<Language::Function>(
       function, accepted ? ParseState::Accepted : ParseState::Rejected);

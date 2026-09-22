@@ -3,16 +3,18 @@
 
 #include "tetrodotoxin/language/import.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "ttx/concept/domain.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/cursor.hpp"
-#include "ttx/model/documentations/merged.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/documentations/merged.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using Ttx::Semantic::Binding;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using Ttx::Semantic::Negotiation::Binding;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Language;
 
 static auto get_import_access(View::Bytes route, Count index)
@@ -46,7 +48,7 @@ auto Import::bind_interface(Perimortem::System::Uuid requested) const
   if (requested == Tetrodotoxin::Source::Declaration::contract_id) {
     return Tetrodotoxin::Source::Declaration::provide(*this);
   }
-  if (requested == Domain::contract_id) {
+  if (requested == Ttx::Concept::Domain::contract_id) {
     if (!domain_binding) {
       const Abstract& selected = get_type();
       if (selected.is<Unknown>()) {
@@ -57,7 +59,7 @@ auto Import::bind_interface(Perimortem::System::Uuid requested) const
       }
       Option<Binding::Failure> failure;
       selected.bind<Domain>().visit(
-          [&](Domain::Handle domain) {
+          [&](Ttx::Concept::Domain::Handle domain) {
             domain_binding = DomainBinding{selected.get_interface(), domain};
           },
           [&](Binding::Failure rejected) { failure = rejected; });
@@ -66,7 +68,7 @@ auto Import::bind_interface(Perimortem::System::Uuid requested) const
       }
     }
 
-    static const Domain::Operations operations = {
+    static const Ttx::Concept::Domain::Operations operations = {
       [](const void* source, ttx_abstract* result) -> ttx_binding_status {
         const auto& import = *static_cast<const Import*>(source);
         const auto& selected = *import.domain_binding;
@@ -148,20 +150,20 @@ static auto segment_anchor(
   return Anchor::create(token, Span(token));
 }
 
-auto Import::acquire(const Ttx::Model::Type& root) -> Bool {
+auto Import::acquire(const Tetrodotoxin::Source::Type& root) -> Bool {
   if (acquired) {
     return &acquired->get() == &root;
   }
 
-  acquired = Reference<const Ttx::Model::Type>(root);
+  acquired = Reference<const Tetrodotoxin::Source::Type>(root);
   return True;
 }
 
-auto Import::get_acquired() const -> Option<const Ttx::Model::Type&> {
+auto Import::get_acquired() const -> Option<const Tetrodotoxin::Source::Type&> {
   return acquired.visit(
-      []() -> Option<const Ttx::Model::Type&> { return {}; },
-      [](const Reference<const Ttx::Model::Type>& selected)
-          -> Option<const Ttx::Model::Type&> { return selected.get(); });
+      []() -> Option<const Tetrodotoxin::Source::Type&> { return {}; },
+      [](const Reference<const Tetrodotoxin::Source::Type>& selected)
+          -> Option<const Tetrodotoxin::Source::Type&> { return selected.get(); });
 }
 
 auto Import::select_target(Option<Cursor&> cursor) const -> const Abstract& {
@@ -209,14 +211,14 @@ auto Import::select_target(Option<Cursor&> cursor) const -> const Abstract& {
     }
   }
 
-  if (selected->is<Ttx::Model::Type>() && !selected->is<Language::Import>()) {
+  if (selected->is<Tetrodotoxin::Source::Type>() && !selected->is<Language::Import>()) {
     return *selected;
   }
 
   const Abstract& represented = selected->resolve();
   const Abstract& resolved =
       represented.is<Import>() ? represented.get_type() : represented;
-  return resolved.is<Ttx::Model::Type>() || resolved.is<Unknown>()
+  return resolved.is<Tetrodotoxin::Source::Type>() || resolved.is<Unknown>()
              ? resolved
              : None::get_none();
 }
@@ -237,14 +239,14 @@ auto Import::validate(Cursor& cursor) -> Bool {
     return False;
   }
 
-  const Documentation& target_documentation = selected.get_documentation();
+  const Tetrodotoxin::Source::Documentation& target_documentation = selected.get_documentation();
   if (local_documentation.is_empty()) {
     visible_documentation = target_documentation;
   } else if (target_documentation.is_empty()) {
     visible_documentation = local_documentation;
   } else if (!visible_documentation) {
     visible_documentation =
-        domain.construct<Ttx::Model::Documentations::Merged>(
+        domain.construct<Tetrodotoxin::Source::Documentations::Merged>(
             local_documentation, target_documentation);
   }
   return True;
@@ -256,7 +258,7 @@ auto Import::validate_restored() -> Bool {
     return False;
   }
 
-  const Documentation& target_documentation = selected.get_documentation();
+  const Tetrodotoxin::Source::Documentation& target_documentation = selected.get_documentation();
   visible_documentation = local_documentation.is_empty() ? target_documentation
                                                          : local_documentation;
   return True;
@@ -291,10 +293,10 @@ auto Import::visit_concepts(Abstract::Visitor visitor) const -> void {
   selected.visit_concepts(Abstract::Visitor(receive));
 }
 
-auto Import::get_documentation() const -> const Documentation& {
+auto Import::get_documentation() const -> const Tetrodotoxin::Source::Documentation& {
   return visible_documentation.visit(
-      [&]() -> const Documentation& { return local_documentation; },
-      [](const Documentation& selected) -> const Documentation& {
+      [&]() -> const Tetrodotoxin::Source::Documentation& { return local_documentation; },
+      [](const Tetrodotoxin::Source::Documentation& selected) -> const Tetrodotoxin::Source::Documentation& {
         return selected;
       });
 }

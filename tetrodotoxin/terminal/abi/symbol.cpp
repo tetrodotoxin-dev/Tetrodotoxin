@@ -38,7 +38,7 @@ static auto append_encoded_name(
 
 static auto append_symbol_path(
     Memory::Managed::Bytes& output,
-    const Concept::Abstract& value,
+    const Tetrodotoxin::Source::Abstract& value,
     Count path_start) -> void {
   if (value.is<Tetrodotoxin::Language::Monograph>()) {
     return;
@@ -122,7 +122,7 @@ auto Tetrodotoxin::Terminal::Abi::Symbol::validate(Core::View::Bytes value)
 
 Tetrodotoxin::Terminal::Abi::Symbol::Symbol(
     Memory::Allocator::Arena& arena,
-    const Concept::Abstract& semantic,
+    const Tetrodotoxin::Source::Abstract& semantic,
     Kind kind,
     Unit unit) {
   Memory::Managed::Bytes output(arena);
@@ -155,8 +155,8 @@ Tetrodotoxin::Terminal::Abi::Symbol::Symbol(
   Bool published_identity = kind != Kind::Path;
   Core::View::Bytes package = unit.get_package();
   Core::View::Bytes member = unit.get_member();
-  auto selected_type = semantic.select<Ttx::Model::Type>();
-  const Ttx::Model::Type* type = selected_type ? &*selected_type : nullptr;
+  auto selected_type = semantic.select<Tetrodotoxin::Source::Type>();
+  const Tetrodotoxin::Source::Type* type = selected_type ? &*selected_type : nullptr;
   auto function = semantic.select<Tetrodotoxin::Library::Language::Function>();
   if (function) {
     type = &function->get_host();
@@ -164,7 +164,7 @@ Tetrodotoxin::Terminal::Abi::Symbol::Symbol(
   auto field = semantic.select<Tetrodotoxin::Library::Language::Field>();
   if (field) {
     auto field_host =
-        field->get_definition().get_host().select<Ttx::Model::Type>();
+        field->get_definition().get_host().select<Tetrodotoxin::Source::Type>();
     type = field_host ? &*field_host : nullptr;
   }
   auto binding =

@@ -10,7 +10,7 @@
 
 #include "tetrodotoxin/terminal/abi/symbol.hpp"
 #include "tetrodotoxin/terminal/llvm/lowering/scene.hpp"
-#include "ttx/model/addressable.hpp"
+#include "tetrodotoxin/source/addressable.hpp"
 
 using namespace Perimortem;
 using namespace Tetrodotoxin::Terminal;
@@ -31,11 +31,11 @@ auto Llvm::Lowering::Scene::lower(
   auto callable = body.get_callable();
   BAIL_IF(!callable || callable->get_parameters().get_size() == 0);
   auto parameter = callable->get_parameters().get_abstract(0);
-  auto self = parameter ? parameter->select<Ttx::Model::Addressable>()
-                        : Core::Option<const Ttx::Model::Addressable&>();
+  auto self = parameter ? parameter->select<Tetrodotoxin::Source::Addressable>()
+                        : Core::Option<const Tetrodotoxin::Source::Addressable&>();
   auto address = self ? body.find_address(*self) : Core::Option<LLVMValueRef>();
-  auto type = self ? self->get_type().select<Ttx::Model::Type>()
-                   : Core::Option<const Ttx::Model::Type&>();
+  auto type = self ? self->get_type().select<Tetrodotoxin::Source::Type>()
+                   : Core::Option<const Tetrodotoxin::Source::Type&>();
   auto native = type ? execution.get_program().get_carriers().get_type(*type)
                      : Core::Option<LLVMTypeRef>();
   BAIL_IF(!address || !type || !native);

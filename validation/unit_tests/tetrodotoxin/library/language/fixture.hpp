@@ -9,10 +9,10 @@
 #include "tetrodotoxin/library/language/model/types/signed.hpp"
 #include "tetrodotoxin/library/language/model/types/unsigned.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/span.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/span.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 namespace Validation {
 
@@ -23,13 +23,13 @@ inline auto create_library_monograph(
     Perimortem::Memory::Allocator::Arena& arena,
     Tetrodotoxin::Library::Dialect& dialect)
     -> Tetrodotoxin::Library::Language::Monograph& {
-  Ttx::Lexical::Errors errors;
-  Ttx::Lexical::Tokenizer tokenizer(arena, {}, {});
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
-  Ttx::Lexical::Cursor cursor(tokenizer, errors, associations);
+  Tetrodotoxin::Source::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Tokenizer tokenizer(arena, {}, {});
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Cursor cursor(tokenizer, errors, associations);
   return Tetrodotoxin::Library::Language::Monograph::create_authored(
-      cursor.get_arena(), Ttx::Concept::Documentation::get_empty(),
-      Ttx::Lexical::Anchor::create(Ttx::Lexical::Span()), dialect, dialect);
+      cursor.get_arena(), Tetrodotoxin::Source::Documentation::get_empty(),
+      Tetrodotoxin::Source::Lexical::Anchor::create(Tetrodotoxin::Source::Lexical::Span()), dialect, dialect);
 }
 
 inline auto resolve_library_flag(

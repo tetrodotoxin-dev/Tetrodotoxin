@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/library/dialect.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "validation/unit_test.hpp"
 #include "validation/unit_tests/tetrodotoxin/library/workspace.hpp"
 
@@ -49,19 +51,19 @@
 #include "tetrodotoxin/library/language/types/u8.hpp"
 #include "tetrodotoxin/library/language/types/view.hpp"
 #include "tetrodotoxin/terminal/llvm/compiler.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
-#include "ttx/model/addressable.hpp"
-#include "ttx/model/alias.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/addressable.hpp"
+#include "tetrodotoxin/source/alias.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::System;
 using namespace Perimortem::Utility;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 using Tetrodotoxin::Environment::Workspace;
 using namespace Validation;
@@ -85,8 +87,8 @@ class EmptyRegistry : public Abstract {
   constexpr auto get_name() const -> View::Bytes override {
     return "EmptyRegistry"_view;
   }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
   auto resolve_concept(View::Bytes) const -> const Abstract& override {
     return Unknown::get_unknown();
@@ -108,8 +110,8 @@ class ResourceRegistry final : public Abstract {
   constexpr auto get_name() const -> View::Bytes override {
     return "ResourceRegistry"_view;
   }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
   auto resolve_concept(View::Bytes route) const -> const Abstract& override {
     if (route == "$[resource/hello.txt]"_view) {
@@ -131,8 +133,8 @@ class FutureType : public Language::Model::Type {
   constexpr FutureType(View::Bytes name = "Future"_view) : name(name) {}
 
   constexpr auto get_name() const -> View::Bytes override { return name; }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
   auto resolve_concept(View::Bytes) const -> const Abstract& override {
     return Unknown::get_unknown();
@@ -151,8 +153,8 @@ class QualifiedContext : public Abstract {
   constexpr auto get_name() const -> View::Bytes override {
     return "Types"_view;
   }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
   auto resolve_concept(View::Bytes route) const -> const Abstract& override {
     if (route == qualified.get_name()) {
@@ -171,8 +173,8 @@ class NonTypeFact : public Abstract {
   constexpr auto get_name() const -> View::Bytes override {
     return "Fact"_view;
   }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
   auto resolve_concept(View::Bytes) const -> const Abstract& override {
     return Unknown::get_unknown();
@@ -184,8 +186,8 @@ class AliasContext : public Abstract {
   constexpr auto get_name() const -> View::Bytes override {
     return "AliasContext"_view;
   }
-  auto get_documentation() const -> const Documentation& override {
-    return Documentation::get_empty();
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override {
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
   auto resolve_concept(View::Bytes route) const -> const Abstract& override {
     if (route == types.get_name()) {
@@ -242,7 +244,7 @@ static auto interpret_library_source(
   Anchor source_anchor = Anchor::create(Span());
   Count error_count = cursor.get_error_count();
   auto interpretation = dialect.interpret(
-      cursor, Documentation::get_empty(), source_anchor, context);
+      cursor, Tetrodotoxin::Source::Documentation::get_empty(), source_anchor, context);
   BAIL_IF(
       !interpretation || cursor.get_error_count() != error_count ||
       !interpretation->is<Language::Monograph>());
@@ -263,12 +265,12 @@ PERIMORTEM_UNIT_TEST(DialectTests, root_vocabulary) {
   EmptyRegistry context;
   Dialect dialect;
   Dialect same_type;
-  const Documentation& documentation = Documentation::get_empty();
+  const Tetrodotoxin::Source::Documentation& documentation = Tetrodotoxin::Source::Documentation::get_empty();
   Anchor source_anchor = Anchor::create(Span());
 
   Errors errors;
   Tokenizer tokenizer(arena, {}, "embedded-library.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   auto& first = Language::Monograph::create_authored(
       cursor.get_arena(), documentation, source_anchor, dialect, context);
@@ -395,7 +397,7 @@ PERIMORTEM_UNIT_TEST(DialectTests, missing_type_route) {
   Dialect dialect;
   Errors errors;
   Tokenizer tokenizer(arena, source, "phase-cascade.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   auto interpreted_owner =
       interpret_library_source(arena, dialect, cursor, registry);
@@ -421,7 +423,7 @@ PERIMORTEM_UNIT_TEST(DialectTests, qualified_type_associations) {
   Dialect dialect;
   Errors errors;
   Tokenizer tokenizer(arena, source, "qualified-type-associations.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   auto interpreted_owner =
       interpret_library_source(arena, dialect, cursor, registry);
@@ -464,7 +466,7 @@ PERIMORTEM_UNIT_TEST(DialectTests, field_diagnostics) {
     Dialect dialect;
     Errors errors;
     Tokenizer tokenizer(arena, sources[i], "source-field-failure.ttx"_view);
-    Ttx::Lexical::Associations associations(tokenizer.get_arena());
+    Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
     Cursor cursor(tokenizer, errors, associations);
     auto interpreted_owner =
         interpret_library_source(arena, dialect, cursor, registry);
@@ -499,7 +501,7 @@ PERIMORTEM_UNIT_TEST(DialectTests, source_aliases) {
   Dialect dialect;
   Errors errors;
   Tokenizer tokenizer(arena, source, "source-alias.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   auto interpreted_owner =
       interpret_library_source(arena, dialect, cursor, registry);
@@ -529,7 +531,7 @@ PERIMORTEM_UNIT_TEST(DialectTests, source_aliases) {
   ASSERT(monograph.finalize(cursor));
   EXPECT(&public_alias.resolve() == &hidden);
   EXPECT(&private_alias.resolve() == &hidden);
-  const Documentation& public_documentation = public_alias.get_documentation();
+  const Tetrodotoxin::Source::Documentation& public_documentation = public_alias.get_documentation();
   ASSERT_EQ(public_documentation.line_count(), Count(2));
   EXPECT_TEXT(public_documentation.get_line(0), "Local documentation."_view);
   EXPECT_TEXT(public_documentation.get_line(1), "Hidden documentation."_view);
@@ -555,7 +557,7 @@ PERIMORTEM_UNIT_TEST(DialectTests, alias_rejection) {
     Dialect dialect;
     Errors errors;
     Tokenizer tokenizer(arena, rejected[i], "rejected-source-alias.ttx"_view);
-    Ttx::Lexical::Associations associations(tokenizer.get_arena());
+    Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
     Cursor cursor(tokenizer, errors, associations);
     auto interpreted_owner =
         interpret_library_source(arena, dialect, cursor, registry);
@@ -578,7 +580,7 @@ PERIMORTEM_UNIT_TEST(DialectTests, delayed_aliases) {
     Dialect dialect;
     Errors errors;
     Tokenizer tokenizer(arena, rejected[i], "delayed-source-alias.ttx"_view);
-    Ttx::Lexical::Associations associations(tokenizer.get_arena());
+    Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
     Cursor cursor(tokenizer, errors, associations);
     auto interpreted_owner =
         interpret_library_source(arena, dialect, cursor, registry);
@@ -802,8 +804,7 @@ PERIMORTEM_UNIT_TEST(DialectTests, source_acceptance) {
   const auto& source_type = monograph.get_source();
   EXPECT_TEXT(source_type.get_name(), "<source>"_view);
   EXPECT(&source_type.get_definition().get_host() == &monograph);
-  EXPECT_NOT(source_type.get_definition().is_authored());
-  EXPECT(source_type.get_definition().is_complete());
+  EXPECT_NOT(source_type.get_definition().get_authored().is_authored());
   EXPECT(source_type.get_definition().is_published());
   const Anchor source_anchor = source_type.get_anchor();
   EXPECT_TEXT(source_anchor.get_token().caculate_text(*source), "dialect"_view);
@@ -1279,7 +1280,7 @@ PERIMORTEM_UNIT_TEST(DialectTests, executable_source) {
   Allocator::Arena repeated_domain;
   Tokenizer repeated_tokenizer(
       repeated_domain, *source, "executable-acceptance.ttx"_view);
-  Ttx::Lexical::Associations repeated_associations(
+  Tetrodotoxin::Source::Lexical::Associations repeated_associations(
       repeated_tokenizer.get_arena());
   Cursor repeated_cursor(repeated_tokenizer, errors, repeated_associations);
   ASSERT(monograph.link(repeated_cursor));
@@ -1309,7 +1310,7 @@ PERIMORTEM_UNIT_TEST(DialectTests, resource_slice) {
   Dialect dialect;
   Errors errors;
   Tokenizer tokenizer(arena, source, "resource-slice-fold.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   auto interpreted_owner =
       interpret_library_source(arena, dialect, cursor, registry);
@@ -1365,7 +1366,7 @@ PERIMORTEM_UNIT_TEST(DialectTests, const_field_access) {
   Dialect dialect;
   Errors errors;
   Tokenizer tokenizer(arena, source, "instance-const-fold.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   auto interpreted_owner =
       interpret_library_source(arena, dialect, cursor, registry);

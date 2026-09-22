@@ -5,8 +5,8 @@
 
 #include "perimortem/core/view/bytes.hpp"
 
-#include "ttx/concept/reference.hpp"
-#include "ttx/model/callable.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/callable.hpp"
 
 namespace Tetrodotoxin::Terminal::Abi {
 
@@ -15,11 +15,11 @@ namespace Tetrodotoxin::Terminal::Abi {
 class Export {
  public:
   constexpr Export(
-      const Ttx::Model::Callable& callable,
+      const Tetrodotoxin::Source::Callable& callable,
       Perimortem::Core::View::Bytes symbol)
       : callable(callable), symbol(symbol) {}
 
-  constexpr auto get_callable() const -> const Ttx::Model::Callable& {
+  constexpr auto get_callable() const -> const Tetrodotoxin::Source::Callable& {
     return callable.get();
   }
 
@@ -28,7 +28,7 @@ class Export {
   }
 
  private:
-  Ttx::Concept::Reference<const Ttx::Model::Callable> callable;
+  Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Callable> callable;
   Perimortem::Core::View::Bytes symbol;
 };
 

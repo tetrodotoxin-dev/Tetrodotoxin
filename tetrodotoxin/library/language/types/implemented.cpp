@@ -7,7 +7,7 @@
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library::Language;
 
 auto Types::Implemented::create_authored(
@@ -33,7 +33,7 @@ auto Types::Implemented::complete_body() -> void {
   complete_field_layout();
 }
 
-auto Types::Implemented::bind_authored_requirement(Ttx::Lexical::Cursor& cursor)
+auto Types::Implemented::bind_authored_requirement(Tetrodotoxin::Source::Lexical::Cursor& cursor)
     -> Bool {
   if (requirement) {
     return True;
@@ -103,7 +103,7 @@ auto Types::Implemented::materialize_fields() -> Bool {
         get_domain(), required->get_documentation(), *this,
         get_domain().proxy(required->get_name()),
         required->get_definition().get_visibility(),
-        Ttx::Lexical::Anchor::create(Ttx::Lexical::Span()));
+        Tetrodotoxin::Source::Lexical::Anchor::create(Tetrodotoxin::Source::Lexical::Span()));
     auto type = required->get_type_reference();
     BAIL_IF(!type);
     auto& generated = Field::create_generated(
@@ -118,7 +118,7 @@ auto Types::Implemented::materialize_fields() -> Bool {
   return True;
 }
 
-auto Types::Implemented::link_fields(Ttx::Lexical::Cursor& cursor) -> Bool {
+auto Types::Implemented::link_fields(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool {
   BAIL_IF(!requirement || !body_complete);
   Interface& selected = const_cast<Interface&>(requirement->get());
   BAIL_IF(!selected.link_fields(cursor));
@@ -126,7 +126,7 @@ auto Types::Implemented::link_fields(Ttx::Lexical::Cursor& cursor) -> Bool {
   return Object::link_fields(cursor);
 }
 
-auto Types::Implemented::link_initializers(Ttx::Lexical::Cursor& cursor)
+auto Types::Implemented::link_initializers(Tetrodotoxin::Source::Lexical::Cursor& cursor)
     -> Bool {
   BAIL_IF(!requirement);
   Interface& selected = const_cast<Interface&>(requirement->get());
@@ -138,7 +138,7 @@ auto Types::Implemented::link_initializers(Ttx::Lexical::Cursor& cursor)
   return Object::link_initializers(cursor);
 }
 
-auto Types::Implemented::finalize(Ttx::Lexical::Cursor& cursor) -> Bool {
+auto Types::Implemented::finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool {
   BAIL_IF(!Object::finalize(cursor) || !requirement);
   Interfaces::Structure relation;
   if (!relation.accepts(requirement->get(), *this)) {

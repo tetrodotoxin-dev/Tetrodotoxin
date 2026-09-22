@@ -9,8 +9,8 @@
 #include "tetrodotoxin/library/language/model/callable.hpp"
 #include "tetrodotoxin/library/language/model/type.hpp"
 #include "tetrodotoxin/library/language/statement.hpp"
-#include "ttx/concept/documentation.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/documentation.hpp"
 
 namespace Tetrodotoxin::Library::Interpreter::Execution {
 
@@ -23,13 +23,13 @@ class StatementParser {
  public:
   virtual constexpr ~StatementParser() = default;
 
-  virtual auto matches(const Ttx::Lexical::Cursor& cursor) const -> Bool = 0;
+  virtual auto matches(const Tetrodotoxin::Source::Lexical::Cursor& cursor) const -> Bool = 0;
   virtual auto parse(
-      Ttx::Lexical::Cursor& cursor,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
       Language::Flow::Block& block,
       Language::Model::Callable& function,
       const Language::Model::Type& access_scope,
-      const Ttx::Concept::Documentation& documentation) const
+      const Tetrodotoxin::Source::Documentation& documentation) const
       -> Perimortem::Core::Option<Language::Statement> = 0;
 };
 

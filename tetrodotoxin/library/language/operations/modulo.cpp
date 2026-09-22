@@ -12,13 +12,13 @@
 #include "tetrodotoxin/library/language/model/types/signed.hpp"
 #include "tetrodotoxin/library/language/model/types/unsigned.hpp"
 #include "tetrodotoxin/library/language/model/types/value.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
 using namespace Tetrodotoxin::Library;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 
 static auto is_numeric_type(const Abstract& selected) -> Bool {
   return selected.visit<Tetrodotoxin::Library::Language::Model::Types::Signed>(
@@ -69,7 +69,7 @@ static auto select_result_type(
 
 TTX_BINARY_OP(Modulo);
 
-auto Language::Operations::Modulo::select_type(const Ttx::Concept::Abstract&)
+auto Language::Operations::Modulo::select_type(const Tetrodotoxin::Source::Abstract&)
     const -> Core::Option<const Language::Model::Type&> {
   auto inputs = get_inputs();
   const Model::Pack& left = inputs.get_data()[0].get();

@@ -3,21 +3,23 @@
 
 #include "tetrodotoxin/library/interpreter/source/library.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "tetrodotoxin/language/definition.hpp"
 #include "tetrodotoxin/language/parser/comment.hpp"
 #include "tetrodotoxin/library/interpreter/member.hpp"
 #include "tetrodotoxin/library/interpreter/source/foreign.hpp"
 #include "tetrodotoxin/library/interpreter/source/import.hpp"
 
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 
 auto Interpreter::Source::Library::parse(
     Language::Types::Source& source,
     Cursor& cursor) -> void {
   while (!cursor.matches(Code::Type::Terminal)) {
-    const Documentation& documentation =
+    const Tetrodotoxin::Source::Documentation& documentation =
         Tetrodotoxin::Language::Parser::Comment::parse(cursor);
 
     if (cursor.matches(Code::Type::Using)) {

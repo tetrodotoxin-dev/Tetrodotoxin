@@ -9,12 +9,12 @@
 #include "tetrodotoxin/library/interpreter/type_reference.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 
 auto Interpreter::Layout::parse_model(
     Cursor& cursor,
-    const Ttx::Concept::Abstract& host,
+    const Tetrodotoxin::Source::Abstract& host,
     Bool parameters) -> Core::Option<Language::Model::Layout&> {
   Memory::Allocator::Arena& domain = cursor.get_arena();
   Token opening = cursor.current();

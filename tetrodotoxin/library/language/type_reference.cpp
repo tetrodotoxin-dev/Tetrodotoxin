@@ -21,15 +21,15 @@
 #include "tetrodotoxin/library/language/model/types/signed.hpp"
 #include "tetrodotoxin/library/language/model/types/unsigned.hpp"
 #include "ttx/concept/domain.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/model/layouts/fluid.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/layouts/fluid.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using Ttx::Semantic::Binding;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using Ttx::Semantic::Negotiation::Binding;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 
 auto Language::TypeReference::get_interface() const -> Abstract::Handle {
@@ -55,9 +55,6 @@ auto Language::TypeReference::get_interface() const -> Abstract::Handle {
     [](const void* source) -> perimortem_view_bytes {
       const auto route = static_cast<const TypeReference*>(source)->get_route();
       return {route.get_data(), route.get_size()};
-    },
-    [](const void*) -> ttx_documentation {
-      return Documentation::get_empty().get_interface().get_abi();
     },
     [](const void* source) -> ttx_abstract {
       return static_cast<const TypeReference*>(source)
@@ -85,20 +82,20 @@ auto Language::TypeReference::get_interface() const -> Abstract::Handle {
 
 auto Language::TypeReference::bind_interface(Perimortem::System::Uuid requested)
     const -> Perimortem::Utility::Result<Binding, Binding::Failure> {
-  if (requested == Domain::contract_id) {
+  if (requested == Ttx::Concept::Domain::contract_id) {
     if (subject == nullptr) {
       return Binding::Failure::Pending;
     }
     if (!domain) {
       Core::Option<Binding::Failure> failure;
       subject->bind<Domain>().visit(
-          [&](const Domain::Handle& selected) { domain = selected; },
+          [&](const Ttx::Concept::Domain::Handle& selected) { domain = selected; },
           [&](Binding::Failure rejected) { failure = rejected; });
       if (failure) {
         return *failure;
       }
     }
-    return Domain::provide(*this);
+    return Ttx::Concept::Domain::provide(*this);
   }
   using Import = Tetrodotoxin::Language::Import;
   if (requested != Import::contract_id || !dependency) {
@@ -148,9 +145,9 @@ auto Language::TypeReference::bind_interface(Perimortem::System::Uuid requested)
   return Binding::provide<Import>(this, operations);
 }
 
-auto Language::TypeReference::get_domain() const -> Domain::Answer {
+auto Language::TypeReference::get_domain() const -> Ttx::Concept::Domain::Answer {
   return domain->get_domain().visit(
-      [&](Abstract::Handle selected) -> Domain::Answer {
+      [&](Abstract::Handle selected) -> Ttx::Concept::Domain::Answer {
         // A self domain can keep this reference's dependency and access path.
         // A provider that supplies another domain owns that returned edge,
         // so its answer passes through without substituting our native Type.
@@ -159,7 +156,7 @@ auto Language::TypeReference::get_domain() const -> Domain::Answer {
                    ? get_interface()
                    : selected;
       },
-      [](Binding::Failure failure) -> Domain::Answer { return failure; });
+      [](Binding::Failure failure) -> Ttx::Concept::Domain::Answer { return failure; });
 }
 
 auto Language::TypeReference::resolve_concept(Core::View::Bytes name) const
@@ -182,7 +179,7 @@ static auto is_missing(const Abstract& abstract) -> Bool {
 // factual. Import supplies that Type through its own operation, while other
 // declarations and transparent references follow ordinary resolution.
 static auto select_native(const Abstract& candidate) -> const Abstract& {
-  if (candidate.is<Ttx::Model::Type>()) {
+  if (candidate.is<Tetrodotoxin::Source::Type>()) {
     return candidate;
   }
   const Abstract& resolved = candidate.resolve();
@@ -430,7 +427,7 @@ auto Language::TypeReference::resolve_with_root(
       if (nested_failure) {
         return *nested_failure;
       }
-      if (!nested || !nested->is<Ttx::Model::Type>()) {
+      if (!nested || !nested->is<Tetrodotoxin::Source::Type>()) {
         return Failure(Failure::Type::Argument, anchor, i);
       }
       linked.insert(*nested);
@@ -444,7 +441,7 @@ auto Language::TypeReference::resolve_with_root(
     linked.insert(*literal);
   }
 
-  Ttx::Model::Layouts::Fluid layout(linked.get_view());
+  Tetrodotoxin::Source::Layouts::Fluid layout(linked.get_view());
   return generic->materialize(layout).visit(
       [&](const Language::Model::Type& type) -> Resolution {
         if (cursor) {

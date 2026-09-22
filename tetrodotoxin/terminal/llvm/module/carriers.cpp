@@ -89,7 +89,7 @@ static auto get_function(Llvm::Module::Body& body) -> llvm::Function& {
 
 static auto object_descriptor_name(
     Llvm::Module::Program& target,
-    const Ttx::Model::Type& type) -> Core::View::Bytes {
+    const Tetrodotoxin::Source::Type& type) -> Core::View::Bytes {
   auto structure = type.select<Language::Types::Structure>();
   if (target.get_unit().is_package_member() && structure &&
       structure->is_externally_reachable(*structure)) {
@@ -108,7 +108,7 @@ static auto object_descriptor_name(
 
 static auto object_descriptor_linkage(
     Llvm::Module::Program& target,
-    const Ttx::Model::Type& type) -> llvm::GlobalValue::LinkageTypes {
+    const Tetrodotoxin::Source::Type& type) -> llvm::GlobalValue::LinkageTypes {
   auto structure = type.select<Language::Types::Structure>();
   return target.get_unit().is_package_member() && structure &&
                  structure->is_externally_reachable(*structure)
@@ -125,14 +125,14 @@ static auto fail_toolchain(
 
 static auto fail_type(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     Core::View::Bytes message,
     Core::View::Bytes hint = {}) -> Bool {
   auto target = get_target(get_program(program));
   auto library_type =
       type.select<Tetrodotoxin::Library::Language::Model::Type>();
   auto anchor = library_type ? library_type->get_declaration_anchor()
-                             : Core::Option<Ttx::Lexical::Anchor>();
+                             : Core::Option<Tetrodotoxin::Source::Lexical::Anchor>();
   if (target && anchor) {
     return target->fail_source(*anchor, message, hint);
   }
@@ -143,7 +143,7 @@ static auto fail_type(
 template <typename contract>
 static auto select_contract(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Type& type) -> Core::Option<const contract&> {
+    const Tetrodotoxin::Source::Type& type) -> Core::Option<const contract&> {
   auto selected = type.select<contract>();
   if (!selected) {
     fail_toolchain(
@@ -154,18 +154,18 @@ static auto select_contract(
   return selected;
 }
 
-static auto select_field_type(const Ttx::Concept::Layout& fields, Count index)
-    -> Core::Option<const Ttx::Model::Type&> {
+static auto select_field_type(const Tetrodotoxin::Source::Layout& fields, Count index)
+    -> Core::Option<const Tetrodotoxin::Source::Type&> {
   auto entry = fields.get_abstract(index);
-  auto field = entry ? entry->select<Ttx::Model::Addressable>()
-                     : Core::Option<const Ttx::Model::Addressable&>();
-  return field ? field->get_type().select<Ttx::Model::Type>()
-               : Core::Option<const Ttx::Model::Type&>();
+  auto field = entry ? entry->select<Tetrodotoxin::Source::Addressable>()
+                     : Core::Option<const Tetrodotoxin::Source::Addressable&>();
+  return field ? field->get_type().select<Tetrodotoxin::Source::Type>()
+               : Core::Option<const Tetrodotoxin::Source::Type&>();
 }
 
 auto Llvm::Module::Carriers::publish(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     Carrier carrier) const -> Core::Option<Bool> {
   auto found = carriers.find(&type);
   if (found) {
@@ -185,7 +185,7 @@ auto Llvm::Module::Carriers::publish(
 
 auto Llvm::Module::Carriers::reserve(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     Kind kind) const -> Core::Option<Bool> {
   auto target = get_target(program);
   if (!target) {
@@ -333,7 +333,7 @@ auto Llvm::Module::Carriers::reserve(
 
 auto Llvm::Module::Carriers::begin_completion(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Type& type) const -> Core::Option<Bool> {
+    const Tetrodotoxin::Source::Type& type) const -> Core::Option<Bool> {
   auto found = carriers.find(&type);
   if (!found) {
     fail_toolchain(
@@ -352,7 +352,7 @@ auto Llvm::Module::Carriers::begin_completion(
 
 auto Llvm::Module::Carriers::select_completion(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     Kind kind) const -> Core::Option<Carrier&> {
   auto found = carriers.find(&type);
   if (!found || found->value.kind != kind ||
@@ -368,7 +368,7 @@ auto Llvm::Module::Carriers::select_completion(
 
 auto Llvm::Module::Carriers::complete(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     Kind kind) const -> Bool {
   switch (kind) {
   case Kind::Value: {
@@ -422,7 +422,7 @@ auto Llvm::Module::Carriers::complete(
       return False;
     }
 
-    const Ttx::Model::Type& element = fixed->get_element_type();
+    const Tetrodotoxin::Source::Type& element = fixed->get_element_type();
     Count extent = Count(fixed->get_extent());
     auto carrier = select_completion(program, type, kind);
     auto element_carrier = carriers.find(&element);
@@ -455,8 +455,8 @@ auto Llvm::Module::Carriers::complete(
       return False;
     }
 
-    const Ttx::Model::Type& element = option->get_element_type();
-    const Ttx::Model::Type& flag = option->get_flag_type();
+    const Tetrodotoxin::Source::Type& element = option->get_element_type();
+    const Tetrodotoxin::Source::Type& flag = option->get_flag_type();
     auto carrier = select_completion(program, type, kind);
     auto element_carrier = carriers.find(&element);
     auto flag_carrier = carriers.find(&flag);
@@ -506,9 +506,9 @@ auto Llvm::Module::Carriers::complete(
       return False;
     }
 
-    const Ttx::Model::Type& value = result->get_value_type();
-    const Ttx::Model::Type& error = result->get_error_type();
-    const Ttx::Model::Type& flag = result->get_flag_type();
+    const Tetrodotoxin::Source::Type& value = result->get_value_type();
+    const Tetrodotoxin::Source::Type& error = result->get_error_type();
+    const Tetrodotoxin::Source::Type& flag = result->get_flag_type();
     auto carrier = select_completion(program, type, kind);
     auto value_carrier = carriers.find(&value);
     auto error_carrier = carriers.find(&error);
@@ -597,7 +597,7 @@ auto Llvm::Module::Carriers::complete(
       return False;
     }
 
-    const Ttx::Model::Type& element = range->get_element_type();
+    const Tetrodotoxin::Source::Type& element = range->get_element_type();
     auto target = get_target(program);
     auto carrier = select_completion(program, type, kind);
     auto element_carrier = carriers.find(&element);
@@ -700,7 +700,7 @@ auto Llvm::Module::Carriers::complete(
     }
 
     auto carrier = select_completion(program, type, kind);
-    const Ttx::Model::Type& element = object->get_element_type();
+    const Tetrodotoxin::Source::Type& element = object->get_element_type();
     auto element_carrier = carriers.find(&element);
     if (!carrier || !element_carrier ||
         element_carrier->value.phase != Phase::Complete ||
@@ -730,8 +730,8 @@ auto Llvm::Module::Carriers::complete(
 
 auto Llvm::Module::Carriers::complete_contiguous(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Type& type,
-    const Ttx::Model::Type& element,
+    const Tetrodotoxin::Source::Type& type,
+    const Tetrodotoxin::Source::Type& element,
     Kind kind) const -> Bool {
   auto carrier = select_completion(program, type, kind);
   auto native = get_type(element);
@@ -748,7 +748,7 @@ auto Llvm::Module::Carriers::complete_contiguous(
 
 auto Llvm::Module::Carriers::get_implementation_projection(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Type& candidate) const -> Core::Option<LLVMValueRef> {
+    const Tetrodotoxin::Source::Type& candidate) const -> Core::Option<LLVMValueRef> {
   auto target = get_target(program);
   auto object =
       candidate.select<Tetrodotoxin::Library::Language::Types::Object>();
@@ -782,8 +782,8 @@ auto Llvm::Module::Carriers::get_implementation_projection(
 
 auto Llvm::Module::Carriers::complete_aggregate(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Type& type,
-    const Ttx::Concept::Layout& fields,
+    const Tetrodotoxin::Source::Type& type,
+    const Tetrodotoxin::Source::Layout& fields,
     Kind kind) const -> Bool {
   auto carrier = select_completion(program, type, kind);
   if (!carrier || !carrier->payload) {
@@ -793,15 +793,15 @@ auto Llvm::Module::Carriers::complete_aggregate(
   Memory::Dynamic::Vector<LLVMTypeRef> native_fields(fields.get_size());
   for (Count index = 0; index < fields.get_size(); index++) {
     auto entry = fields.get_abstract(index);
-    auto field = entry ? entry->select<Ttx::Model::Addressable>()
-                       : Core::Option<const Ttx::Model::Addressable&>();
+    auto field = entry ? entry->select<Tetrodotoxin::Source::Addressable>()
+                       : Core::Option<const Tetrodotoxin::Source::Addressable&>();
     if (!field) {
       return fail_toolchain(
           program,
           "LLVM received an aggregate Layout entry without an Addressable."_view);
     }
 
-    auto field_type = field->get_type().select<Ttx::Model::Type>();
+    auto field_type = field->get_type().select<Tetrodotoxin::Source::Type>();
     if (!field_type) {
       return fail_toolchain(
           program,
@@ -842,21 +842,21 @@ auto Llvm::Module::Carriers::complete_aggregate(
   return True;
 }
 
-auto Llvm::Module::Carriers::get_type(const Ttx::Model::Type& type) const
+auto Llvm::Module::Carriers::get_type(const Tetrodotoxin::Source::Type& type) const
     -> Core::Option<LLVMTypeRef> {
   auto found = carriers.find(&type);
   return found && found->value.native ? found->value.native
                                       : Core::Option<LLVMTypeRef>();
 }
 
-auto Llvm::Module::Carriers::get_payload(const Ttx::Model::Type& type) const
+auto Llvm::Module::Carriers::get_payload(const Tetrodotoxin::Source::Type& type) const
     -> Core::Option<LLVMTypeRef> {
   auto found = carriers.find(&type);
   return found && found->value.payload ? found->value.payload
                                        : Core::Option<LLVMTypeRef>();
 }
 
-auto Llvm::Module::Carriers::get_kind(const Ttx::Model::Type& type) const
+auto Llvm::Module::Carriers::get_kind(const Tetrodotoxin::Source::Type& type) const
     -> Core::Option<Kind> {
   auto found = carriers.find(&type);
   if (!found || found->value.phase != Phase::Complete) {
@@ -866,7 +866,7 @@ auto Llvm::Module::Carriers::get_kind(const Ttx::Model::Type& type) const
   return found->value.kind;
 }
 
-auto Llvm::Module::Carriers::get_width(const Ttx::Model::Type& type) const
+auto Llvm::Module::Carriers::get_width(const Tetrodotoxin::Source::Type& type) const
     -> Core::Option<Count> {
   auto found = carriers.find(&type);
   if (!found || found->value.phase != Phase::Complete ||
@@ -877,8 +877,8 @@ auto Llvm::Module::Carriers::get_width(const Ttx::Model::Type& type) const
   return found->value.width;
 }
 
-auto Llvm::Module::Carriers::get_element(const Ttx::Model::Type& type) const
-    -> Core::Option<const Ttx::Model::Type&> {
+auto Llvm::Module::Carriers::get_element(const Tetrodotoxin::Source::Type& type) const
+    -> Core::Option<const Tetrodotoxin::Source::Type&> {
   auto found = carriers.find(&type);
   if (!found || found->value.phase != Phase::Complete ||
       !found->value.element) {
@@ -888,8 +888,8 @@ auto Llvm::Module::Carriers::get_element(const Ttx::Model::Type& type) const
   return *found->value.element;
 }
 
-auto Llvm::Module::Carriers::get_flag(const Ttx::Model::Type& type) const
-    -> Core::Option<const Ttx::Model::Type&> {
+auto Llvm::Module::Carriers::get_flag(const Tetrodotoxin::Source::Type& type) const
+    -> Core::Option<const Tetrodotoxin::Source::Type&> {
   auto found = carriers.find(&type);
   if (!found || found->value.phase != Phase::Complete || !found->value.flag) {
     return {};
@@ -898,8 +898,8 @@ auto Llvm::Module::Carriers::get_flag(const Ttx::Model::Type& type) const
   return *found->value.flag;
 }
 
-auto Llvm::Module::Carriers::get_error(const Ttx::Model::Type& type) const
-    -> Core::Option<const Ttx::Model::Type&> {
+auto Llvm::Module::Carriers::get_error(const Tetrodotoxin::Source::Type& type) const
+    -> Core::Option<const Tetrodotoxin::Source::Type&> {
   auto found = carriers.find(&type);
   if (!found || found->value.phase != Phase::Complete || !found->value.error) {
     return {};
@@ -908,7 +908,7 @@ auto Llvm::Module::Carriers::get_error(const Ttx::Model::Type& type) const
   return *found->value.error;
 }
 
-auto Llvm::Module::Carriers::get_extent(const Ttx::Model::Type& type) const
+auto Llvm::Module::Carriers::get_extent(const Tetrodotoxin::Source::Type& type) const
     -> Core::Option<Count> {
   auto found = carriers.find(&type);
   if (!found || found->value.phase != Phase::Complete ||
@@ -919,8 +919,8 @@ auto Llvm::Module::Carriers::get_extent(const Ttx::Model::Type& type) const
   return found->value.extent;
 }
 
-auto Llvm::Module::Carriers::get_fields(const Ttx::Model::Type& type) const
-    -> Core::Option<const Ttx::Concept::Layout&> {
+auto Llvm::Module::Carriers::get_fields(const Tetrodotoxin::Source::Type& type) const
+    -> Core::Option<const Tetrodotoxin::Source::Layout&> {
   auto found = carriers.find(&type);
   if (!found || found->value.phase != Phase::Complete || !found->value.fields) {
     return {};
@@ -930,38 +930,38 @@ auto Llvm::Module::Carriers::get_fields(const Ttx::Model::Type& type) const
 }
 
 auto Llvm::Module::Carriers::get_field_index(
-    const Ttx::Model::Addressable& field) const -> Core::Option<Count> {
+    const Tetrodotoxin::Source::Addressable& field) const -> Core::Option<Count> {
   auto found = field_indices.find(&field);
   return found ? Core::Option<Count>(found->value) : Core::Option<Count>();
 }
 
 auto Llvm::Module::Carriers::get_field_host(
-    const Ttx::Model::Addressable& field) const
-    -> Core::Option<const Ttx::Model::Type&> {
+    const Tetrodotoxin::Source::Addressable& field) const
+    -> Core::Option<const Tetrodotoxin::Source::Type&> {
   auto found = field_hosts.find(&field);
-  return found ? Core::Option<const Ttx::Model::Type&>(*found->value)
-               : Core::Option<const Ttx::Model::Type&>();
+  return found ? Core::Option<const Tetrodotoxin::Source::Type&>(*found->value)
+               : Core::Option<const Tetrodotoxin::Source::Type&>();
 }
 
-auto Llvm::Module::Carriers::is_real(const Ttx::Model::Type& type) const
+auto Llvm::Module::Carriers::is_real(const Tetrodotoxin::Source::Type& type) const
     -> Bool {
   auto found = carriers.find(&type);
   return found ? found->value.has(Carrier::Property::Real) : False;
 }
 
-auto Llvm::Module::Carriers::is_signed(const Ttx::Model::Type& type) const
+auto Llvm::Module::Carriers::is_signed(const Tetrodotoxin::Source::Type& type) const
     -> Bool {
   auto found = carriers.find(&type);
   return found ? found->value.has(Carrier::Property::Signed) : False;
 }
 
-auto Llvm::Module::Carriers::is_flag(const Ttx::Model::Type& type) const
+auto Llvm::Module::Carriers::is_flag(const Tetrodotoxin::Source::Type& type) const
     -> Bool {
   auto found = carriers.find(&type);
   return found ? found->value.has(Carrier::Property::Flag) : False;
 }
 
-auto Llvm::Module::Carriers::is_object(const Ttx::Model::Type& type) const
+auto Llvm::Module::Carriers::is_object(const Tetrodotoxin::Source::Type& type) const
     -> Bool {
   auto found = carriers.find(&type);
   return Bool(found && found->value.kind == Kind::Object);
@@ -969,7 +969,7 @@ auto Llvm::Module::Carriers::is_object(const Ttx::Model::Type& type) const
 
 auto Llvm::Module::Carriers::zero(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Type& type) const -> Core::Option<LLVMValueRef> {
+    const Tetrodotoxin::Source::Type& type) const -> Core::Option<LLVMValueRef> {
   auto native = get_type(type);
   if (!native) {
     fail_toolchain(
@@ -981,16 +981,16 @@ auto Llvm::Module::Carriers::zero(
   return llvm::wrap(llvm::Constant::getNullValue(llvm::unwrap(*native)));
 }
 
-auto Llvm::Module::Carriers::owns_resources(const Ttx::Model::Type& type) const
+auto Llvm::Module::Carriers::owns_resources(const Tetrodotoxin::Source::Type& type) const
     -> Bool {
-  Memory::Dynamic::Vector<Ttx::Concept::Reference<const Ttx::Model::Type>>
+  Memory::Dynamic::Vector<Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type>>
       active;
   return owns_resources(type, active);
 }
 
 auto Llvm::Module::Carriers::owns_resources(
-    const Ttx::Model::Type& type,
-    Memory::Dynamic::Vector<Ttx::Concept::Reference<const Ttx::Model::Type>>&
+    const Tetrodotoxin::Source::Type& type,
+    Memory::Dynamic::Vector<Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type>>&
         active) const -> Bool {
   auto found = carriers.find(&type);
   if (!found) {
@@ -1003,7 +1003,7 @@ auto Llvm::Module::Carriers::owns_resources(
     return True;
   }
 
-  Ttx::Concept::Reference<const Ttx::Model::Type> retained(type);
+  Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type> retained(type);
   if (active.contains(retained)) {
     return False;
   }
@@ -1032,7 +1032,7 @@ auto Llvm::Module::Carriers::owns_resources(
 
 auto Llvm::Module::Carriers::retain(
     Llvm::Module::Emission& body,
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     LLVMValueRef value) const -> Bool {
   auto native_body = get_body(body);
   auto found = carriers.find(&type);
@@ -1120,7 +1120,7 @@ auto Llvm::Module::Carriers::retain(
     if (constant) {
       Bool value_selected = !constant->isZero();
       auto selected_result = select_result(body, type, value, value_selected);
-      const Ttx::Model::Type& selected_type =
+      const Tetrodotoxin::Source::Type& selected_type =
           value_selected ? *carrier.element : *carrier.error;
       return selected_result && retain(body, selected_type, *selected_result);
     }
@@ -1190,7 +1190,7 @@ auto Llvm::Module::Carriers::retain(
 
 auto Llvm::Module::Carriers::release(
     Llvm::Module::Emission& body,
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     LLVMValueRef value) const -> Bool {
   auto native_body = get_body(body);
   auto found = carriers.find(&type);
@@ -1280,7 +1280,7 @@ auto Llvm::Module::Carriers::release(
     if (constant) {
       Bool value_selected = !constant->isZero();
       auto selected_result = select_result(body, type, value, value_selected);
-      const Ttx::Model::Type& selected_type =
+      const Tetrodotoxin::Source::Type& selected_type =
           value_selected ? *carrier.element : *carrier.error;
       return selected_result && release(body, selected_type, *selected_result);
     }
@@ -1350,7 +1350,7 @@ auto Llvm::Module::Carriers::release(
 
 auto Llvm::Module::Carriers::select_result(
     Llvm::Module::Emission& body,
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     LLVMValueRef value,
     Bool value_selected) const -> Core::Option<LLVMValueRef> {
   auto native_body = get_body(body);
@@ -1366,7 +1366,7 @@ auto Llvm::Module::Carriers::select_result(
     return {};
   }
 
-  const Ttx::Model::Type& alternative =
+  const Tetrodotoxin::Source::Type& alternative =
       value_selected ? *found->value.element : *found->value.error;
   auto native_alternative = get_type(alternative);
   if (!native_alternative) {
@@ -1385,8 +1385,8 @@ auto Llvm::Module::Carriers::select_result(
 
 auto Llvm::Module::Carriers::assemble_result(
     Llvm::Module::Emission& body,
-    const Ttx::Model::Type& type,
-    const Ttx::Model::Type& alternative,
+    const Tetrodotoxin::Source::Type& type,
+    const Tetrodotoxin::Source::Type& alternative,
     Bool value_selected,
     Core::View::Vector<LLVMValueRef> elements) const
     -> Core::Option<LLVMValueRef> {
@@ -1398,7 +1398,7 @@ auto Llvm::Module::Carriers::assemble_result(
     return {};
   }
 
-  const Ttx::Model::Type& expected =
+  const Tetrodotoxin::Source::Type& expected =
       value_selected ? *found->value.element : *found->value.error;
   if (&expected != &alternative) {
     return {};
@@ -1429,7 +1429,7 @@ auto Llvm::Module::Carriers::assemble_result(
 
 auto Llvm::Module::Carriers::assemble(
     Llvm::Module::Emission& body,
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     Core::View::Vector<LLVMValueRef> elements) const
     -> Core::Option<LLVMValueRef> {
   auto native_body = get_body(body);
@@ -1585,10 +1585,10 @@ auto Llvm::Module::Carriers::assemble(
 auto Llvm::Module::Carriers::fit_values(
     Llvm::Module::Emission& body,
     const Library::Language::Model::Pack& source,
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Core::View::Vector<LLVMValueRef> values) const
     -> Core::Option<Memory::Dynamic::Vector<LLVMValueRef>> {
-  const Ttx::Concept::Layout& supplied = source.get_layout();
+  const Tetrodotoxin::Source::Layout& supplied = source.get_layout();
   if (values.get_size() != supplied.get_size() ||
       values.get_size() != target.get_size()) {
     fail_toolchain(
@@ -1641,7 +1641,7 @@ auto Llvm::Module::Carriers::fit_values(
 
 auto Llvm::Module::Carriers::fit_and_assemble(
     Llvm::Module::Emission& body,
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     const Library::Language::Model::Pack& source,
     Core::View::Vector<LLVMValueRef> elements) const
     -> Core::Option<LLVMValueRef> {
@@ -1669,7 +1669,7 @@ auto Llvm::Module::Carriers::fit_and_assemble(
         type.select<Tetrodotoxin::Library::Language::Types::Implementation>();
     const Library::Language::Model::Pack& semantic = source;
     auto candidate =
-        semantic.get_value_type(0).resolve().select<Ttx::Model::Type>();
+        semantic.get_value_type(0).resolve().select<Tetrodotoxin::Source::Type>();
     auto candidate_native =
         candidate ? get_type(*candidate) : Core::Option<LLVMTypeRef>();
     auto projection = implementation && candidate && candidate_native &&
@@ -1723,7 +1723,7 @@ auto Llvm::Module::Carriers::fit_and_assemble(
       return {};
     }
 
-    const Ttx::Model::Type& alternative =
+    const Tetrodotoxin::Source::Type& alternative =
         value ? *carrier.element : *carrier.error;
     auto native_alternative = get_type(alternative);
     if (elements.get_size() == 1 && native_alternative &&
@@ -1746,7 +1746,7 @@ auto Llvm::Module::Carriers::fit_and_assemble(
 auto Llvm::Module::Carriers::fit(
     Llvm::Module::Emission& body,
     const Library::Language::Model::Pack& source,
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Core::View::Vector<LLVMValueRef> values) const
     -> Core::Option<Memory::Dynamic::Vector<LLVMValueRef>> {
   return fit_values(body, source, target, values);
@@ -1754,7 +1754,7 @@ auto Llvm::Module::Carriers::fit(
 
 auto Llvm::Module::Carriers::get_object_descriptor(
     Llvm::Module::Emission& program,
-    const Ttx::Model::Type& type) const -> Core::Option<LLVMValueRef> {
+    const Tetrodotoxin::Source::Type& type) const -> Core::Option<LLVMValueRef> {
   auto found = carriers.find(&type);
   if (!found || found->value.phase != Phase::Complete) {
     fail_toolchain(
@@ -1915,7 +1915,7 @@ auto Llvm::Module::Carriers::get_object_descriptor(
 
 auto Llvm::Module::Carriers::construct(
     Llvm::Module::Emission& body,
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     Core::View::Vector<LLVMValueRef> values) const
     -> Core::Option<LLVMValueRef> {
   auto native_body = get_body(body);

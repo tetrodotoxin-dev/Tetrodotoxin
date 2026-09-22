@@ -12,8 +12,8 @@
 #include "tetrodotoxin/library/language/model/callable.hpp"
 #include "tetrodotoxin/library/language/model/pack.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Language::Access {
 
@@ -28,10 +28,10 @@ class Call : public Expression {
   static auto create_authored(
       Perimortem::Memory::Allocator::Arena& domain,
       Model::Pack& receiver,
-      Ttx::Lexical::Token name_token,
+      Tetrodotoxin::Source::Lexical::Token name_token,
       Perimortem::Core::View::Bytes name,
       Language::Model::Pack& arguments,
-      Ttx::Lexical::Anchor anchor) -> Call&;
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> Call&;
 
   static auto create_synthetic(
       Perimortem::Memory::Allocator::Arena& arena,
@@ -40,26 +40,26 @@ class Call : public Expression {
       Language::Model::Pack& arguments) -> Call&;
 
   auto link(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& lexical_context,
-      Perimortem::Core::Option<const Ttx::Concept::Abstract&> access_scope = {})
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& lexical_context,
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&> access_scope = {})
       -> Bool override;
 
   auto link_restored(
-      const Ttx::Concept::Abstract& lexical_context,
-      Perimortem::Core::Option<const Ttx::Concept::Abstract&> access_scope = {})
+      const Tetrodotoxin::Source::Abstract& lexical_context,
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&> access_scope = {})
       -> Bool override;
 
   TTX_NAME(name);
 
-  auto get_documentation() const -> const Ttx::Concept::Documentation& override;
-  auto get_result() const -> const Ttx::Concept::Abstract& override;
-  auto get_type() const -> const Ttx::Concept::Abstract& override;
+  auto get_documentation() const -> const Tetrodotoxin::Source::Documentation& override;
+  auto get_result() const -> const Tetrodotoxin::Source::Abstract& override;
+  auto get_type() const -> const Tetrodotoxin::Source::Abstract& override;
   auto get_value_type(Count index) const
-      -> const Ttx::Concept::Abstract& override;
-  auto get_layout() const -> const Ttx::Concept::Layout& override;
-  auto resolve() const -> const Ttx::Concept::Abstract& override;
-  auto finalize(Ttx::Lexical::Cursor& cursor) -> void override;
+      -> const Tetrodotoxin::Source::Abstract& override;
+  auto get_layout() const -> const Tetrodotoxin::Source::Layout& override;
+  auto resolve() const -> const Tetrodotoxin::Source::Abstract& override;
+  auto finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> void override;
 
   auto get_callable() const -> Perimortem::Core::Option<const Model::Callable&>;
 
@@ -68,7 +68,7 @@ class Call : public Expression {
   // point. Named arguments carry their own labels, and a composed Pack has one
   // useful insertion point, so its first output represents the whole Pack.
   auto get_argument_parameter(Count index) const
-      -> Perimortem::Core::Option<const Ttx::Model::Addressable&>;
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Addressable&>;
 
   constexpr auto get_arguments() const -> const Language::Model::Pack& {
     return arguments;
@@ -76,7 +76,7 @@ class Call : public Expression {
 
   constexpr auto get_receiver() const -> const Model::Pack& { return receiver; }
 
-  constexpr auto get_name_token() const -> Ttx::Lexical::Token {
+  constexpr auto get_name_token() const -> Tetrodotoxin::Source::Lexical::Token {
     return name_token;
   }
 
@@ -87,13 +87,13 @@ class Call : public Expression {
   class Input {
    public:
     constexpr Input(
-        const Ttx::Model::Addressable& parameter,
+        const Tetrodotoxin::Source::Addressable& parameter,
         const Language::Model::Pack& source,
         Count offset,
         Count size)
         : parameter(parameter), source(source), offset(offset), size(size) {}
 
-    constexpr auto get_parameter() const -> const Ttx::Model::Addressable& {
+    constexpr auto get_parameter() const -> const Tetrodotoxin::Source::Addressable& {
       return parameter.get();
     }
 
@@ -106,8 +106,8 @@ class Call : public Expression {
     constexpr auto get_size() const -> Count { return size; }
 
    private:
-    Ttx::Concept::Reference<const Ttx::Model::Addressable> parameter;
-    Ttx::Model::PackReference<const Language::Model::Pack> source;
+    Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Addressable> parameter;
+    Tetrodotoxin::Source::PackReference<const Language::Model::Pack> source;
     Count offset;
     Count size;
   };
@@ -118,10 +118,10 @@ class Call : public Expression {
   constexpr Call(
       Perimortem::Memory::Allocator::Arena& domain,
       Model::Pack& receiver,
-      Ttx::Lexical::Token name_token,
+      Tetrodotoxin::Source::Lexical::Token name_token,
       Perimortem::Core::View::Bytes name,
       Language::Model::Pack& arguments,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor)
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor)
       : Expression(anchor),
         domain(domain),
         receiver(receiver),
@@ -132,20 +132,20 @@ class Call : public Expression {
 
   auto fit_inputs(
       const Model::Callable& selected,
-      Perimortem::Core::Option<const Ttx::Concept::Layout&> inputs) -> Bool;
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Layout&> inputs) -> Bool;
 
   auto evaluate() -> Perimortem::Utility::
       Result<Perimortem::Core::Option<Model::Pack&>, Error> override;
 
   Perimortem::Memory::Allocator::Arena& domain;
   Model::Pack& receiver;
-  Ttx::Lexical::Token name_token;
+  Tetrodotoxin::Source::Lexical::Token name_token;
   Perimortem::Core::View::Bytes name;
   Language::Model::Pack& arguments;
-  Perimortem::Core::Option<Ttx::Concept::Reference<const Model::Callable>>
+  Perimortem::Core::Option<Tetrodotoxin::Source::Reference<const Model::Callable>>
       callable;
-  Perimortem::Core::Option<const Ttx::Concept::Layout&> input_layout;
-  Perimortem::Core::Option<const Ttx::Concept::Layout&> output;
+  Perimortem::Core::Option<const Tetrodotoxin::Source::Layout&> input_layout;
+  Perimortem::Core::Option<const Tetrodotoxin::Source::Layout&> output;
   Perimortem::Memory::Managed::Vector<Input> fitted_inputs;
 };
 

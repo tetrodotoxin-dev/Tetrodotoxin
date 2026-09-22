@@ -12,7 +12,7 @@
 #include "tetrodotoxin/library/language/model/callable.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
 #include "tetrodotoxin/library/language/signature.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Language {
 
@@ -31,8 +31,8 @@ class Function : public Model::Callable {
 
   auto bind_interface(Perimortem::System::Uuid requested) const
       -> Perimortem::Utility::Result<
-          Ttx::Semantic::Binding,
-          Ttx::Semantic::Binding::Failure> override {
+          Ttx::Semantic::Negotiation::Binding,
+          Ttx::Semantic::Negotiation::Binding::Failure> override {
     if (requested == Tetrodotoxin::Language::Definition::contract_id) {
       return Tetrodotoxin::Language::Definition::provide(*this);
     }
@@ -59,14 +59,14 @@ class Function : public Model::Callable {
   auto operator=(const Function&) -> Function& = delete;
   auto operator=(Function&&) -> Function& = delete;
 
-  auto link_declaration_signature(Ttx::Lexical::Cursor& cursor)
+  auto link_declaration_signature(Tetrodotoxin::Source::Lexical::Cursor& cursor)
       -> Bool override;
 
-  auto link_declaration_body(Ttx::Lexical::Cursor& cursor) -> Bool override;
+  auto link_declaration_body(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
 
   auto link_restored_declaration_signature() -> Bool override;
 
-  auto finalize_declaration(Ttx::Lexical::Cursor& cursor) -> Bool override;
+  auto finalize_declaration(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
 
   TTX_DOCUMENTATION(get_definition().get_documentation());
   TTX_NAME(definition.get_name());
@@ -76,23 +76,28 @@ class Function : public Model::Callable {
     return definition;
   }
 
-  constexpr auto get_anchor() const -> Ttx::Lexical::Anchor {
-    return definition.get_anchor();
+  constexpr auto get_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor {
+    return definition.get_authored().get_anchor();
   }
 
   constexpr auto get_declaration_anchor() const
-      -> Perimortem::Core::Option<Ttx::Lexical::Anchor> override {
-    return definition.get_declaration_anchor();
+      -> Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> override {
+    const auto anchor = definition.get_authored().get_anchor();
+    if (!anchor.get_span()) {
+      return {};
+    }
+
+    return anchor;
   }
 
-  auto resolve() const -> const Ttx::Concept::Abstract& override;
+  auto resolve() const -> const Tetrodotoxin::Source::Abstract& override;
 
   auto resolve_concept(Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract& override;
+      -> const Tetrodotoxin::Source::Abstract& override;
 
-  auto get_parameters() const -> const Ttx::Concept::Layout& override;
+  auto get_parameters() const -> const Tetrodotoxin::Source::Layout& override;
 
-  auto get_results() const -> const Ttx::Concept::Layout& override;
+  auto get_results() const -> const Tetrodotoxin::Source::Layout& override;
 
   constexpr auto get_parameter_anchor(Count index) const {
     return signature.get_parameters().get_slot_anchor(index);

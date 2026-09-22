@@ -14,10 +14,10 @@
 #include "tetrodotoxin/library/language/access/instance.hpp"
 #include "tetrodotoxin/library/language/access/static.hpp"
 #include "tetrodotoxin/library/language/model/type.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/lexical/cursor.hpp"
-#include "ttx/model/layouts/named.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/layouts/named.hpp"
 
 namespace Tetrodotoxin::Library::Language::Types {
 
@@ -44,11 +44,11 @@ class Composite : public Model::Type {
   auto can_accept_definition() const -> Bool;
 
   auto can_bind_definition(
-      const Ttx::Concept::Abstract& binding,
+      const Tetrodotoxin::Source::Abstract& binding,
       Category category) const -> Bool;
 
   auto publish_binding(
-      Ttx::Concept::Abstract& binding,
+      Tetrodotoxin::Source::Abstract& binding,
       Category category,
       Bool published,
       Bool persistent = True,
@@ -59,13 +59,13 @@ class Composite : public Model::Type {
       Category category,
       Tetrodotoxin::Language::Visibility visibility =
           Tetrodotoxin::Language::Visibility::Private) const
-      -> const Ttx::Concept::Abstract&;
+      -> const Tetrodotoxin::Source::Abstract&;
 
   virtual auto retain_binding(
-      Ttx::Concept::Abstract& binding,
+      Tetrodotoxin::Source::Abstract& binding,
       Tetrodotoxin::Language::Definition& definition,
       Category category,
-      Ttx::Lexical::Cursor& cursor) -> Bool;
+      Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool;
 
   auto complete_field_layout() -> void;
 
@@ -76,15 +76,15 @@ class Composite : public Model::Type {
   // Source owns the closure barrier. These tree operations settle forward
   // Alias routes without making an Alias discover or complete its siblings.
   auto link_aliases() -> Count override;
-  auto validate_aliases(Ttx::Lexical::Cursor& cursor) const -> Bool override;
+  auto validate_aliases(Tetrodotoxin::Source::Lexical::Cursor& cursor) const -> Bool override;
 
  public:
   TTX_CONTRACT(Composite, Model::Type);
 
   auto bind_interface(Perimortem::System::Uuid requested) const
       -> Perimortem::Utility::Result<
-          Ttx::Semantic::Binding,
-          Ttx::Semantic::Binding::Failure> override {
+          Ttx::Semantic::Negotiation::Binding,
+          Ttx::Semantic::Negotiation::Binding::Failure> override {
     if (requested == Tetrodotoxin::Language::Definition::contract_id) {
       return Tetrodotoxin::Language::Definition::provide(*this);
     }
@@ -100,15 +100,15 @@ class Composite : public Model::Type {
   // grammar. Composite applies its one registration and collision policy to
   // that real identity without learning how the declaration was parsed.
   auto retain_authored_definition(
-      Ttx::Concept::Abstract& binding,
+      Tetrodotoxin::Source::Abstract& binding,
       Tetrodotoxin::Language::Definition& definition,
       Category category,
-      Ttx::Lexical::Cursor& cursor) -> Bool;
+      Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool;
 
   // A producer that has already validated category and visibility can retain
   // the same semantic identity without borrowing source interpretation.
   auto retain_definition(
-      Ttx::Concept::Abstract& binding,
+      Tetrodotoxin::Source::Abstract& binding,
       Category category,
       Bool published) -> Bool;
 
@@ -119,16 +119,16 @@ class Composite : public Model::Type {
     return definition;
   }
 
-  constexpr auto get_host() -> Ttx::Concept::Abstract& {
+  constexpr auto get_host() -> Tetrodotoxin::Source::Abstract& {
     return definition.get_host();
   }
 
-  constexpr auto get_host() const -> const Ttx::Concept::Abstract& {
+  constexpr auto get_host() const -> const Tetrodotoxin::Source::Abstract& {
     return definition.get_host();
   }
 
-  constexpr auto get_anchor() const -> Ttx::Lexical::Anchor {
-    return definition.get_anchor();
+  constexpr auto get_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor {
+    return definition.get_authored().get_anchor();
   }
 
   TTX_NAME(definition.get_name());
@@ -143,15 +143,15 @@ class Composite : public Model::Type {
 
   // Declaration Types settle recursively before any Composite in the same
   // closure may complete Field Type edges.
-  auto link_types(Ttx::Lexical::Cursor& cursor) -> Bool override;
-  auto link_fields(Ttx::Lexical::Cursor& cursor) -> Bool override;
-  auto validate_layout(Ttx::Lexical::Cursor& cursor) const -> Bool override;
+  auto link_types(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
+  auto link_fields(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
+  auto validate_layout(Tetrodotoxin::Source::Lexical::Cursor& cursor) const -> Bool override;
 
   auto validate_layout_restored() const -> Bool;
-  auto link_initializers(Ttx::Lexical::Cursor& cursor) -> Bool override;
-  auto link_callable_signatures(Ttx::Lexical::Cursor& cursor) -> Bool override;
-  auto link_callable_bodies(Ttx::Lexical::Cursor& cursor) -> Bool override;
-  auto finalize(Ttx::Lexical::Cursor& cursor) -> Bool override;
+  auto link_initializers(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
+  auto link_callable_signatures(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
+  auto link_callable_bodies(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
+  auto finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
 
   auto link_restored_types() -> Bool override;
 
@@ -164,31 +164,36 @@ class Composite : public Model::Type {
   auto finalize_restored() -> Bool override;
 
   constexpr auto get_declaration_anchor() const
-      -> Perimortem::Core::Option<Ttx::Lexical::Anchor> override {
-    return definition.get_declaration_anchor();
+      -> Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> override {
+    const auto anchor = definition.get_authored().get_anchor();
+    if (!anchor.get_span()) {
+      return {};
+    }
+
+    return anchor;
   }
 
-  auto resolve() const -> const Ttx::Concept::Abstract& override;
+  auto resolve() const -> const Tetrodotoxin::Source::Abstract& override;
 
   // An explicit context query exposes only public Type names. A missing local
   // name forwards outward, but a selected Composite never lends private
   // declaration authority to the remainder of a qualified route.
   auto resolve_concept(Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract& override;
+      -> const Tetrodotoxin::Source::Abstract& override;
 
-  auto visit_concepts(Ttx::Concept::Abstract::Visitor visitor) const
+  auto visit_concepts(Tetrodotoxin::Source::Abstract::Visitor visitor) const
       -> void override;
 
   virtual auto resolve_public_context(Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract&;
+      -> const Tetrodotoxin::Source::Abstract&;
 
   // Declaration owners use this one name query for their unqualified root.
   // Actual containment grants local access without attaching authority to any
   // later segment selected by TypeReference.
   auto resolve_lexical_context(Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract& override;
+      -> const Tetrodotoxin::Source::Abstract& override;
 
-  auto get_layout() const -> const Ttx::Model::Layouts::Named& override;
+  auto get_layout() const -> const Tetrodotoxin::Source::Layouts::Named& override;
 
   auto get_addressables(
       Tetrodotoxin::Language::Visibility visibility =
@@ -212,7 +217,7 @@ class Composite : public Model::Type {
     return Perimortem::Core::View::Selection(declarations.get_view());
   }
 
-  auto is_published(const Ttx::Concept::Abstract& declaration) const -> Bool;
+  auto is_published(const Tetrodotoxin::Source::Abstract& declaration) const -> Bool;
 
   constexpr auto get_static_authority() const
       -> const Tetrodotoxin::Library::Language::Access::Static& {
@@ -248,21 +253,21 @@ class Composite : public Model::Type {
   Tetrodotoxin::Library::Language::Access::Static& static_authority;
   Tetrodotoxin::Library::Language::Access::Instance& instance_authority;
   Perimortem::Memory::Managed::Vector<
-      Ttx::Concept::Reference<Ttx::Concept::Abstract>>
+      Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>>
       addressables;
   Perimortem::Memory::Managed::Vector<
-      Ttx::Concept::Reference<Ttx::Concept::Abstract>>
+      Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>>
       published_addressables;
   Perimortem::Memory::Managed::Vector<
-      Ttx::Concept::Reference<Ttx::Concept::Abstract>>
+      Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>>
       types;
   Perimortem::Memory::Managed::Vector<
-      Ttx::Concept::Reference<Ttx::Concept::Abstract>>
+      Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>>
       published_types;
   Perimortem::Memory::Managed::Vector<
-      Ttx::Concept::Reference<Ttx::Concept::Abstract>>
+      Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>>
       declarations;
-  Perimortem::Core::Option<const Ttx::Model::Layouts::Named&> layout;
+  Perimortem::Core::Option<const Tetrodotoxin::Source::Layouts::Named&> layout;
   Stage stage = Stage::Authored;
 };
 

@@ -7,13 +7,13 @@
 
 #include "perimortem/memory/allocator/arena.hpp"
 
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Tetrodotoxin::Language;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Validation;
 
 static Harness AttributeTests = {
@@ -24,7 +24,7 @@ PERIMORTEM_UNIT_TEST(AttributeTests, optional_prefix) {
   Allocator::Arena arena;
   Errors errors;
   Tokenizer tokenizer(arena, "Value"_view, "<optional attribute>"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
 
   auto attributes = Attribute::parse(cursor);
@@ -41,7 +41,7 @@ PERIMORTEM_UNIT_TEST(AttributeTests, scalar_prefix) {
   Allocator::Arena arena;
   Errors errors;
   Tokenizer tokenizer(arena, source, "<attribute values>"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
 
   auto attributes = Attribute::parse(cursor);
@@ -78,7 +78,7 @@ PERIMORTEM_UNIT_TEST(AttributeTests, malformed_inputs) {
     Allocator::Arena arena;
     Errors errors;
     Tokenizer tokenizer(arena, source, "<invalid attribute>"_view);
-    Ttx::Lexical::Associations associations(tokenizer.get_arena());
+    Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
     Cursor cursor(tokenizer, errors, associations);
 
     auto attributes = Attribute::parse(cursor);

@@ -8,7 +8,7 @@
 #include "tetrodotoxin/library/language/types/object.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library::Language;
 
 auto Types::Implementation::create_default(
@@ -25,7 +25,7 @@ auto Types::Implementation::accepts(const Model::Pack& source) const -> Bool {
           object->get_definition().get_host().satisfies(requirement.get()));
 }
 
-auto Types::Implementation::validate_layout(Ttx::Lexical::Cursor& cursor) const
+auto Types::Implementation::validate_layout(Tetrodotoxin::Source::Lexical::Cursor& cursor) const
     -> Bool {
   if (&requirement.get().resolve() == &requirement.get()) {
     return True;

@@ -18,7 +18,7 @@ class Graph {
   static auto lower(
       Module::Program& program,
       const Tetrodotoxin::Library::Language::Monograph& monograph,
-      Perimortem::Core::View::Vector<Ttx::Concept::Reference<
+      Perimortem::Core::View::Vector<Tetrodotoxin::Source::Reference<
           const Tetrodotoxin::Library::Language::Model::Callable>> excluded =
           {}) -> Bool;
 
@@ -28,7 +28,7 @@ class Graph {
 
   static auto prepare(
       Module::Program& program,
-      const Ttx::Model::Addressable& addressable) -> Bool;
+      const Tetrodotoxin::Source::Addressable& addressable) -> Bool;
 };
 
 }  // namespace Tetrodotoxin::Terminal::Llvm::Lowering

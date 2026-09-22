@@ -6,8 +6,8 @@
 #include "perimortem/core/option.hpp"
 
 #include "tetrodotoxin/library/language/flow/return.hpp"
-#include "ttx/concept/abstract.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Interpreter::Execution {
 
@@ -18,8 +18,8 @@ class Return {
   Return() = delete;
 
   static auto parse(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& context)
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& context)
       -> Perimortem::Core::Option<Language::Flow::Return&>;
 };
 

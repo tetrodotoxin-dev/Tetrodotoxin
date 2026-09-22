@@ -7,7 +7,7 @@
 
 #include "tetrodotoxin/library/interpreter/execution/statement_parser.hpp"
 #include "tetrodotoxin/library/language/flow/range_loop.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Interpreter::Execution {
 
@@ -19,7 +19,7 @@ class RangeLoop {
   RangeLoop() = delete;
 
   static auto parse(
-      Ttx::Lexical::Cursor& cursor,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
       Language::Flow::Block& lexical_context,
       Language::Model::Callable& function,
       const Language::Model::Type& access_scope,

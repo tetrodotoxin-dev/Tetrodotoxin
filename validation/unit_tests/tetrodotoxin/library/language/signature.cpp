@@ -13,12 +13,12 @@
 #include "tetrodotoxin/library/language/function.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
 #include "tetrodotoxin/library/language/types/composite.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/tokenizer.hpp"
-#include "ttx/model/layouts/addressable.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/layouts/addressable.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 using Tetrodotoxin::Environment::Workspace;
 using namespace Validation;
@@ -29,7 +29,7 @@ static Harness SignatureTests = {
 
 static auto interpret(
     Workspace& workspace,
-    Ttx::Lexical::Errors& errors,
+    Tetrodotoxin::Source::Lexical::Errors& errors,
     View::Bytes source) -> Option<Language::Monograph&> {
   auto interpreted = workspace.interpret_source(
       errors, "SignatureTest"_view, "signature.ttx"_view, source);
@@ -64,7 +64,7 @@ PERIMORTEM_UNIT_TEST(SignatureTests, signature_shape) {
   auto workspace_toolchain =
       Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
-  Ttx::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Errors errors;
   auto monograph = interpret(workspace, errors, source);
   ASSERT(monograph);
 
@@ -78,9 +78,9 @@ PERIMORTEM_UNIT_TEST(SignatureTests, signature_shape) {
   ASSERT(parameters.get_name(0));
   EXPECT_TEXT(*parameters.get_name(0), "input"_view);
   auto parameter = parameters.get_abstract(0);
-  ASSERT(parameter && parameter->is<Ttx::Model::Layouts::Addressable>());
+  ASSERT(parameter && parameter->is<Tetrodotoxin::Source::Layouts::Addressable>());
   const auto& input =
-      static_cast<const Ttx::Model::Layouts::Addressable&>(*parameter);
+      static_cast<const Tetrodotoxin::Source::Layouts::Addressable&>(*parameter);
   EXPECT(&input.get_type() == &monograph->resolve_concept("Bool"_view));
 
   ASSERT_EQ(results.get_size(), Count(2));
@@ -89,8 +89,8 @@ PERIMORTEM_UNIT_TEST(SignatureTests, signature_shape) {
   EXPECT_TEXT(*results.get_name(1), "accepted"_view);
   EXPECT(&*results.get_abstract(0) == &monograph->resolve_concept("U64"_view));
   EXPECT(&*results.get_abstract(1) == &monograph->resolve_concept("Bool"_view));
-  EXPECT(results.get_abstract(0)->is<Ttx::Model::Type>());
-  EXPECT(results.get_abstract(1)->is<Ttx::Model::Type>());
+  EXPECT(results.get_abstract(0)->is<Tetrodotoxin::Source::Type>());
+  EXPECT(results.get_abstract(1)->is<Tetrodotoxin::Source::Type>());
 
   EXPECT(errors.is_empty());
 }
@@ -109,7 +109,7 @@ PERIMORTEM_UNIT_TEST(SignatureTests, self_reference) {
   auto workspace_toolchain =
       Validation::create_library_toolchain(workspace_toolchain_library);
   Workspace workspace(*workspace_toolchain);
-  Ttx::Lexical::Errors errors;
+  Tetrodotoxin::Source::Lexical::Errors errors;
   auto monograph = interpret(workspace, errors, source);
   ASSERT(monograph);
 
@@ -123,7 +123,7 @@ PERIMORTEM_UNIT_TEST(SignatureTests, self_reference) {
   auto parameter = clear->get_parameters().get_abstract(0);
   auto returned = clear->get_results().get_abstract(0);
   ASSERT(parameter && returned);
-  EXPECT(parameter->is<Ttx::Model::Layouts::Addressable>());
+  EXPECT(parameter->is<Tetrodotoxin::Source::Layouts::Addressable>());
   EXPECT(&*parameter == &*returned);
   EXPECT(clear->get_self_result());
   EXPECT_NOT(clear->get_results().get_name(0));
@@ -146,7 +146,7 @@ PERIMORTEM_UNIT_TEST(SignatureTests, strict_descriptor) {
     auto workspace_toolchain =
         Validation::create_library_toolchain(workspace_toolchain_library);
     Workspace workspace(*workspace_toolchain);
-    Ttx::Lexical::Errors errors;
+    Tetrodotoxin::Source::Lexical::Errors errors;
     EXPECT_NOT(interpret(workspace, errors, rejected[i]));
     EXPECT_NOT(errors.is_empty());
     EXPECT(retains_library_source(workspace, "SignatureTest"_view));

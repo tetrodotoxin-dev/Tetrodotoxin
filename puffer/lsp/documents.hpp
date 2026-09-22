@@ -24,9 +24,9 @@
 #include "tetrodotoxin/render/dialect.hpp"
 #include "tetrodotoxin/scene/dialect.hpp"
 #include "tetrodotoxin/shader/dialect.hpp"
-#include "ttx/concept/abstract.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/token.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/token.hpp"
 
 namespace Puffer::Lsp {
 
@@ -38,11 +38,11 @@ class Documents {
   class Diagnostics {
    public:
     constexpr Diagnostics(
-        const Ttx::Lexical::Errors& errors,
+        const Tetrodotoxin::Source::Lexical::Errors& errors,
         Perimortem::Core::View::Bytes source_name)
         : errors(errors), source_name(source_name) {}
 
-    constexpr auto get_errors() const -> const Ttx::Lexical::Errors& {
+    constexpr auto get_errors() const -> const Tetrodotoxin::Source::Lexical::Errors& {
       return errors;
     }
 
@@ -51,7 +51,7 @@ class Documents {
     }
 
    private:
-    const Ttx::Lexical::Errors& errors;
+    const Tetrodotoxin::Source::Lexical::Errors& errors;
     Perimortem::Core::View::Bytes source_name;
   };
 
@@ -66,24 +66,24 @@ class Documents {
   auto find_semantic(
       Perimortem::Core::View::Bytes uri,
       const PositionEncoding::Position& position)
-      -> Perimortem::Core::Option<const Ttx::Concept::Abstract&>;
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&>;
   auto get_associations(Perimortem::Core::View::Bytes uri)
-      -> Perimortem::Core::Option<const Ttx::Lexical::Associations&>;
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Lexical::Associations&>;
   auto get_monograph(Perimortem::Core::View::Bytes uri)
       -> Perimortem::Core::Option<const Tetrodotoxin::Language::Monograph&>;
   auto get_completed_monograph(Perimortem::Core::View::Bytes uri)
       -> Perimortem::Core::Option<const Tetrodotoxin::Language::Monograph&>;
   auto get_tokens(Perimortem::Core::View::Bytes uri)
-      -> Perimortem::Core::View::Vector<Ttx::Lexical::Token>;
+      -> Perimortem::Core::View::Vector<Tetrodotoxin::Source::Lexical::Token>;
   auto find_definition(
       Perimortem::Core::View::Bytes source_uri,
-      const Ttx::Concept::Abstract& semantic)
+      const Tetrodotoxin::Source::Abstract& semantic)
       -> Perimortem::Core::Option<
           Tetrodotoxin::Environment::Workspace::AuthoredLocation>;
   auto find_acquired_definition(
       Perimortem::Core::View::Bytes source_uri,
       const PositionEncoding::Position& position,
-      const Ttx::Concept::Abstract& semantic)
+      const Tetrodotoxin::Source::Abstract& semantic)
       -> Perimortem::Core::Option<
           Tetrodotoxin::Environment::Workspace::AuthoredLocation>;
   auto resolve_uri(
@@ -100,7 +100,7 @@ class Documents {
     Bool active = False;
     Perimortem::Memory::Dynamic::Bytes root;
     Perimortem::Core::Option<
-        Perimortem::Memory::Dynamic::Record<Ttx::Lexical::Errors>>
+        Perimortem::Memory::Dynamic::Record<Tetrodotoxin::Source::Lexical::Errors>>
         errors;
     Perimortem::Core::Option<Perimortem::Memory::Dynamic::Record<
         Tetrodotoxin::Environment::Workspace>>
@@ -114,7 +114,7 @@ class Documents {
   auto get_workspace(Document& document)
       -> Perimortem::Core::Option<Tetrodotoxin::Environment::Workspace&>;
   auto get_errors(Document& document)
-      -> Perimortem::Core::Option<const Ttx::Lexical::Errors&>;
+      -> Perimortem::Core::Option<const Tetrodotoxin::Source::Lexical::Errors&>;
   auto invalidate_package(Perimortem::Core::View::Bytes root) -> void;
   auto select_session(Document& document) -> Perimortem::Core::Option<Session&>;
 

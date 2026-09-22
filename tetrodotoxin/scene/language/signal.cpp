@@ -3,17 +3,19 @@
 
 #include "tetrodotoxin/scene/language/signal.hpp"
 
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/documentation.hpp"
+
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 auto Scene::Language::Signal::create_authored(
     Allocator::Arena& domain,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     View::Bytes name,
     Token name_token,
     Option<Library::Language::TypeReference> payload,
@@ -25,7 +27,7 @@ auto Scene::Language::Signal::create_authored(
 
 auto Scene::Language::Signal::create_restored(
     Allocator::Arena& domain,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     View::Bytes name,
     Option<Library::Language::TypeReference> payload) -> Signal& {
   return domain.construct_from<Signal>([&]() -> Signal {

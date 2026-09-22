@@ -3,23 +3,25 @@
 
 #include "tetrodotoxin/library/language/expressions/identifier.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "tetrodotoxin/language/import.hpp"
 #include "tetrodotoxin/library/language/diagnostics.hpp"
 #include "tetrodotoxin/library/language/flow/block.hpp"
 #include "tetrodotoxin/library/language/model/memory.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
 // A native Type identity can be useful before its full resolve answer becomes
 // factual. Import supplies that Type through its own operation, while other
 // declarations and transparent references follow ordinary resolution.
 static auto select_native(const Abstract& candidate) -> const Abstract& {
-  if (candidate.is<Ttx::Model::Type>()) {
+  if (candidate.is<Tetrodotoxin::Source::Type>()) {
     return candidate;
   }
   const Abstract& resolved = candidate.resolve();
@@ -28,7 +30,7 @@ static auto select_native(const Abstract& candidate) -> const Abstract& {
 }
 
 auto Language::Expressions::Identifier::link(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& lexical_context,
     Core::Option<const Abstract&> access_scope) -> Bool {
   (void)token;
@@ -36,7 +38,7 @@ auto Language::Expressions::Identifier::link(
   const Abstract& candidate =
       select_native(lexical_context.resolve_concept(name));
   const Abstract& selected = candidate.is<Language::Model::Type>() ||
-                                     candidate.is<Ttx::Model::Addressable>()
+                                     candidate.is<Tetrodotoxin::Source::Addressable>()
                                  ? candidate
                                  : candidate.resolve();
   auto source_anchor = get_anchor();
@@ -77,7 +79,7 @@ auto Language::Expressions::Identifier::link_restored(
   const Abstract& candidate =
       select_native(lexical_context.resolve_concept(name));
   const Abstract& selected = candidate.is<Language::Model::Type>() ||
-                                     candidate.is<Ttx::Model::Addressable>()
+                                     candidate.is<Tetrodotoxin::Source::Addressable>()
                                  ? candidate
                                  : candidate.resolve();
   BAIL_IF(selected.is<Unknown>() || selected.is<None>());
@@ -86,10 +88,10 @@ auto Language::Expressions::Identifier::link_restored(
 }
 
 auto Language::Expressions::Identifier::get_documentation() const
-    -> const Documentation& {
+    -> const Tetrodotoxin::Source::Documentation& {
   return result.visit(
-      []() -> const Documentation& { return Documentation::get_empty(); },
-      [](const Reference<const Abstract>& selected) -> const Documentation& {
+      []() -> const Tetrodotoxin::Source::Documentation& { return Tetrodotoxin::Source::Documentation::get_empty(); },
+      [](const Reference<const Abstract>& selected) -> const Tetrodotoxin::Source::Documentation& {
         return selected.get().get_documentation();
       });
 }
@@ -108,8 +110,8 @@ auto Language::Expressions::Identifier::get_type() const -> const Abstract& {
               return Unknown::get_unknown();
             },
             [](const Abstract& addressable) -> const Abstract& {
-              return addressable.visit<Ttx::Model::Addressable>(
-                  [](const Ttx::Model::Addressable& selected)
+              return addressable.visit<Tetrodotoxin::Source::Addressable>(
+                  [](const Tetrodotoxin::Source::Addressable& selected)
                       -> const Abstract& { return selected.get_type(); },
                   [](const Abstract&) -> const Abstract& {
                     return Unknown::get_unknown();

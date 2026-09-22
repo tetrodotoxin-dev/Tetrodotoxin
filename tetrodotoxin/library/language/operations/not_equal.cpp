@@ -9,13 +9,13 @@
 #include "tetrodotoxin/library/language/model/types/flag.hpp"
 #include "tetrodotoxin/library/language/model/types/value.hpp"
 #include "tetrodotoxin/library/language/types/view.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
 using namespace Tetrodotoxin::Library;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 
 static auto select_operand_type(
     const Language::Model::Pack& left,
@@ -77,7 +77,7 @@ static auto accepts_constant(
 TTX_BINARY_OP(NotEqual);
 
 auto Language::Operations::NotEqual::select_type(
-    const Ttx::Concept::Abstract& context) const
+    const Tetrodotoxin::Source::Abstract& context) const
     -> Core::Option<const Language::Model::Type&> {
   auto inputs = get_inputs();
   const Model::Pack& left = inputs.get_data()[0].get();

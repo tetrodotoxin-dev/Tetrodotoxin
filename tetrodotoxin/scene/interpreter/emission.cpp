@@ -3,12 +3,14 @@
 
 #include "tetrodotoxin/scene/interpreter/emission.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "tetrodotoxin/library/interpreter/pack.hpp"
 #include "tetrodotoxin/scene/language/emission.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 auto Scene::Interpreter::Emission::matches(const Cursor& cursor) const -> Bool {
@@ -20,7 +22,7 @@ auto Scene::Interpreter::Emission::parse(
     Library::Language::Flow::Block& block,
     Library::Language::Model::Callable&,
     const Library::Language::Model::Type&,
-    const Documentation& documentation) const
+    const Tetrodotoxin::Source::Documentation& documentation) const
     -> Option<Library::Language::Statement> {
   Token opening = cursor.consume();
   Token signal = cursor.require(

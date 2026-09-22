@@ -25,7 +25,7 @@
 #include "puffer/lsp/rpc/executor.hpp"
 #include "puffer/lsp/semantic_tokens.hpp"
 #include "tetrodotoxin/formatting/terminal.hpp"
-#include "ttx/lexical/formatter.hpp"
+#include "tetrodotoxin/source/lexical/formatter.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
@@ -64,16 +64,16 @@ static auto publish_diagnostics(
   const Lsp::PositionEncoding& encoding = documents.get_position_encoding();
   auto selected = documents.get_diagnostics(uri);
   if (selected) {
-    const Ttx::Lexical::Errors& errors = selected->get_errors();
+    const Tetrodotoxin::Source::Lexical::Errors& errors = selected->get_errors();
     View::Bytes source_name = selected->get_source_name();
     for (Count index = 0; index < errors.get_size(); index++) {
       if (errors.get_source_name(index) != source_name) {
         continue;
       }
 
-      Ttx::Lexical::Anchor anchor = errors.get_anchor(index);
-      Ttx::Lexical::Token token = anchor.get_token();
-      Ttx::Lexical::Span span = anchor.get_span();
+      Tetrodotoxin::Source::Lexical::Anchor anchor = errors.get_anchor(index);
+      Tetrodotoxin::Source::Lexical::Token token = anchor.get_token();
+      Tetrodotoxin::Source::Lexical::Span span = anchor.get_span();
       Count start_offset =
           token ? token.get_offset() : (span ? span.get_offset() : Count(0));
       Count size =
@@ -187,12 +187,12 @@ auto Puffer::Lsp::document_formatting(
       message.get_params()["textDocument"_view]["uri"_view].decode_string(
           arena);
   View::Bytes source = documents.get_text(uri);
-  Ttx::Lexical::Tokenizer tokenizer(arena, source, uri);
+  Tetrodotoxin::Source::Lexical::Tokenizer tokenizer(arena, source, uri);
   auto completed = documents.get_completed_monograph(uri);
   Dynamic::Bytes formatted =
       completed
           ? Tetrodotoxin::Formatting::Terminal::format(*completed, tokenizer)
-          : Ttx::Lexical::Formatter(tokenizer).format();
+          : Tetrodotoxin::Source::Lexical::Formatter(tokenizer).format();
   View::Bytes formatted_text = arena.proxy(formatted.get_view());
   auto end =
       documents.get_position_encoding().locate(source, source.get_size());
@@ -283,7 +283,7 @@ auto Puffer::Lsp::semantic_tokens(
       message.get_params()["textDocument"_view]["uri"_view].decode_string(
           message.get_arena());
   View::Bytes source = documents.get_text(uri);
-  View::Vector<Ttx::Lexical::Token> tokens = documents.get_tokens(uri);
+  View::Vector<Tetrodotoxin::Source::Lexical::Token> tokens = documents.get_tokens(uri);
   auto associations = documents.get_associations(uri);
   return message.report_result(
       Lsp::semantic_tokens_for(
@@ -379,9 +379,9 @@ auto Puffer::Lsp::definition(Documents& documents, const Rpc::Message& message)
     return message.report_result(Json::Node());
   }
 
-  Ttx::Lexical::Anchor anchor = location->get_anchor();
-  Ttx::Lexical::Token focus = anchor.get_token();
-  Ttx::Lexical::Span span = anchor.get_span();
+  Tetrodotoxin::Source::Lexical::Anchor anchor = location->get_anchor();
+  Tetrodotoxin::Source::Lexical::Token focus = anchor.get_token();
+  Tetrodotoxin::Source::Lexical::Span span = anchor.get_span();
   Count start_offset =
       focus ? focus.get_offset() : (span ? span.get_offset() : Count(0));
   Count size = focus ? focus.get_size() : (span ? span.get_size() : Count(0));

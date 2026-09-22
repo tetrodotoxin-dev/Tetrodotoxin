@@ -58,9 +58,9 @@ auto Language::Expressions::Conversion::accepts(
 }
 
 auto Language::Expressions::Conversion::link(
-    Ttx::Lexical::Cursor& cursor,
-    const Ttx::Concept::Abstract&,
-    Core::Option<const Ttx::Concept::Abstract&>) -> Bool {
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
+    const Tetrodotoxin::Source::Abstract&,
+    Core::Option<const Tetrodotoxin::Source::Abstract&>) -> Bool {
   if (accepts(target.get(), source.get())) {
     return True;
   }
@@ -72,12 +72,12 @@ auto Language::Expressions::Conversion::link(
 }
 
 auto Language::Expressions::Conversion::link_restored(
-    const Ttx::Concept::Abstract&,
-    Core::Option<const Ttx::Concept::Abstract&>) -> Bool {
+    const Tetrodotoxin::Source::Abstract&,
+    Core::Option<const Tetrodotoxin::Source::Abstract&>) -> Bool {
   return accepts(target.get(), source.get());
 }
 
-auto Language::Expressions::Conversion::finalize(Ttx::Lexical::Cursor& cursor)
+auto Language::Expressions::Conversion::finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor)
     -> void {
   source.get().finalize(cursor);
   Expression::finalize(cursor);

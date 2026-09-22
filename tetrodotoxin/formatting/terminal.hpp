@@ -6,7 +6,7 @@
 #include "perimortem/memory/dynamic/bytes.hpp"
 
 #include "tetrodotoxin/language/monograph.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 namespace Tetrodotoxin::Formatting {
 
@@ -18,8 +18,8 @@ class Terminal {
   Terminal() = delete;
 
   static auto format(
-      const Tetrodotoxin::Language::Monograph& monograph,
-      const Ttx::Lexical::Tokenizer& tokenizer)
+      const Language::Monograph& monograph,
+      const Source::Lexical::Tokenizer& tokenizer)
       -> Perimortem::Memory::Dynamic::Bytes;
 };
 

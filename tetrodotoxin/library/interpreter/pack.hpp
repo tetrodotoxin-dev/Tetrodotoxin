@@ -8,8 +8,8 @@
 #include "perimortem/memory/allocator/arena.hpp"
 
 #include "tetrodotoxin/library/language/model/pack.hpp"
-#include "ttx/concept/abstract.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Interpreter {
 
@@ -23,8 +23,8 @@ class Pack {
   Pack() = delete;
 
   static auto parse(
-      const Ttx::Concept::Abstract& context,
-      Ttx::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& context,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
       Bool force_parentheses = False)
       -> Perimortem::Core::Option<Language::Model::Pack&>;
 };

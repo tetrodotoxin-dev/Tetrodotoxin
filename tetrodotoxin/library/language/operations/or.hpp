@@ -6,7 +6,7 @@
 #include "perimortem/core/option.hpp"
 
 #include "tetrodotoxin/library/language/operation.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Language::Operations {
 
@@ -24,14 +24,14 @@ class Or : public Operation {
           Expression::Error> override;
   auto reaches_next_input(Count folded_input, const Constant& folded) const
       -> Bool override;
-  auto select_type(const Ttx::Concept::Abstract& context) const
+  auto select_type(const Tetrodotoxin::Source::Abstract& context) const
       -> Perimortem::Core::Option<const Model::Type&> override;
 
  private:
   Or(Perimortem::Memory::Allocator::Arena& domain,
      Model::Pack& left,
      Model::Pack& right,
-     Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor);
+     Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor);
 };
 
 }  // namespace Tetrodotoxin::Library::Language::Operations

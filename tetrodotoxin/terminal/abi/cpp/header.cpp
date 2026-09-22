@@ -14,7 +14,7 @@
 #include "tetrodotoxin/library/language/types/structure.hpp"
 #include "tetrodotoxin/terminal/abi/publication.hpp"
 #include "tetrodotoxin/terminal/abi/representation/type_name.hpp"
-#include "ttx/model/addressable.hpp"
+#include "tetrodotoxin/source/addressable.hpp"
 
 using namespace Perimortem;
 using namespace Perimortem::Serialization;
@@ -83,7 +83,7 @@ static auto path_leaf(Core::View::Bytes path) -> Core::View::Bytes {
 
 static auto find_binding(
     const Tetrodotoxin::Terminal::Abi::Unit& unit,
-    const Ttx::Model::Type& type)
+    const Tetrodotoxin::Source::Type& type)
     -> Core::Option<const Tetrodotoxin::Terminal::Abi::Unit::TypeBinding&> {
   return unit.find_type(type);
 }
@@ -93,7 +93,7 @@ static auto write_raw_type_name(
     Stream::Textual<Memory::Managed::Bytes>& output,
     const Tetrodotoxin::Terminal::Abi::Representation::Type& types,
     const Tetrodotoxin::Terminal::Abi::Unit& unit,
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     Core::View::Bytes inherited_member = {}) -> Bool {
   auto kind = types.get_kind(type);
   if (!kind) {
@@ -136,15 +136,15 @@ static auto write_raw_type_name(
   return True;
 }
 
-static auto require_type(const Ttx::Concept::Abstract& answer)
-    -> Core::Option<const Ttx::Model::Type&> {
-  auto direct = answer.select<Ttx::Model::Type>();
-  return direct ? direct : answer.resolve().select<Ttx::Model::Type>();
+static auto require_type(const Tetrodotoxin::Source::Abstract& answer)
+    -> Core::Option<const Tetrodotoxin::Source::Type&> {
+  auto direct = answer.select<Tetrodotoxin::Source::Type>();
+  return direct ? direct : answer.resolve().select<Tetrodotoxin::Source::Type>();
 }
 
 static auto require_kind(
     const Tetrodotoxin::Terminal::Abi::Representation::Type& types,
-    const Ttx::Concept::Abstract& answer)
+    const Tetrodotoxin::Source::Abstract& answer)
     -> Core::Option<Tetrodotoxin::Terminal::Abi::Representation::Type::Kind> {
   auto type = require_type(answer);
   return type ? types.get_kind(*type)
@@ -154,7 +154,7 @@ static auto require_kind(
 
 static auto require_element(
     const Tetrodotoxin::Terminal::Abi::Representation::Type& types,
-    const Ttx::Concept::Abstract& answer)
+    const Tetrodotoxin::Source::Abstract& answer)
     -> Core::Option<const Tetrodotoxin::Library::Language::Model::Type&> {
   auto type = require_type(answer);
   return type ? types.get_element(*type)
@@ -166,10 +166,10 @@ static auto write_cpp_type(
     Stream::Textual<Memory::Managed::Bytes>& output,
     const Tetrodotoxin::Terminal::Abi::Representation::Type& types,
     const Tetrodotoxin::Terminal::Abi::Unit& unit,
-    const Ttx::Concept::Abstract& answer) -> Bool {
+    const Tetrodotoxin::Source::Abstract& answer) -> Bool {
   auto selected = require_type(answer);
   BAIL_IF(!selected);
-  const Ttx::Model::Type& type = *selected;
+  const Tetrodotoxin::Source::Type& type = *selected;
   auto kind = types.get_kind(type);
   if (!kind) {
     return False;
@@ -274,7 +274,7 @@ static auto write_access_for_view(
     Stream::Textual<Memory::Managed::Bytes>& output,
     const Tetrodotoxin::Terminal::Abi::Representation::Type& types,
     const Tetrodotoxin::Terminal::Abi::Unit& unit,
-    const Ttx::Model::Type& view) -> Bool {
+    const Tetrodotoxin::Source::Type& view) -> Bool {
   auto element = types.get_element(view);
   if (!element) {
     return False;
@@ -293,21 +293,21 @@ static auto write_access_for_view(
   return True;
 }
 
-static auto require_parameter(const Ttx::Concept::Layout& layout, Count index)
-    -> Core::Option<const Ttx::Model::Addressable&> {
+static auto require_parameter(const Tetrodotoxin::Source::Layout& layout, Count index)
+    -> Core::Option<const Tetrodotoxin::Source::Addressable&> {
   auto entry = layout.get_abstract(index);
-  return entry ? entry->select<Ttx::Model::Addressable>()
-               : Core::Option<const Ttx::Model::Addressable&>();
+  return entry ? entry->select<Tetrodotoxin::Source::Addressable>()
+               : Core::Option<const Tetrodotoxin::Source::Addressable&>();
 }
 
-static auto require_result_type(const Ttx::Concept::Layout& layout, Count index)
-    -> Core::Option<const Ttx::Model::Type&> {
+static auto require_result_type(const Tetrodotoxin::Source::Layout& layout, Count index)
+    -> Core::Option<const Tetrodotoxin::Source::Type&> {
   auto entry = layout.get_abstract(index);
-  auto addressable = entry ? entry->select<Ttx::Model::Addressable>()
-                           : Core::Option<const Ttx::Model::Addressable&>();
+  auto addressable = entry ? entry->select<Tetrodotoxin::Source::Addressable>()
+                           : Core::Option<const Tetrodotoxin::Source::Addressable&>();
   return addressable ? require_type(addressable->get_type())
          : entry     ? require_type(*entry)
-                     : Core::Option<const Ttx::Model::Type&>();
+                     : Core::Option<const Tetrodotoxin::Source::Type&>();
 }
 
 static auto has_prefix(Core::View::Bytes value, Core::View::Bytes prefix)
@@ -329,27 +329,27 @@ static auto explicit_parameter_count(
 
 static auto single_parameter_type(
     const Tetrodotoxin::Library::Language::Function& function)
-    -> Core::Option<const Ttx::Model::Type&> {
+    -> Core::Option<const Tetrodotoxin::Source::Type&> {
   if (explicit_parameter_count(function) != 1) {
     return {};
   }
   auto parameter = require_parameter(
       function.get_parameters(), explicit_parameter_start(function));
   return parameter ? require_type(parameter->get_type())
-                   : Core::Option<const Ttx::Model::Type&>();
+                   : Core::Option<const Tetrodotoxin::Source::Type&>();
 }
 
 static auto single_result_type(
     const Tetrodotoxin::Library::Language::Function& function)
-    -> Core::Option<const Ttx::Model::Type&> {
+    -> Core::Option<const Tetrodotoxin::Source::Type&> {
   return function.get_results().get_size() == 1
              ? require_result_type(function.get_results(), 0)
-             : Core::Option<const Ttx::Model::Type&>();
+             : Core::Option<const Tetrodotoxin::Source::Type&>();
 }
 
 static auto is_factory(
     const Tetrodotoxin::Library::Language::Function& function,
-    const Ttx::Model::Type& host) -> Bool {
+    const Tetrodotoxin::Source::Type& host) -> Bool {
   auto result = single_result_type(function);
   return Bool(
       !function.declares_self() && single_parameter_type(function) && result &&
@@ -371,7 +371,7 @@ static auto is_const_projection(
 
 static auto find_function(
     Core::View::Vector<Tetrodotoxin::Terminal::Abi::Export> exports,
-    const Ttx::Model::Type& host,
+    const Tetrodotoxin::Source::Type& host,
     Core::View::Bytes name,
     Bool self)
     -> Core::Option<const Tetrodotoxin::Library::Language::Function&> {
@@ -392,22 +392,22 @@ static auto returns_contiguous(
     const Tetrodotoxin::Terminal::Abi::Representation::Type& types,
     const Tetrodotoxin::Library::Language::Function& function,
     Tetrodotoxin::Terminal::Abi::Representation::Type::Kind kind)
-    -> Core::Option<const Ttx::Model::Type&> {
+    -> Core::Option<const Tetrodotoxin::Source::Type&> {
   auto result = single_result_type(function);
   auto selected =
       result ? types.get_kind(*result)
              : Core::Option<
                    Tetrodotoxin::Terminal::Abi::Representation::Type::Kind>();
   return selected && *selected == kind
-             ? Core::Option<const Ttx::Model::Type&>(*result)
-             : Core::Option<const Ttx::Model::Type&>();
+             ? Core::Option<const Tetrodotoxin::Source::Type&>(*result)
+             : Core::Option<const Tetrodotoxin::Source::Type&>();
 }
 
 static auto find_storage_field(
     const Tetrodotoxin::Terminal::Abi::Representation::Type& types,
-    const Ttx::Model::Type& host,
-    const Ttx::Model::Type& element)
-    -> Core::Option<const Ttx::Model::Addressable&> {
+    const Tetrodotoxin::Source::Type& host,
+    const Tetrodotoxin::Source::Type& element)
+    -> Core::Option<const Tetrodotoxin::Source::Addressable&> {
   auto fields = types.get_fields(host);
   if (!fields) {
     return {};
@@ -432,7 +432,7 @@ static auto find_storage_field(
 
 static auto write_documentation(
     Stream::Textual<Memory::Managed::Bytes>& output,
-    const Ttx::Concept::Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     Core::View::Bytes indentation) -> void {
   for (Count index = 0; index < documentation.line_count(); index++) {
     output << indentation << "//"_view;
@@ -448,8 +448,8 @@ static auto write_parameters(
     Stream::Textual<Memory::Managed::Bytes>& output,
     const Tetrodotoxin::Terminal::Abi::Representation::Type& types,
     const Tetrodotoxin::Terminal::Abi::Unit& unit,
-    const Ttx::Model::Callable& callable) -> Bool {
-  const Ttx::Concept::Layout& parameters = callable.get_parameters();
+    const Tetrodotoxin::Source::Callable& callable) -> Bool {
+  const Tetrodotoxin::Source::Layout& parameters = callable.get_parameters();
   Count start =
       callable.is<Tetrodotoxin::Library::Language::Model::Callable>() &&
               static_cast<
@@ -478,8 +478,8 @@ static auto write_declaration_parameters(
     Stream::Textual<Memory::Managed::Bytes>& output,
     const Tetrodotoxin::Terminal::Abi::Representation::Type& types,
     const Tetrodotoxin::Terminal::Abi::Unit& unit,
-    const Ttx::Model::Callable& callable) -> Bool {
-  const Ttx::Concept::Layout& parameters = callable.get_parameters();
+    const Tetrodotoxin::Source::Callable& callable) -> Bool {
+  const Tetrodotoxin::Source::Layout& parameters = callable.get_parameters();
   auto library =
       callable.select<Tetrodotoxin::Library::Language::Model::Callable>();
   Count start = library && library->declares_self() ? 1 : 0;
@@ -514,7 +514,7 @@ static auto write_return_type(
     output << route_leaf(function.get_host().get_name()) << "&"_view;
     return True;
   }
-  const Ttx::Concept::Layout& results = function.get_results();
+  const Tetrodotoxin::Source::Layout& results = function.get_results();
   if (results.is_empty()) {
     output << "void"_view;
     return True;
@@ -533,7 +533,7 @@ static auto write_return_type(
 
 static auto has_object_fields(
     const Tetrodotoxin::Terminal::Abi::Representation::Type& types,
-    const Ttx::Model::Type& type) -> Bool {
+    const Tetrodotoxin::Source::Type& type) -> Bool {
   auto fields = types.get_fields(type);
   if (!fields) {
     return False;
@@ -559,7 +559,7 @@ static auto write_factory_declarations(
     Stream::Textual<Memory::Managed::Bytes>& output,
     const Tetrodotoxin::Terminal::Abi::Representation::Type& types,
     const Tetrodotoxin::Terminal::Abi::Unit& unit,
-    const Ttx::Model::Type& host,
+    const Tetrodotoxin::Source::Type& host,
     Core::View::Bytes class_name,
     Core::View::Vector<Tetrodotoxin::Terminal::Abi::Export> exports) -> Bool {
   // A one input Static factory already describes value conversion. Constructors
@@ -595,7 +595,7 @@ static auto write_projection_declarations(
     Stream::Textual<Memory::Managed::Bytes>& output,
     const Tetrodotoxin::Terminal::Abi::Representation::Type& types,
     const Tetrodotoxin::Terminal::Abi::Unit& unit,
-    const Ttx::Model::Type& host,
+    const Tetrodotoxin::Source::Type& host,
     Core::View::Bytes class_name,
     Core::View::Vector<Tetrodotoxin::Terminal::Abi::Export> exports) -> Bool {
   auto get_view = find_function(exports, host, "get_view"_view, True);
@@ -604,7 +604,7 @@ static auto write_projection_declarations(
           ? returns_contiguous(
                 types, *get_view,
                 Tetrodotoxin::Terminal::Abi::Representation::Type::Kind::View)
-          : Core::Option<const Ttx::Model::Type&>();
+          : Core::Option<const Tetrodotoxin::Source::Type&>();
   // A public byte View supplies equality and hashing without another native
   // symbol. Both operations continue to observe the TTX owned value.
   if (view) {
@@ -629,9 +629,9 @@ static auto write_projection_declarations(
 
   auto at = find_function(exports, host, "at"_view, True);
   auto at_parameter =
-      at ? single_parameter_type(*at) : Core::Option<const Ttx::Model::Type&>();
+      at ? single_parameter_type(*at) : Core::Option<const Tetrodotoxin::Source::Type&>();
   auto at_result =
-      at ? single_result_type(*at) : Core::Option<const Ttx::Model::Type&>();
+      at ? single_result_type(*at) : Core::Option<const Tetrodotoxin::Source::Type&>();
   if (at_parameter && at_result) {
     output << "  auto operator[]("_view;
     if (!write_cpp_type(output, types, unit, *at_parameter)) {
@@ -667,7 +667,7 @@ static auto write_projection_declarations(
 
   auto reserve = find_function(exports, host, "reserve"_view, True);
   auto reserve_parameter = reserve ? single_parameter_type(*reserve)
-                                   : Core::Option<const Ttx::Model::Type&>();
+                                   : Core::Option<const Tetrodotoxin::Source::Type&>();
   if (reserve_parameter) {
     output << "  auto ensure_capacity("_view;
     if (!write_cpp_type(output, types, unit, *reserve_parameter)) {
@@ -679,7 +679,7 @@ static auto write_projection_declarations(
   auto detach = find_function(exports, host, "detach"_view, True);
   auto get_size = find_function(exports, host, "get_size"_view, True);
   Core::Option<const Tetrodotoxin::Library::Language::Model::Type&> element;
-  Core::Option<const Ttx::Model::Addressable&> storage;
+  Core::Option<const Tetrodotoxin::Source::Addressable&> storage;
   if (view) {
     element = types.get_element(*view);
   }
@@ -834,7 +834,7 @@ static auto write_raw_argument(
     Stream::Textual<Memory::Managed::Bytes>& output,
     const Tetrodotoxin::Terminal::Abi::Representation::Type& types,
     const Tetrodotoxin::Terminal::Abi::Unit& unit,
-    const Ttx::Concept::Abstract& answer,
+    const Tetrodotoxin::Source::Abstract& answer,
     Core::View::Bytes name) -> Bool {
   auto type = require_type(answer);
   BAIL_IF(!type);
@@ -883,7 +883,7 @@ static auto write_call_arguments(
     const Tetrodotoxin::Terminal::Abi::Representation::Type& types,
     const Tetrodotoxin::Terminal::Abi::Unit& unit,
     const Tetrodotoxin::Library::Language::Function& function) -> Bool {
-  const Ttx::Concept::Layout& parameters = function.get_parameters();
+  const Tetrodotoxin::Source::Layout& parameters = function.get_parameters();
   Count start = function.declares_self() ? 1 : 0;
   if (start != 0) {
     if (is_const_projection(function)) {
@@ -926,7 +926,7 @@ static auto write_adopted_result(
     Stream::Textual<Memory::Managed::Bytes>& output,
     const Tetrodotoxin::Terminal::Abi::Representation::Type& types,
     const Tetrodotoxin::Terminal::Abi::Unit& unit,
-    const Ttx::Model::Type& type,
+    const Tetrodotoxin::Source::Type& type,
     Core::View::Bytes variable) -> Bool {
   auto kind = types.get_kind(type);
   if (!kind) {
@@ -1016,7 +1016,7 @@ static auto write_method_definition(
   }
   output << " {\n  "_view;
 
-  const Ttx::Concept::Layout& results = function->get_results();
+  const Tetrodotoxin::Source::Layout& results = function->get_results();
   if (function->get_self_result()) {
     output << exported.get_symbol() << "("_view;
     if (!write_call_arguments(arena, output, types, unit, *function)) {
@@ -1116,7 +1116,7 @@ static auto write_lifecycle_definitions(
     const Tetrodotoxin::Terminal::Abi::Representation::Type& types,
     const Tetrodotoxin::Terminal::Abi::Unit& unit,
     const Tetrodotoxin::Terminal::Abi::Unit::TypeBinding& binding) -> Bool {
-  const Ttx::Model::Type& type = binding.get_semantic();
+  const Tetrodotoxin::Source::Type& type = binding.get_semantic();
   auto structure =
       type.select<Tetrodotoxin::Library::Language::Types::Structure>();
   if (!structure || !Tetrodotoxin::Terminal::Abi::is_publicly_reachable(

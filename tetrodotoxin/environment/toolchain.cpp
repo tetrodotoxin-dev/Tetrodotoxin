@@ -3,18 +3,20 @@
 
 #include "tetrodotoxin/environment/toolchain.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "perimortem/system/file.hpp"
 
 #include "tetrodotoxin/language/parser/comment.hpp"
 #include "tetrodotoxin/language/parser/dialect.hpp"
-#include "ttx/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Tetrodotoxin::Language;
 using namespace Tetrodotoxin::Environment;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 
 static auto parse_dialect(const Toolchain& toolchain, Cursor& cursor)
     -> Option<Dialect&> {
@@ -64,7 +66,7 @@ auto Toolchain::process(View::Bytes source, Errors& errors)
   Associations associations(arena);
   Cursor cursor(tokenizer, errors, associations);
   Token opening = cursor.current();
-  const Documentation& documentation = Language::Parser::Comment::parse(cursor);
+  const Tetrodotoxin::Source::Documentation& documentation = Language::Parser::Comment::parse(cursor);
   if (documentation.is_empty()) {
     Errors::Report report(errors, path, {}, Anchor::create(Span()));
     report << "Could not read source "_view << path;

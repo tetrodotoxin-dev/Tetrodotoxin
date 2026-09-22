@@ -3,27 +3,29 @@
 
 #include "tetrodotoxin/library/language/foreign.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "tetrodotoxin/library/language/model/type.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/model/documentations/merged.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/documentations/merged.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 Library::Language::Foreign::Foreign(Allocator::Arena& domain, Abstract& parent)
     : domain(domain),
       parent(parent),
       static_authority(domain.construct<Access::Static>(domain)),
-      documentation(&Documentation::get_empty()),
+      documentation(&Tetrodotoxin::Source::Documentation::get_empty()),
       states(domain),
       functions(domain),
       declarations(domain) {}
 
 auto Library::Language::Foreign::retain_block(
-    const Documentation& block_documentation,
+    const Tetrodotoxin::Source::Documentation& block_documentation,
     View::Bytes selected_abi,
     View::Vector<Reference<State>> selected_states,
     View::Vector<Reference<Function>> selected_functions,
@@ -146,7 +148,7 @@ auto Library::Language::Foreign::resolve_concept(View::Bytes route) const
 }
 
 auto Library::Language::Foreign::retain_documentation(
-    const Documentation& block_documentation) -> void {
+    const Tetrodotoxin::Source::Documentation& block_documentation) -> void {
   // Repeated blocks describe the same Foreign identity, so their block prose
   // composes here. Each declaration still retains only its own parsed prose.
   if (!abi) {
@@ -161,6 +163,6 @@ auto Library::Language::Foreign::retain_documentation(
     return;
   }
 
-  documentation = &domain.construct<Ttx::Model::Documentations::Merged>(
+  documentation = &domain.construct<Tetrodotoxin::Source::Documentations::Merged>(
       *documentation, block_documentation);
 }

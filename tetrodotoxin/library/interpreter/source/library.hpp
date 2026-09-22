@@ -4,7 +4,7 @@
 #pragma once
 
 #include "tetrodotoxin/library/language/types/source.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Interpreter::Source {
 
@@ -17,7 +17,7 @@ class Library {
 
   static auto parse(
       Language::Types::Source& source,
-      Ttx::Lexical::Cursor& cursor) -> void;
+      Tetrodotoxin::Source::Lexical::Cursor& cursor) -> void;
 };
 
 }  // namespace Tetrodotoxin::Library::Interpreter::Source

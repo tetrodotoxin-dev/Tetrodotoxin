@@ -5,7 +5,7 @@
 
 #include "tetrodotoxin/language/definition.hpp"
 #include "tetrodotoxin/shader/language/monograph.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Shader::Interpreter {
 
@@ -15,7 +15,7 @@ class Bridge {
 
   static auto parse(
       Language::Monograph& monograph,
-      Ttx::Lexical::Cursor& cursor,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
       Tetrodotoxin::Language::Definition& definition) -> Bool;
 };
 

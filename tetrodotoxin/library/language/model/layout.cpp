@@ -6,16 +6,16 @@
 #include "perimortem/core/diagnostics/log.hpp"
 
 #include "tetrodotoxin/library/language/model/type.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/model/addressable.hpp"
-#include "ttx/model/layouts/addressable.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/addressable.hpp"
+#include "tetrodotoxin/source/layouts/addressable.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Utility;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
 static auto select_entry_type(const Abstract& entry) -> Option<const Type&> {
@@ -52,7 +52,7 @@ static auto resolves_for_fitting(const Abstract& entry) -> const Abstract& {
       [](const Abstract& abstract) -> const Abstract& { return abstract; });
 }
 
-static auto get_slot_name(const Ttx::Concept::Layout& layout, Count index)
+static auto get_slot_name(const Tetrodotoxin::Source::Layout& layout, Count index)
     -> Option<View::Bytes> {
   auto explicit_name = layout.get_name(index);
   if (explicit_name) {
@@ -110,7 +110,7 @@ auto Language::Model::Layout::retain_generated_slot(
   Slot slot({}, Anchor::create(Span()), name, attributes);
   if (parameters) {
     auto parameter =
-        Ttx::Model::Layouts::Addressable::create_authored(domain, name, type);
+        Tetrodotoxin::Source::Layouts::Addressable::create_authored(domain, name, type);
     BAIL_IF(!parameter);
     slot.edge = Reference<const Abstract>(*parameter);
   } else {
@@ -132,7 +132,7 @@ auto Language::Model::Layout::retain_generated_edge(
     return retained && &*retained == &type;
   }
   if (parameters) {
-    auto parameter = Ttx::Model::Layouts::Addressable::create_authored(
+    auto parameter = Tetrodotoxin::Source::Layouts::Addressable::create_authored(
         domain, slot.name, type);
     BAIL_IF(!parameter);
     slot.edge = Reference<const Abstract>(*parameter);
@@ -145,7 +145,7 @@ auto Language::Model::Layout::retain_generated_edge(
 auto Language::Model::Layout::link_restored(
     const Abstract& host,
     Bool parameters,
-    Option<const Ttx::Model::Addressable&> self) -> Bool {
+    Option<const Tetrodotoxin::Source::Addressable&> self) -> Bool {
   if (is_linked()) {
     return True;
   }
@@ -185,7 +185,7 @@ auto Language::Model::Layout::link_restored(
     if (parameters) {
       auto source = slot.type_reference ? slot.type_reference->get_interface()
                                         : type->get_interface();
-      auto parameter = Ttx::Model::Layouts::Addressable::create_authored(
+      auto parameter = Tetrodotoxin::Source::Layouts::Addressable::create_authored(
           domain, slot.name, *type, source);
       BAIL_IF(!parameter);
       slot.edge = Reference<const Abstract>(*parameter);
@@ -199,23 +199,23 @@ auto Language::Model::Layout::link_restored(
 }
 
 auto Language::Model::Layout::link_parameters(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& host) -> Bool {
   return link(cursor, host, True, {});
 }
 
 auto Language::Model::Layout::link_types(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& host,
-    Option<const Ttx::Model::Addressable&> self) -> Bool {
+    Option<const Tetrodotoxin::Source::Addressable&> self) -> Bool {
   return link(cursor, host, False, self);
 }
 
 auto Language::Model::Layout::link(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& host,
     Bool parameters,
-    Option<const Ttx::Model::Addressable&> self) -> Bool {
+    Option<const Tetrodotoxin::Source::Addressable&> self) -> Bool {
   // Linking settles every slot before exposing the Layout. Parameter Layouts
   // replace each authored slot with one real Layout-owned Addressable. Ordinary
   // results retain their selected Type, while `self` reuses parameter zero.
@@ -326,7 +326,7 @@ auto Language::Model::Layout::link(
 
     if (slot.edge) {
       auto parameter =
-          slot.edge->get().select<Ttx::Model::Layouts::Addressable>();
+          slot.edge->get().select<Tetrodotoxin::Source::Layouts::Addressable>();
       if (!parameter || &parameter->get_type() != &*type) {
         cursor.create_expression_error(
             slot.get_type_anchor(),
@@ -339,7 +339,7 @@ auto Language::Model::Layout::link(
 
     auto source = slot.type_reference ? slot.type_reference->get_interface()
                                       : type->get_interface();
-    auto parameter = Ttx::Model::Layouts::Addressable::create_authored(
+    auto parameter = Tetrodotoxin::Source::Layouts::Addressable::create_authored(
         domain, slot.name, *type, source);
     if (!parameter) {
       cursor.create_expression_error(
@@ -380,7 +380,7 @@ auto Language::Model::Layout::resolve_named(
     }
     auto source = slot.type_reference ? slot.type_reference->get_interface()
                                       : type->get_interface();
-    auto parameter = Ttx::Model::Layouts::Addressable::create_authored(
+    auto parameter = Tetrodotoxin::Source::Layouts::Addressable::create_authored(
         domain, slot.name, *type, source);
     if (!parameter) {
       return Unknown::get_unknown();
@@ -400,7 +400,7 @@ auto Language::Model::Layout::get_slot_attributes(Count index) const
 }
 
 auto Language::Model::Layout::validate_publication(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Abstract& host) const -> Bool {
   auto context = host.select<Language::Model::Type>();
   if (!is_linked() || !context) {
@@ -495,8 +495,8 @@ auto Language::Model::Layout::get_size() const -> Count {
 }
 
 auto Language::Model::Layout::get_interface() const
-    -> Ttx::Concept::Layout::Handle {
-  static const Ttx::Concept::Layout::Operations operations = {
+    -> Tetrodotoxin::Source::Layout::Handle {
+  static const Tetrodotoxin::Source::Layout::Operations operations = {
     [](const void* source) -> Count {
       return static_cast<const Layout*>(source)->get_size();
     },
@@ -515,7 +515,7 @@ auto Language::Model::Layout::get_interface() const
       return static_cast<const Layout*>(source)->get_name(index);
     },
   };
-  return Ttx::Concept::Layout::Handle(this, operations);
+  return Tetrodotoxin::Source::Layout::Handle(this, operations);
 }
 
 auto Language::Model::Layout::get_abstract(Count index) const
@@ -535,7 +535,7 @@ auto Language::Model::Layout::get_name(Count index) const
 }
 
 auto Language::Model::Layout::get_slot_anchor(Count index) const
-    -> Option<Ttx::Lexical::Anchor> {
+    -> Option<Tetrodotoxin::Source::Lexical::Anchor> {
   auto slot = get_slot(index);
   BAIL_IF(!slot);
   return slot->anchor;
@@ -554,7 +554,7 @@ auto Language::Model::Layout::get_declared_name(Count index) const
 }
 
 auto Language::Model::Layout::fits_value(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count source_index,
     Count target_index) const -> Bool {
   auto source = get_abstract(source_index);
@@ -565,7 +565,7 @@ auto Language::Model::Layout::fits_value(
 }
 
 auto Language::Model::Layout::fits_entry(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count source_index,
     Count target_index) const -> Bool {
   BAIL_IF(source_index >= get_size() || target_index >= target.get_size());
@@ -593,7 +593,7 @@ auto Language::Model::Layout::has_unique_names() const -> Bool {
 }
 
 auto Language::Model::Layout::fits_at(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count target_offset) const -> Bool {
   BAIL_IF(!has_target_segment(target, target_offset));
 
@@ -630,7 +630,7 @@ auto Language::Model::Layout::fits_at(
 }
 
 auto Language::Model::Layout::get_fitted_at(
-    const Ttx::Concept::Layout& target,
+    const Tetrodotoxin::Source::Layout& target,
     Count target_offset,
     Count target_index) const -> Result<const Abstract&, Errors> {
   if (target_index >= get_size()) {

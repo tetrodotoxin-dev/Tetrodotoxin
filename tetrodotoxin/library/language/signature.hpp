@@ -7,10 +7,10 @@
 #include "perimortem/core/option.hpp"
 
 #include "tetrodotoxin/library/language/model/layout.hpp"
-#include "ttx/concept/abstract.hpp"
-#include "ttx/concept/layout.hpp"
-#include "ttx/lexical/cursor.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/layout.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 namespace Tetrodotoxin::Library::Language {
 
@@ -22,13 +22,13 @@ class Signature {
  public:
   static auto create_authored(
       Perimortem::Memory::Allocator::Arena& domain,
-      const Ttx::Concept::Abstract& host,
+      const Tetrodotoxin::Source::Abstract& host,
       Model::Layout& parameters,
       Model::Layout& results) -> Signature&;
 
   static auto create(
       Perimortem::Memory::Allocator::Arena& domain,
-      const Ttx::Concept::Abstract& host,
+      const Tetrodotoxin::Source::Abstract& host,
       Model::Layout& parameters,
       Model::Layout& results) -> Signature&;
 
@@ -39,7 +39,7 @@ class Signature {
   auto operator=(const Signature&) -> Signature& = delete;
   auto operator=(Signature&&) -> Signature& = delete;
 
-  auto link(Ttx::Lexical::Cursor& cursor) -> Bool;
+  auto link(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool;
 
   constexpr auto get_parameters() const -> const Model::Layout& {
     return parameters;
@@ -55,16 +55,16 @@ class Signature {
   // Signature owns publication validation for its two exact Layouts. Function
   // invokes this semantic operation without receiving private access to the
   // Signature representation.
-  auto validate_publication(Ttx::Lexical::Cursor& cursor) const -> Bool;
+  auto validate_publication(Tetrodotoxin::Source::Lexical::Cursor& cursor) const -> Bool;
 
  private:
   constexpr Signature(
-      const Ttx::Concept::Abstract& host,
+      const Tetrodotoxin::Source::Abstract& host,
       Model::Layout& parameters,
       Model::Layout& results)
       : host(host), parameters(parameters), results(results) {}
 
-  const Ttx::Concept::Abstract& host;
+  const Tetrodotoxin::Source::Abstract& host;
   Model::Layout& parameters;
   Model::Layout& results;
 };

@@ -3,16 +3,18 @@
 
 #include "tetrodotoxin/library/language/flow/local.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "perimortem/core/diagnostics/log.hpp"
 
 #include "tetrodotoxin/library/language/diagnostics.hpp"
 #include "tetrodotoxin/library/language/expression.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 
 auto Language::Flow::Local::create_authored(
@@ -50,7 +52,7 @@ auto Language::Flow::Local::get_type() const -> const Abstract& {
 }
 
 auto Language::Flow::Local::link(
-    Ttx::Lexical::Cursor& cursor,
+    Tetrodotoxin::Source::Lexical::Cursor& cursor,
     const Language::Model::Type& access_scope) -> Bool {
   if (type && initializer_linked) {
     return True;
@@ -177,14 +179,14 @@ auto Language::Flow::Local::resolve() const -> const Abstract& {
   return *this;
 }
 
-auto Language::Flow::Local::get_documentation() const -> const Documentation& {
+auto Language::Flow::Local::get_documentation() const -> const Tetrodotoxin::Source::Documentation& {
   for (const Language::Statement& statement : host.get_statements()) {
     if (&statement.get_root() == this) {
       return statement.get_documentation();
     }
   }
 
-  return Documentation::get_empty();
+  return Tetrodotoxin::Source::Documentation::get_empty();
 }
 
 auto Language::Flow::Local::finalize(Cursor& cursor) -> void {
@@ -199,7 +201,7 @@ auto Language::Flow::Local::get_constant() const -> Core::Option<Model::Pack&> {
 
   return constant.visit(
       []() -> Core::Option<Model::Pack&> { return {}; },
-      [](const Ttx::Model::PackReference<Model::Pack>& selected)
+      [](const Tetrodotoxin::Source::PackReference<Model::Pack>& selected)
           -> Core::Option<Model::Pack&> { return selected.get(); });
 }
 
@@ -237,7 +239,7 @@ auto Language::Flow::Local::cache_constant() const -> Bool {
         return local_type->create_fitted(domain, source);
       });
   if (fitted) {
-    constant = Ttx::Model::PackReference<Model::Pack>(*fitted);
+    constant = Tetrodotoxin::Source::PackReference<Model::Pack>(*fitted);
     constant_state = ConstantState::Folded;
     return True;
   }
@@ -260,7 +262,7 @@ auto Language::Flow::Local::cache_constant() const -> Bool {
           constant_state = ConstantState::Unresolved;
           return;
         }
-        constant = Ttx::Model::PackReference<Model::Pack>(*folded);
+        constant = Tetrodotoxin::Source::PackReference<Model::Pack>(*folded);
         constant_state = ConstantState::Folded;
       },
       [&](const Expression::Error&) {

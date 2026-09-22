@@ -11,16 +11,16 @@
 
 #include "perimortem/serialization/stream/textual.hpp"
 
-#include "ttx/concept/constant.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/model/addressable.hpp"
-#include "ttx/model/callable.hpp"
-#include "ttx/model/type.hpp"
+#include "tetrodotoxin/source/constant.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/addressable.hpp"
+#include "tetrodotoxin/source/callable.hpp"
+#include "tetrodotoxin/source/type.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
+using namespace Tetrodotoxin::Source;
 
 class GraphConceptEdge {
  public:
@@ -129,13 +129,13 @@ static auto explore(
       retain_node(nodes, edge.target.get());
     }
 
-    auto type = abstract.select<Ttx::Model::Type>();
+    auto type = abstract.select<Tetrodotoxin::Source::Type>();
     if (type) {
       retain_layout(nodes, type->get_layout());
     }
 
     // If the Abstract is a Callable then render out its layout.
-    auto callable = abstract.select<Ttx::Model::Callable>();
+    auto callable = abstract.select<Tetrodotoxin::Source::Callable>();
     if (callable) {
       retain_layout(nodes, callable->get_parameters());
       retain_layout(nodes, callable->get_results());
@@ -190,13 +190,13 @@ static auto write_contracts(
   if (abstract.is<Constant>()) {
     output << " constant"_view;
   }
-  if (abstract.is<Ttx::Model::Type>()) {
+  if (abstract.is<Tetrodotoxin::Source::Type>()) {
     output << " type"_view;
   }
-  if (abstract.is<Ttx::Model::Addressable>()) {
+  if (abstract.is<Tetrodotoxin::Source::Addressable>()) {
     output << " addressable"_view;
   }
-  if (abstract.is<Ttx::Model::Callable>()) {
+  if (abstract.is<Tetrodotoxin::Source::Callable>()) {
     output << " callable"_view;
   }
   if (abstract.is<Unknown>()) {
@@ -255,11 +255,11 @@ static auto serialize(
       write_id(output, nodes, edge.target.get());
       output << "\n"_view;
     }
-    auto type = abstract.select<Ttx::Model::Type>();
+    auto type = abstract.select<Tetrodotoxin::Source::Type>();
     if (type) {
       write_layout(bytes, output, nodes, "type"_view, type->get_layout());
     }
-    auto callable = abstract.select<Ttx::Model::Callable>();
+    auto callable = abstract.select<Tetrodotoxin::Source::Callable>();
     if (callable) {
       write_layout(
           bytes, output, nodes, "parameters"_view, callable->get_parameters());

@@ -3,9 +3,11 @@
 
 #include "tetrodotoxin/app/interpreter/program.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::App;
 
 static auto require_text(
@@ -23,7 +25,7 @@ static auto require_text(
 
 auto Interpreter::Program::parse(
     Cursor& cursor,
-    const Documentation& documentation) -> Option<Language::Program&> {
+    const Tetrodotoxin::Source::Documentation& documentation) -> Option<Language::Program&> {
   Token opening = require_text(
       cursor, Code::Type::Addressable, "lifecycle"_view,
       "App lifecycle declaration requires `lifecycle`."_view);

@@ -6,7 +6,7 @@
 #include "perimortem/core/option.hpp"
 
 #include "tetrodotoxin/library/language/flow/loop_control.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Interpreter::Execution {
 
@@ -17,7 +17,7 @@ class LoopControl {
   LoopControl() = delete;
 
   static auto parse(
-      Ttx::Lexical::Cursor& cursor,
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
       const Language::Flow::Block& lexical_context)
       -> Perimortem::Core::Option<Language::Flow::LoopControl&>;
 };

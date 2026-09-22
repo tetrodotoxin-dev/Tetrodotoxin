@@ -7,8 +7,8 @@
 
 #include "tetrodotoxin/library/language/expression.hpp"
 #include "tetrodotoxin/library/language/monograph.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Language::Access {
 
@@ -25,20 +25,20 @@ class Unwrap : public Expression {
   static auto create_authored(
       Perimortem::Memory::Allocator::Arena& domain,
       Model::Pack& receiver,
-      Ttx::Lexical::Anchor anchor) -> Unwrap&;
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> Unwrap&;
 
   auto link(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Abstract& lexical_context,
-      Perimortem::Core::Option<const Ttx::Concept::Abstract&> access_scope = {})
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Abstract& lexical_context,
+      Perimortem::Core::Option<const Tetrodotoxin::Source::Abstract&> access_scope = {})
       -> Bool override;
 
   TTX_NAME("Unwrap"_view);
   TTX_EMPTY_DOCUMENTATION();
 
-  auto get_type() const -> const Ttx::Concept::Abstract& override;
+  auto get_type() const -> const Tetrodotoxin::Source::Abstract& override;
 
-  auto finalize(Ttx::Lexical::Cursor& cursor) -> void override;
+  auto finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> void override;
 
   constexpr auto get_receiver() const -> const Model::Pack& { return receiver; }
 
@@ -46,7 +46,7 @@ class Unwrap : public Expression {
       -> Perimortem::Core::Option<const Model::Pack&> {
     return fallback.visit(
         []() -> Perimortem::Core::Option<const Model::Pack&> { return {}; },
-        [](const Ttx::Model::PackReference<Model::Pack>& selected)
+        [](const Tetrodotoxin::Source::PackReference<Model::Pack>& selected)
             -> Perimortem::Core::Option<const Model::Pack&> {
           return selected.get();
         });
@@ -60,13 +60,13 @@ class Unwrap : public Expression {
  private:
   constexpr Unwrap(
       Model::Pack& receiver,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor)
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor)
       : Expression(anchor), receiver(receiver) {}
 
   Model::Pack& receiver;
-  Perimortem::Core::Option<Ttx::Concept::Reference<const Model::Type>>
+  Perimortem::Core::Option<Tetrodotoxin::Source::Reference<const Model::Type>>
       element_type;
-  Perimortem::Core::Option<Ttx::Model::PackReference<Model::Pack>> fallback;
+  Perimortem::Core::Option<Tetrodotoxin::Source::PackReference<Model::Pack>> fallback;
 };
 
 }  // namespace Tetrodotoxin::Library::Language::Access

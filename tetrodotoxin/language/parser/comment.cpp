@@ -3,17 +3,19 @@
 
 #include "tetrodotoxin/language/parser/comment.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "perimortem/memory/managed/vector.hpp"
 
-#include "ttx/lexical/lexicon.hpp"
-#include "ttx/lexical/token.hpp"
-#include "ttx/model/documentations/block.hpp"
+#include "tetrodotoxin/source/lexical/lexicon.hpp"
+#include "tetrodotoxin/source/lexical/token.hpp"
+#include "tetrodotoxin/source/documentations/block.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Utility;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Language;
 
 // Documentation comments support both `// text` and `//text` however the
@@ -34,11 +36,11 @@ static constexpr auto comment_line(Token comment, View::Bytes source)
   return line;
 }
 
-auto Parser::Comment::parse(Cursor& cursor) -> const Documentation& {
+auto Parser::Comment::parse(Cursor& cursor) -> const Tetrodotoxin::Source::Documentation& {
   // Absence is valid for nested parser positions. Document parsers enforce
   // their required opening comment before delegating here.
   if (!cursor.get_code().is_comment()) {
-    return Documentation::get_empty();
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
 
   Managed::Vector<View::Bytes> lines(cursor.get_arena());
@@ -51,14 +53,14 @@ auto Parser::Comment::parse(Cursor& cursor) -> const Documentation& {
   }
 
   if (lines.is_empty()) {
-    return Documentation::get_empty();
+    return Tetrodotoxin::Source::Documentation::get_empty();
   }
 
   // Block and its line index share the Source arena. Each line still borrows
   // the tokenizer's source bytes so formatters and other tools can examine the
   // block just as it was source authored.
   const auto& documentation =
-      cursor.get_arena().construct<Ttx::Model::Documentations::Block>(
+      cursor.get_arena().construct<Tetrodotoxin::Source::Documentations::Block>(
           lines.get_view());
   return documentation;
 }

@@ -5,13 +5,13 @@
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 
 auto Language::Flow::LoopControl::create_authored(
     Allocator::Arena& domain,
     Kind kind,
-    const Ttx::Concept::Abstract& target,
+    const Tetrodotoxin::Source::Abstract& target,
     Anchor anchor) -> LoopControl& {
   return domain.construct_from<LoopControl>(
       [&]() -> LoopControl { return LoopControl(kind, target, anchor); });

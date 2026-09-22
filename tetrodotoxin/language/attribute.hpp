@@ -7,8 +7,8 @@
 #include "perimortem/core/view/vector.hpp"
 #include "perimortem/core/static/union.hpp"
 
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Language {
 
@@ -22,14 +22,14 @@ class Attribute {
 
   // Consumes the complete consecutive Attribute prefix. Absence is valid and
   // leaves the Cursor unchanged. A malformed prefix publishes no partial view.
-  static auto parse(Ttx::Lexical::Cursor& cursor)
+  static auto parse(Tetrodotoxin::Source::Lexical::Cursor& cursor)
       -> Perimortem::Core::View::Vector<Attribute>;
 
   static constexpr auto create_synthetic(
       Perimortem::Core::View::Bytes key,
       Value value = {}) -> Attribute {
     return Attribute(
-        key, value, Ttx::Lexical::Anchor::create(Ttx::Lexical::Span()));
+        key, value, Tetrodotoxin::Source::Lexical::Anchor::create(Tetrodotoxin::Source::Lexical::Span()));
   }
 
   constexpr auto get_key() const -> Perimortem::Core::View::Bytes {
@@ -40,18 +40,18 @@ class Attribute {
 
   constexpr auto has_value() const -> Bool { return !value.is_null(); }
 
-  constexpr auto get_anchor() const -> Ttx::Lexical::Anchor { return anchor; }
+  constexpr auto get_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor { return anchor; }
 
  private:
   constexpr Attribute(
       Perimortem::Core::View::Bytes key,
       Value value,
-      Ttx::Lexical::Anchor anchor)
+      Tetrodotoxin::Source::Lexical::Anchor anchor)
       : key(key), value(value), anchor(anchor) {}
 
   Perimortem::Core::View::Bytes key;
   Value value;
-  Ttx::Lexical::Anchor anchor;
+  Tetrodotoxin::Source::Lexical::Anchor anchor;
 };
 
 }  // namespace Tetrodotoxin::Language

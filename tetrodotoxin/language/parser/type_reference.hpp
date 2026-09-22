@@ -6,7 +6,7 @@
 #include "perimortem/core/option.hpp"
 
 #include "tetrodotoxin/language/type_reference.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Language::Parser {
 
@@ -14,7 +14,7 @@ class TypeReference {
  public:
   TypeReference() = delete;
 
-  static auto parse(Ttx::Lexical::Cursor& cursor)
+  static auto parse(Tetrodotoxin::Source::Lexical::Cursor& cursor)
       -> Perimortem::Core::Option<Tetrodotoxin::Language::TypeReference>;
 };
 

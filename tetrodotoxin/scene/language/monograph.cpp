@@ -3,19 +3,21 @@
 
 #include "tetrodotoxin/scene/language/monograph.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "tetrodotoxin/library/language/model/memory.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 auto Scene::Language::Monograph::create(
     Allocator::Arena& domain,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     const Abstract& language,
     Abstract& context,
     Library::Language::Monograph& library,
@@ -234,8 +236,8 @@ auto Scene::Language::Monograph::validate_lifecycle(Cursor& cursor) const
 
   const Library::Language::Function& update_function = *update;
   auto delta = update_function.get_parameters().get_abstract(1);
-  auto delta_addressable = delta ? delta->select<Ttx::Model::Addressable>()
-                                 : Option<const Ttx::Model::Addressable&>();
+  auto delta_addressable = delta ? delta->select<Tetrodotoxin::Source::Addressable>()
+                                 : Option<const Tetrodotoxin::Source::Addressable&>();
   const Abstract& r64 = library.resolve_concept("R64"_view).resolve();
   if (!update_function.declares_self() ||
       update_function.get_parameters().get_size() != 2 ||
@@ -269,8 +271,8 @@ auto Scene::Language::Monograph::validate_lifecycle_restored() const -> Bool {
 
   const Library::Language::Function& function = *update;
   auto delta = function.get_parameters().get_abstract(1);
-  auto addressable = delta ? delta->select<Ttx::Model::Addressable>()
-                           : Option<const Ttx::Model::Addressable&>();
+  auto addressable = delta ? delta->select<Tetrodotoxin::Source::Addressable>()
+                           : Option<const Tetrodotoxin::Source::Addressable&>();
   const Abstract& r64 = library.resolve_concept("R64"_view).resolve();
   return function.declares_self() &&
          function.get_parameters().get_size() == 2 &&

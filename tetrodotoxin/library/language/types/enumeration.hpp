@@ -12,9 +12,9 @@
 #include "tetrodotoxin/library/language/model/memory.hpp"
 #include "tetrodotoxin/library/language/model/type.hpp"
 #include "tetrodotoxin/library/language/type_reference.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/lexical/anchor.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Library::Language::Types {
 
@@ -29,10 +29,10 @@ class Enumeration : public Model::Type {
   struct Case {
     Perimortem::Core::View::Bytes name;
     Perimortem::Core::View::Bytes value;
-    const Ttx::Concept::Documentation& documentation;
-    Ttx::Lexical::Anchor anchor;
-    Ttx::Lexical::Anchor name_anchor;
-    Ttx::Lexical::Anchor value_anchor;
+    const Tetrodotoxin::Source::Documentation& documentation;
+    Tetrodotoxin::Source::Lexical::Anchor anchor;
+    Tetrodotoxin::Source::Lexical::Anchor name_anchor;
+    Tetrodotoxin::Source::Lexical::Anchor value_anchor;
   };
 
  private:
@@ -46,8 +46,8 @@ class Enumeration : public Model::Type {
 
   auto bind_interface(Perimortem::System::Uuid requested) const
       -> Perimortem::Utility::Result<
-          Ttx::Semantic::Binding,
-          Ttx::Semantic::Binding::Failure> override {
+          Ttx::Semantic::Negotiation::Binding,
+          Ttx::Semantic::Negotiation::Binding::Failure> override {
     if (requested == Tetrodotoxin::Language::Definition::contract_id) {
       return Tetrodotoxin::Language::Definition::provide(*this);
     }
@@ -76,42 +76,47 @@ class Enumeration : public Model::Type {
     return definition;
   }
 
-  constexpr auto get_host() -> Ttx::Concept::Abstract& {
+  constexpr auto get_host() -> Tetrodotoxin::Source::Abstract& {
     return definition.get_host();
   }
 
-  constexpr auto get_host() const -> const Ttx::Concept::Abstract& {
+  constexpr auto get_host() const -> const Tetrodotoxin::Source::Abstract& {
     return definition.get_host();
   }
 
-  constexpr auto get_anchor() const -> Ttx::Lexical::Anchor {
-    return definition.get_anchor();
+  constexpr auto get_anchor() const -> Tetrodotoxin::Source::Lexical::Anchor {
+    return definition.get_authored().get_anchor();
   }
 
   constexpr auto get_declaration_anchor() const
-      -> Perimortem::Core::Option<Ttx::Lexical::Anchor> override {
-    return definition.get_declaration_anchor();
+      -> Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> override {
+    const auto anchor = definition.get_authored().get_anchor();
+    if (!anchor.get_span()) {
+      return {};
+    }
+
+    return anchor;
   }
 
   TTX_NAME(definition.get_name());
   TTX_DOCUMENTATION(definition.get_documentation());
 
-  auto link_types(Ttx::Lexical::Cursor& cursor) -> Bool override;
-  auto finalize(Ttx::Lexical::Cursor& cursor) -> Bool override;
+  auto link_types(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
+  auto finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
 
   auto link_restored_types() -> Bool override;
 
   auto finalize_restored() -> Bool override;
 
-  auto resolve() const -> const Ttx::Concept::Abstract& override;
+  auto resolve() const -> const Tetrodotoxin::Source::Abstract& override;
 
   auto resolve_concept(Perimortem::Core::View::Bytes route) const
-      -> const Ttx::Concept::Abstract& override;
+      -> const Tetrodotoxin::Source::Abstract& override;
 
   auto create_default(Perimortem::Memory::Allocator::Arena& arena) const
       -> Perimortem::Core::Option<Model::Pack&> override;
 
-  auto accepts_iteration(const Ttx::Concept::Layout& bindings) const
+  auto accepts_iteration(const Tetrodotoxin::Source::Layout& bindings) const
       -> Bool override;
 
   auto get_storage_type() const -> Perimortem::Core::Option<const Model::Type&>;
@@ -121,9 +126,9 @@ class Enumeration : public Model::Type {
   }
 
   auto get_cases() const -> Perimortem::Core::View::Vector<
-      Ttx::Concept::Reference<const Ttx::Concept::Abstract>>;
+      Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Abstract>>;
 
-  auto visit_concepts(Ttx::Concept::Abstract::Visitor visitor) const
+  auto visit_concepts(Tetrodotoxin::Source::Abstract::Visitor visitor) const
       -> void override;
 
   constexpr auto get_case_count() const -> Count {
@@ -137,7 +142,7 @@ class Enumeration : public Model::Type {
   auto retain_restored_case(
       Perimortem::Core::View::Bytes name,
       U64 value,
-      const Ttx::Concept::Documentation& documentation) -> Bool;
+      const Tetrodotoxin::Source::Documentation& documentation) -> Bool;
 
   auto find_case_name(U64 value) const -> Perimortem::Core::View::Bytes;
 
@@ -146,11 +151,11 @@ class Enumeration : public Model::Type {
   // to Definition, while the constant supplies its value and Type questions.
   // Keeping that declaration here preserves labels without teaching transparent
   // Alias to retain names or introducing another member registry.
-  class Member : public Ttx::Concept::Abstract {
+  class Member : public Tetrodotoxin::Source::Abstract {
    public:
     constexpr Member(
         Tetrodotoxin::Language::Definition& definition,
-        const Ttx::Concept::Abstract& value)
+        const Tetrodotoxin::Source::Abstract& value)
         : definition(definition), value(value) {}
 
     TTX_NAME(definition.get_name());
@@ -160,24 +165,24 @@ class Enumeration : public Model::Type {
         -> const Tetrodotoxin::Language::Definition& {
       return definition;
     }
-    auto resolve() const -> const Ttx::Concept::Abstract& override {
+    auto resolve() const -> const Tetrodotoxin::Source::Abstract& override {
       return value.get().resolve();
     }
-    auto get_type() const -> const Ttx::Concept::Abstract& override {
+    auto get_type() const -> const Tetrodotoxin::Source::Abstract& override {
       return value.get().get_type();
     }
     auto resolve_concept(Perimortem::Core::View::Bytes name) const
-        -> const Ttx::Concept::Abstract& override {
+        -> const Tetrodotoxin::Source::Abstract& override {
       return value.get().resolve_concept(name);
     }
-    auto visit_concepts(Ttx::Concept::Abstract::Visitor visitor) const
+    auto visit_concepts(Tetrodotoxin::Source::Abstract::Visitor visitor) const
         -> void override {
       value.get().visit_concepts(visitor);
     }
     auto bind_interface(Perimortem::System::Uuid requested) const
         -> Perimortem::Utility::Result<
-            Ttx::Semantic::Binding,
-            Ttx::Semantic::Binding::Failure> override {
+            Ttx::Semantic::Negotiation::Binding,
+            Ttx::Semantic::Negotiation::Binding::Failure> override {
       if (requested == Tetrodotoxin::Language::Definition::contract_id) {
         return Tetrodotoxin::Language::Definition::provide(*this);
       }
@@ -186,23 +191,23 @@ class Enumeration : public Model::Type {
 
    private:
     Tetrodotoxin::Language::Definition& definition;
-    Ttx::Concept::Reference<const Ttx::Concept::Abstract> value;
+    Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Abstract> value;
   };
 
   // Static lookup has its own subject while the Enumeration keeps its cases
   // and completion state. The scope borrows those facts directly, so exposing
   // it requires no second case inventory or publication lifecycle.
-  class Authority : public Ttx::Concept::Abstract {
+  class Authority : public Tetrodotoxin::Source::Abstract {
    public:
     constexpr explicit Authority(const Enumeration& owner) : owner(owner) {}
 
-    TTX_CONTRACT(Authority, Ttx::Concept::Abstract);
+    TTX_CONTRACT(Authority, Tetrodotoxin::Source::Abstract);
     TTX_NAME("static"_view);
     TTX_EMPTY_DOCUMENTATION();
 
     auto resolve_concept(Perimortem::Core::View::Bytes name) const
-        -> const Ttx::Concept::Abstract& override;
-    auto visit_concepts(Ttx::Concept::Abstract::Visitor visitor) const
+        -> const Tetrodotoxin::Source::Abstract& override;
+    auto visit_concepts(Tetrodotoxin::Source::Abstract::Visitor visitor) const
         -> void override;
 
    private:
@@ -220,12 +225,12 @@ class Enumeration : public Model::Type {
   Perimortem::Memory::Allocator::Arena& domain;
   TypeReference storage_reference;
   Perimortem::Memory::Managed::Vector<Case> source_cases;
-  Perimortem::Core::Option<Ttx::Concept::Reference<const Model::Type>>
+  Perimortem::Core::Option<Tetrodotoxin::Source::Reference<const Model::Type>>
       storage_type;
   Perimortem::Memory::Managed::Vector<
-      Ttx::Concept::Reference<const Ttx::Concept::Abstract>>
+      Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Abstract>>
       cases;
-  Perimortem::Core::Option<Ttx::Concept::Reference<const Model::Memory>>
+  Perimortem::Core::Option<Tetrodotoxin::Source::Reference<const Model::Memory>>
       generated_size;
   Stage stage = Stage::Authored;
 };

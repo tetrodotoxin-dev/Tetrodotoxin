@@ -7,13 +7,13 @@
 
 #include "tetrodotoxin/language/definition.hpp"
 #include "tetrodotoxin/render/language/layout.hpp"
-#include "ttx/model/callable.hpp"
+#include "tetrodotoxin/source/callable.hpp"
 
 namespace Tetrodotoxin::Render::Language {
 
-class Stage : public Ttx::Model::Callable {
+class Stage : public Tetrodotoxin::Source::Callable {
  public:
-  TTX_CONTRACT(Stage, Ttx::Model::Callable);
+  TTX_CONTRACT(Stage, Tetrodotoxin::Source::Callable);
 
   static auto create(
       Perimortem::Memory::Allocator::Arena& domain,
@@ -21,24 +21,24 @@ class Stage : public Ttx::Model::Callable {
       Layout& parameters,
       Layout& results) -> Stage&;
 
-  auto link(Ttx::Lexical::Cursor& cursor) -> Bool;
+  auto link(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool;
 
   auto link_restored() -> Bool;
 
   TTX_NAME(definition.get_name());
   TTX_DOCUMENTATION(definition.get_documentation());
 
-  auto resolve() const -> const Ttx::Concept::Abstract& override;
+  auto resolve() const -> const Tetrodotoxin::Source::Abstract& override;
 
   auto resolve_concept(Perimortem::Core::View::Bytes name) const
-      -> const Ttx::Concept::Abstract& override;
+      -> const Tetrodotoxin::Source::Abstract& override;
 
   constexpr auto get_parameters() const
-      -> const Ttx::Concept::Layout& override {
+      -> const Tetrodotoxin::Source::Layout& override {
     return parameters;
   }
 
-  constexpr auto get_results() const -> const Ttx::Concept::Layout& override {
+  constexpr auto get_results() const -> const Tetrodotoxin::Source::Layout& override {
     return results;
   }
 

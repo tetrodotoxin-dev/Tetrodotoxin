@@ -8,8 +8,8 @@
 #include "perimortem/memory/managed/vector.hpp"
 
 #include "tetrodotoxin/language/visibility.hpp"
-#include "ttx/concept/reference.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "tetrodotoxin/source/reference.hpp"
+#include "tetrodotoxin/source/lexical/cursor.hpp"
 
 namespace Tetrodotoxin::Render::Language {
 
@@ -28,41 +28,41 @@ class Declarations {
         types(domain) {}
 
   auto retain_addressable(
-      Ttx::Concept::Abstract& declaration,
+      Tetrodotoxin::Source::Abstract& declaration,
       Tetrodotoxin::Language::Visibility visibility) -> Bool;
   auto retain_callable(
-      Ttx::Concept::Abstract& declaration,
+      Tetrodotoxin::Source::Abstract& declaration,
       Tetrodotoxin::Language::Visibility visibility) -> Bool;
   auto retain_type(
-      Ttx::Concept::Abstract& declaration,
+      Tetrodotoxin::Source::Abstract& declaration,
       Tetrodotoxin::Language::Visibility visibility) -> Bool;
 
-  auto link(Ttx::Lexical::Cursor& cursor, Ttx::Concept::Abstract& context)
+  auto link(Tetrodotoxin::Source::Lexical::Cursor& cursor, Tetrodotoxin::Source::Abstract& context)
       -> Bool;
-  auto link_restored(Ttx::Concept::Abstract& context) -> Bool;
+  auto link_restored(Tetrodotoxin::Source::Abstract& context) -> Bool;
 
-  constexpr auto get_authority() const -> const Ttx::Concept::Abstract& {
+  constexpr auto get_authority() const -> const Tetrodotoxin::Source::Abstract& {
     return authority;
   }
 
-  auto visit_concepts(Ttx::Concept::Abstract::Visitor visitor) const -> void;
+  auto visit_concepts(Tetrodotoxin::Source::Abstract::Visitor visitor) const -> void;
 
   static auto resolve_lexical_context(
-      const Ttx::Concept::Abstract& context,
-      Perimortem::Core::View::Bytes name) -> const Ttx::Concept::Abstract&;
+      const Tetrodotoxin::Source::Abstract& context,
+      Perimortem::Core::View::Bytes name) -> const Tetrodotoxin::Source::Abstract&;
 
   auto resolve_addressable(
       Perimortem::Core::View::Bytes name,
       Tetrodotoxin::Language::Visibility visibility) const
-      -> const Ttx::Concept::Abstract&;
+      -> const Tetrodotoxin::Source::Abstract&;
   auto resolve_callable(
       Perimortem::Core::View::Bytes name,
       Tetrodotoxin::Language::Visibility visibility) const
-      -> const Ttx::Concept::Abstract&;
+      -> const Tetrodotoxin::Source::Abstract&;
   auto resolve_type(
       Perimortem::Core::View::Bytes name,
       Tetrodotoxin::Language::Visibility visibility) const
-      -> const Ttx::Concept::Abstract&;
+      -> const Tetrodotoxin::Source::Abstract&;
 
   constexpr auto get_addressables() const { return addressables.get_view(); }
   constexpr auto get_callables() const { return callables.get_view(); }
@@ -70,17 +70,17 @@ class Declarations {
   constexpr auto is_linked() const -> Bool { return linked; }
 
  private:
-  class Authority : public Ttx::Concept::Abstract {
+  class Authority : public Tetrodotoxin::Source::Abstract {
    public:
     constexpr explicit Authority(const Declarations& owner) : owner(owner) {}
 
-    TTX_CONTRACT(Authority, Ttx::Concept::Abstract);
+    TTX_CONTRACT(Authority, Tetrodotoxin::Source::Abstract);
     TTX_NAME("static"_view);
     TTX_EMPTY_DOCUMENTATION();
 
     auto resolve_concept(Perimortem::Core::View::Bytes name) const
-        -> const Ttx::Concept::Abstract& override;
-    auto visit_concepts(Ttx::Concept::Abstract::Visitor visitor) const
+        -> const Tetrodotoxin::Source::Abstract& override;
+    auto visit_concepts(Tetrodotoxin::Source::Abstract::Visitor visitor) const
         -> void override;
 
    private:
@@ -89,27 +89,27 @@ class Declarations {
 
   auto retain(
       Perimortem::Memory::Managed::Vector<
-          Ttx::Concept::Reference<Ttx::Concept::Abstract>>& declarations,
-      Ttx::Concept::Abstract& declaration,
+          Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>>& declarations,
+      Tetrodotoxin::Source::Abstract& declaration,
       Tetrodotoxin::Language::Visibility visibility) -> Bool;
   auto resolve(
       Perimortem::Core::View::Vector<
-          Ttx::Concept::Reference<Ttx::Concept::Abstract>> declarations,
+          Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>> declarations,
       Perimortem::Core::View::Bytes name,
       Tetrodotoxin::Language::Visibility visibility) const
-      -> const Ttx::Concept::Abstract&;
+      -> const Tetrodotoxin::Source::Abstract&;
 
   Authority authority;
-  Perimortem::Memory::Managed::Map<const Ttx::Concept::Abstract*, Bool>
+  Perimortem::Memory::Managed::Map<const Tetrodotoxin::Source::Abstract*, Bool>
       published;
   Perimortem::Memory::Managed::Vector<
-      Ttx::Concept::Reference<Ttx::Concept::Abstract>>
+      Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>>
       addressables;
   Perimortem::Memory::Managed::Vector<
-      Ttx::Concept::Reference<Ttx::Concept::Abstract>>
+      Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>>
       callables;
   Perimortem::Memory::Managed::Vector<
-      Ttx::Concept::Reference<Ttx::Concept::Abstract>>
+      Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>>
       types;
   Bool linked = False;
 };

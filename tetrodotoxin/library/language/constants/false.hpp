@@ -16,7 +16,7 @@ class False : public Flag {
   static auto create_authored(
       Perimortem::Memory::Allocator::Arena& domain,
       const Tetrodotoxin::Library::Language::Model::Types::Flag& type,
-      Ttx::Lexical::Anchor anchor) -> False& {
+      Tetrodotoxin::Source::Lexical::Anchor anchor) -> False& {
     return Constant::create_authored<False>(
         domain, anchor,
         [&](auto source) -> False { return False(type, source); });
@@ -33,7 +33,7 @@ class False : public Flag {
  private:
   constexpr False(
       const Tetrodotoxin::Library::Language::Model::Types::Flag& type,
-      Perimortem::Core::Option<Ttx::Lexical::Anchor> anchor)
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Anchor> anchor)
       : Flag(type, ::False, anchor) {}
 };
 

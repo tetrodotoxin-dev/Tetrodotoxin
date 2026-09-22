@@ -6,8 +6,8 @@
 #include "tetrodotoxin/library/interpreter/expression.hpp"
 
 using namespace Perimortem;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 
 static auto complete_postfix_span(Cursor& cursor, Token opening) -> Span {

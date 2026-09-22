@@ -31,7 +31,7 @@ using namespace Tetrodotoxin::Library;
 
 static auto arithmetic_find_scalar(
     const Llvm::Module::Body& body,
-    const Ttx::Model::Pack& pack) -> Core::Option<LLVMValueRef> {
+    const Tetrodotoxin::Source::Pack& pack) -> Core::Option<LLVMValueRef> {
   auto values = body.find_values(pack);
   if (!values || values->get_size() != 1) {
     return {};
@@ -47,7 +47,7 @@ static auto arithmetic_select_carriers(const Llvm::Module::Body& body)
 
 static auto arithmetic_has_native_carrier(
     const Llvm::Module::Carriers& carriers,
-    const Ttx::Model::Type& carrier,
+    const Tetrodotoxin::Source::Type& carrier,
     LLVMValueRef left,
     Core::Option<LLVMValueRef> right = {}) -> Bool {
   auto native = carriers.get_type(carrier);
@@ -60,7 +60,7 @@ static auto arithmetic_has_native_carrier(
 
 static auto arithmetic_publish_scalar(
     Llvm::Module::Body& body,
-    const Ttx::Model::Pack& result,
+    const Tetrodotoxin::Source::Pack& result,
     LLVMValueRef value) -> Bool {
   Core::Static::Vector<LLVMValueRef, 1> native = {{value}};
   return body.publish_values(result, native.get_view());
@@ -68,10 +68,10 @@ static auto arithmetic_publish_scalar(
 
 auto Llvm::Emission::Computation::arithmetic(
     Arithmetic operation,
-    const Ttx::Model::Type& carrier,
-    const Ttx::Model::Pack& result,
-    const Ttx::Model::Pack& left,
-    const Ttx::Model::Pack& right) const -> Bool {
+    const Tetrodotoxin::Source::Type& carrier,
+    const Tetrodotoxin::Source::Pack& result,
+    const Tetrodotoxin::Source::Pack& left,
+    const Tetrodotoxin::Source::Pack& right) const -> Bool {
   Llvm::Module::Body& native_body = body;
   auto carriers = arithmetic_select_carriers(body);
   if (!carriers) {
@@ -138,9 +138,9 @@ auto Llvm::Emission::Computation::arithmetic(
 }
 
 auto Llvm::Emission::Computation::negate(
-    const Ttx::Model::Type& carrier,
-    const Ttx::Model::Pack& result,
-    const Ttx::Model::Pack& operand) const -> Bool {
+    const Tetrodotoxin::Source::Type& carrier,
+    const Tetrodotoxin::Source::Pack& result,
+    const Tetrodotoxin::Source::Pack& operand) const -> Bool {
   Llvm::Module::Body& native_body = body;
   auto carriers = arithmetic_select_carriers(body);
   if (!carriers) {
@@ -246,10 +246,10 @@ static auto convert_real_to_integer(
 }
 
 auto Llvm::Emission::Computation::convert(
-    const Ttx::Model::Type& source_carrier,
-    const Ttx::Model::Type& target_carrier,
-    const Ttx::Model::Pack& result,
-    const Ttx::Model::Pack& source) const -> Bool {
+    const Tetrodotoxin::Source::Type& source_carrier,
+    const Tetrodotoxin::Source::Type& target_carrier,
+    const Tetrodotoxin::Source::Pack& result,
+    const Tetrodotoxin::Source::Pack& source) const -> Bool {
   auto carriers = arithmetic_select_carriers(body);
   auto value = arithmetic_find_scalar(body, source);
   auto source_type = carriers ? carriers->get_type(source_carrier)
@@ -293,7 +293,7 @@ auto Llvm::Emission::Computation::convert(
 
 static auto comparison_find_scalar(
     const Llvm::Module::Body& body,
-    const Ttx::Model::Pack& pack) -> Core::Option<LLVMValueRef> {
+    const Tetrodotoxin::Source::Pack& pack) -> Core::Option<LLVMValueRef> {
   auto values = body.find_values(pack);
   if (!values || values->get_size() != 1) {
     return {};
@@ -309,10 +309,10 @@ static auto comparison_select_carriers(const Llvm::Module::Body& body)
 
 static auto emit_comparison(
     Llvm::Module::Body& body,
-    const Ttx::Model::Type& carrier,
-    const Ttx::Model::Pack& result,
-    const Ttx::Model::Pack& left,
-    const Ttx::Model::Pack& right,
+    const Tetrodotoxin::Source::Type& carrier,
+    const Tetrodotoxin::Source::Pack& result,
+    const Tetrodotoxin::Source::Pack& left,
+    const Tetrodotoxin::Source::Pack& right,
     LLVMRealPredicate real,
     LLVMIntPredicate signed_integer,
     LLVMIntPredicate unsigned_integer) -> Bool {
@@ -346,10 +346,10 @@ static auto emit_comparison(
 
 auto Llvm::Emission::Computation::compare(
     Comparison operation,
-    const Ttx::Model::Type& carrier,
-    const Ttx::Model::Pack& result,
-    const Ttx::Model::Pack& left,
-    const Ttx::Model::Pack& right) const -> Bool {
+    const Tetrodotoxin::Source::Type& carrier,
+    const Tetrodotoxin::Source::Pack& result,
+    const Tetrodotoxin::Source::Pack& left,
+    const Tetrodotoxin::Source::Pack& right) const -> Bool {
   switch (operation) {
   case Comparison::Equal:
     return emit_comparison(
@@ -383,9 +383,9 @@ auto Llvm::Emission::Computation::compare(
 
 auto Llvm::Emission::Computation::compare_bytes(
     Comparison operation,
-    const Ttx::Model::Pack& result,
-    const Ttx::Model::Pack& left,
-    const Ttx::Model::Pack& right) const -> Bool {
+    const Tetrodotoxin::Source::Pack& result,
+    const Tetrodotoxin::Source::Pack& left,
+    const Tetrodotoxin::Source::Pack& right) const -> Bool {
   if (operation != Comparison::Equal && operation != Comparison::NotEqual) {
     return False;
   }

@@ -34,9 +34,9 @@ static auto lower_address(
     const Expression& expression,
     const Model::Pack& receiver) -> Bool {
   auto selected =
-      expression.get_result().resolve().select<Ttx::Model::Addressable>();
+      expression.get_result().resolve().select<Tetrodotoxin::Source::Addressable>();
   auto instance =
-      receiver.get_result().resolve().select<Ttx::Model::Addressable>();
+      receiver.get_result().resolve().select<Tetrodotoxin::Source::Addressable>();
   BAIL_IF(
       !selected ||
       !Llvm::Lowering::Graph::prepare(execution.get_program(), *selected));
@@ -57,9 +57,9 @@ static auto lower_initializer(
     auto structure = type->select<Types::Structure>();
     BAIL_IF(!structure || !execution.lower(initializer.get_arguments()));
     Memory::Dynamic::Vector<
-        Ttx::Concept::Reference<const Ttx::Model::Addressable>>
+        Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Addressable>>
         parameters;
-    for (const Ttx::Concept::Reference<Ttx::Concept::Abstract>& candidate :
+    for (const Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>& candidate :
          structure->get_addressables()) {
       auto field = candidate.get().select<Field>();
       if (field && field->get_writability() == Writability::Internal &&
@@ -73,7 +73,7 @@ static auto lower_initializer(
 
   auto values = initializer.get_completed_values();
   BAIL_IF(!values || !execution.lower(*values));
-  auto completed_type = values->get_type().resolve().select<Ttx::Model::Type>();
+  auto completed_type = values->get_type().resolve().select<Tetrodotoxin::Source::Type>();
   if (completed_type && &*completed_type == &*type) {
     return execution.get_storage().alias(initializer, *values);
   }
@@ -115,11 +115,11 @@ static auto lower_call(
 
   auto builtin = Llvm::Lowering::Builtins::lower(
       execution, *callable, call, inputs.get_view(), receiver_source);
-  Core::Option<const Ttx::Model::Pack&> generic_receiver =
+  Core::Option<const Tetrodotoxin::Source::Pack&> generic_receiver =
       receiver_source.visit(
-          []() -> Core::Option<const Ttx::Model::Pack&> { return {}; },
+          []() -> Core::Option<const Tetrodotoxin::Source::Pack&> { return {}; },
           [](const Tetrodotoxin::Library::Language::Model::Pack& source)
-              -> Core::Option<const Ttx::Model::Pack&> { return source; });
+              -> Core::Option<const Tetrodotoxin::Source::Pack&> { return source; });
   return builtin ? *builtin
                  : execution.get_invocation().invoke(
                        call, *callable, inputs.get_view(), generic_receiver);
@@ -196,7 +196,7 @@ auto Llvm::Lowering::Access::lower(
       return True;
     }
     auto addressable =
-        identifier->get_result().resolve().select<Ttx::Model::Addressable>();
+        identifier->get_result().resolve().select<Tetrodotoxin::Source::Addressable>();
     return addressable &&
            Graph::prepare(execution.get_program(), *addressable) &&
            execution.get_storage().select(*identifier, *addressable) &&
@@ -227,8 +227,8 @@ auto Llvm::Lowering::Access::lower(
   if (unwrap) {
     auto fallback = unwrap->get_fallback();
     auto carrier =
-        unwrap->get_receiver().get_type().resolve().select<Ttx::Model::Type>();
-    auto element = unwrap->get_type().resolve().select<Ttx::Model::Type>();
+        unwrap->get_receiver().get_type().resolve().select<Tetrodotoxin::Source::Type>();
+    auto element = unwrap->get_type().resolve().select<Tetrodotoxin::Source::Type>();
     BAIL_IF(
         !fallback || !carrier || !element ||
         !execution.lower(unwrap->get_receiver()));
@@ -248,7 +248,7 @@ auto Llvm::Lowering::Access::lower(
   if (swizzle) {
     BAIL_IF(!execution.lower(swizzle->get_receiver()));
     Memory::Dynamic::Vector<LLVMValueRef> selected;
-    for (const Ttx::Concept::Reference<const Ttx::Concept::Abstract>&
+    for (const Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Abstract>&
              projection : swizzle->get_projections()) {
       auto pack = Model::Pack::from(projection.get());
       BAIL_IF(!pack || !execution.lower(*pack));
@@ -278,7 +278,7 @@ auto Llvm::Lowering::Access::lower_write_target(
   auto identifier = expression.select<Expressions::Identifier>();
   if (identifier) {
     auto addressable =
-        identifier->get_result().resolve().select<Ttx::Model::Addressable>();
+        identifier->get_result().resolve().select<Tetrodotoxin::Source::Addressable>();
     return addressable &&
            Graph::prepare(execution.get_program(), *addressable) &&
            execution.get_storage().select(*identifier, *addressable);
@@ -293,7 +293,7 @@ auto Llvm::Lowering::Access::lower_write_target(
   if (!index) {
     return False;
   }
-  auto element = index->get_element_type().resolve().select<Ttx::Model::Type>();
+  auto element = index->get_element_type().resolve().select<Tetrodotoxin::Source::Type>();
   BAIL_IF(
       !element || !execution.lower(index->get_receiver()) ||
       !execution.lower(index->get_index()));

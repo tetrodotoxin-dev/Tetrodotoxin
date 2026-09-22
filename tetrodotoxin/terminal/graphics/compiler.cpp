@@ -13,9 +13,9 @@ using namespace Perimortem;
 using namespace Tetrodotoxin;
 
 static auto find_configured_type(
-    Core::View::Vector<Ttx::Concept::Reference<const Ttx::Model::Type>>
+    Core::View::Vector<Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type>>
         configured,
-    const Ttx::Model::Type& candidate) -> Core::Option<Count> {
+    const Tetrodotoxin::Source::Type& candidate) -> Core::Option<Count> {
   Core::Option<Count> selected;
   for (Count index = 0; index < configured.get_size(); index++) {
     if (&configured.get_data()[index].get().resolve() == &candidate.resolve()) {
@@ -30,8 +30,8 @@ static auto retain_hosted(
     Memory::Managed::Vector<Terminal::Graphics::Products::Hosted>& hosted,
     const Library::Language::Field& field,
     const Library::Language::Types::Object& object,
-    const Ttx::Model::Type& requirement,
-    Core::View::Vector<Ttx::Concept::Reference<const Ttx::Model::Type>>
+    const Tetrodotoxin::Source::Type& requirement,
+    Core::View::Vector<Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type>>
         configured,
     Core::Option<Count> element_index = {}) -> Bool {
   if (!object.satisfies(requirement)) {
@@ -49,13 +49,13 @@ static auto retain_hosted(
 auto Terminal::Graphics::Compiler::compile(
     Memory::Allocator::Arena& arena,
     const Scene::Language::Monograph& scene,
-    const Ttx::Model::Type& requirement,
-    Core::View::Vector<Ttx::Concept::Reference<const Ttx::Model::Type>>
+    const Tetrodotoxin::Source::Type& requirement,
+    Core::View::Vector<Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Type>>
         configured) const -> Core::Option<Products> {
   BAIL_IF(!scene.is_finalized() || configured.is_empty());
 
   Memory::Managed::Vector<Products::Hosted> hosted(arena);
-  for (const Ttx::Concept::Reference<Ttx::Concept::Abstract>& declaration :
+  for (const Tetrodotoxin::Source::Reference<Tetrodotoxin::Source::Abstract>& declaration :
        scene.get_instance().get_addressables()) {
     auto field = declaration.get().select<Library::Language::Field>();
     if (!field ||

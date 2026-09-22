@@ -21,24 +21,24 @@ class Dialect : public Tetrodotoxin::Language::Dialect {
 
   auto bind_interface(Perimortem::System::Uuid requested) const
       -> Perimortem::Utility::Result<
-          Ttx::Semantic::Binding,
-          Ttx::Semantic::Binding::Failure> override;
+          Ttx::Semantic::Negotiation::Binding,
+          Ttx::Semantic::Negotiation::Binding::Failure> override;
 
   auto interpret(
-      Ttx::Lexical::Cursor& cursor,
-      const Ttx::Concept::Documentation& documentation,
-      const Ttx::Lexical::Anchor& source_anchor,
-      Ttx::Concept::Abstract& context)
+      Tetrodotoxin::Source::Lexical::Cursor& cursor,
+      const Tetrodotoxin::Source::Documentation& documentation,
+      const Tetrodotoxin::Source::Lexical::Anchor& source_anchor,
+      Tetrodotoxin::Source::Abstract& context)
       -> Perimortem::Core::Option<Tetrodotoxin::Language::Monograph&> override;
 
-  auto encode(const Ttx::Concept::Abstract& monograph) const
+  auto encode(const Tetrodotoxin::Source::Abstract& monograph) const
       -> Perimortem::Core::Option<Perimortem::Memory::Dynamic::Bytes> override;
 
   auto decode(
       Perimortem::Memory::Allocator::Arena& arena,
       Perimortem::Core::View::Bytes payload,
-      Ttx::Concept::Abstract& context)
-      -> Perimortem::Core::Option<Ttx::Concept::Abstract&> override;
+      Tetrodotoxin::Source::Abstract& context)
+      -> Perimortem::Core::Option<Tetrodotoxin::Source::Abstract&> override;
 };
 
 }  // namespace Tetrodotoxin::Library

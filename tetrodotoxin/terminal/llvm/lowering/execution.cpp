@@ -35,7 +35,7 @@ auto Llvm::Lowering::Execution::lower(
     return Access::lower(*this, *expression);
   }
 
-  for (const Ttx::Model::PackReference<
+  for (const Tetrodotoxin::Source::PackReference<
            Tetrodotoxin::Library::Language::Model::Pack>& entry :
        pack.get_entries()) {
     if (!lower(entry.get())) {

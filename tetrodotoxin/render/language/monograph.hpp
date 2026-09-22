@@ -17,32 +17,32 @@ class Monograph : public Tetrodotoxin::Language::Monograph {
 
   static auto create(
       Perimortem::Memory::Allocator::Arena& arena,
-      const Ttx::Concept::Abstract& language,
-      const Ttx::Concept::Documentation& documentation,
-      Ttx::Concept::Abstract& context) -> Monograph&;
+      const Tetrodotoxin::Source::Abstract& language,
+      const Tetrodotoxin::Source::Documentation& documentation,
+      Tetrodotoxin::Source::Abstract& context) -> Monograph&;
 
   auto retain_addressable(
-      Ttx::Concept::Abstract& declaration,
+      Tetrodotoxin::Source::Abstract& declaration,
       Tetrodotoxin::Language::Visibility visibility) -> Bool;
 
   auto retain_callable(
-      Ttx::Concept::Abstract& declaration,
+      Tetrodotoxin::Source::Abstract& declaration,
       Tetrodotoxin::Language::Visibility visibility) -> Bool;
 
   auto retain_type(
-      Ttx::Concept::Abstract& declaration,
+      Tetrodotoxin::Source::Abstract& declaration,
       Tetrodotoxin::Language::Visibility visibility) -> Bool;
 
   auto retain_import(
       const Tetrodotoxin::Language::Import::Description& description,
-      Perimortem::Core::Option<Ttx::Lexical::Associations&> associations = {})
+      Perimortem::Core::Option<Tetrodotoxin::Source::Lexical::Associations&> associations = {})
       -> Bool override;
 
-  auto compose(Ttx::Lexical::Cursor& cursor) -> Bool override;
+  auto compose(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
 
-  auto link(Ttx::Lexical::Cursor& cursor) -> Bool override;
+  auto link(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
 
-  auto finalize(Ttx::Lexical::Cursor& cursor) -> Bool override;
+  auto finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
 
   auto link_restored() -> Bool override;
 
@@ -51,13 +51,13 @@ class Monograph : public Tetrodotoxin::Language::Monograph {
   auto finalize_restored() -> Bool override;
 
   auto resolve_concept(Perimortem::Core::View::Bytes name) const
-      -> const Ttx::Concept::Abstract& override;
+      -> const Tetrodotoxin::Source::Abstract& override;
 
-  auto visit_concepts(Ttx::Concept::Abstract::Visitor visitor) const
+  auto visit_concepts(Tetrodotoxin::Source::Abstract::Visitor visitor) const
       -> void override;
 
   auto resolve_lexical_context(Perimortem::Core::View::Bytes name) const
-      -> const Ttx::Concept::Abstract& override;
+      -> const Tetrodotoxin::Source::Abstract& override;
 
   constexpr auto get_addressables() const {
     return declarations.get_addressables();
@@ -74,9 +74,9 @@ class Monograph : public Tetrodotoxin::Language::Monograph {
  private:
   Monograph(
       Perimortem::Memory::Allocator::Arena& arena,
-      const Ttx::Concept::Abstract& language,
-      const Ttx::Concept::Documentation& documentation,
-      Ttx::Concept::Abstract& context)
+      const Tetrodotoxin::Source::Abstract& language,
+      const Tetrodotoxin::Source::Documentation& documentation,
+      Tetrodotoxin::Source::Abstract& context)
       : Tetrodotoxin::Language::Monograph(
             arena,
             language,

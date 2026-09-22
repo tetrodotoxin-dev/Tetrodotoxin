@@ -23,16 +23,16 @@
 #include "tetrodotoxin/library/language/types/structure.hpp"
 #include "tetrodotoxin/library/language/types/u64.hpp"
 #include "tetrodotoxin/library/language/types/view.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
-#include "ttx/model/alias.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/alias.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 using Tetrodotoxin::Environment::Workspace;
 using namespace Validation;
@@ -111,7 +111,7 @@ PERIMORTEM_UNIT_TEST(LibraryTypeReference, segment_queries) {
   Allocator::Arena arena;
   Errors errors;
   Tokenizer tokenizer(arena, "First::Second"_view, "route.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   auto reference = Interpreter::TypeReference::parse_route(cursor);
   ASSERT(reference);
@@ -131,7 +131,7 @@ PERIMORTEM_UNIT_TEST(LibraryTypeReference, explicit_package_alias) {
   Allocator::Arena arena;
   Errors errors;
   Tokenizer tokenizer(arena, "Math::U64"_view, "route.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   auto reference = Interpreter::TypeReference::parse_route(cursor);
   ASSERT(reference);
@@ -216,7 +216,7 @@ PERIMORTEM_UNIT_TEST(LibraryTypeReference, generic_identity) {
   // and the exact Types selected by the first pass.
   Allocator::Arena repeat_domain;
   Tokenizer repeat_tokenizer(repeat_domain, source, "type-reference.ttx"_view);
-  Ttx::Lexical::Associations repeat_associations(repeat_tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations repeat_associations(repeat_tokenizer.get_arena());
   Cursor repeat_cursor(repeat_tokenizer, errors, repeat_associations);
   ASSERT(monograph->link(repeat_cursor));
   catalog = select_structure(root, "Catalog"_view);
@@ -267,8 +267,8 @@ PERIMORTEM_UNIT_TEST(LibraryTypeReference, generic_aliases) {
   const Abstract& local_alias = root.resolve_concept("LocalView"_view);
   const Abstract& qualified_alias =
       root.resolve_concept("QualifiedAccess"_view);
-  ASSERT(local_alias.is<Ttx::Model::Alias>());
-  ASSERT(qualified_alias.is<Ttx::Model::Alias>());
+  ASSERT(local_alias.is<Tetrodotoxin::Source::Alias>());
+  ASSERT(qualified_alias.is<Tetrodotoxin::Source::Alias>());
 
   auto local_view = local_alias.resolve().select<Language::Types::View>();
   auto qualified_access =

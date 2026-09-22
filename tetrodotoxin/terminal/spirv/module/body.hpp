@@ -15,7 +15,7 @@
 #include "tetrodotoxin/terminal/spirv/module/interface.hpp"
 #include "tetrodotoxin/terminal/spirv/module/types.hpp"
 #include "tetrodotoxin/terminal/spirv/request.hpp"
-#include "ttx/concept/reference.hpp"
+#include "tetrodotoxin/source/reference.hpp"
 
 namespace Tetrodotoxin::Terminal::Spirv::Module {
 
@@ -43,13 +43,13 @@ class Body {
   class Value {
    public:
     constexpr Value(
-        const Ttx::Concept::Abstract& semantic,
+        const Tetrodotoxin::Source::Abstract& semantic,
         const Tetrodotoxin::Library::Language::Model::Type& type,
         U32 id)
         : semantic(semantic), type(type), id(id) {}
 
-    Ttx::Concept::Reference<const Ttx::Concept::Abstract> semantic;
-    Ttx::Concept::Reference<const Tetrodotoxin::Library::Language::Model::Type>
+    Tetrodotoxin::Source::Reference<const Tetrodotoxin::Source::Abstract> semantic;
+    Tetrodotoxin::Source::Reference<const Tetrodotoxin::Library::Language::Model::Type>
         type;
     U32 id;
   };
@@ -69,16 +69,16 @@ class Body {
       const Tetrodotoxin::Library::Language::Model::Pack& pack,
       const Interface::Stage& stage,
       Assembler::SpirV& assembler) -> Bool;
-  auto find_value(const Ttx::Concept::Abstract& semantic) const
+  auto find_value(const Tetrodotoxin::Source::Abstract& semantic) const
       -> Perimortem::Core::Option<Value>;
   auto retain_value(Value value) -> Bool;
   auto reject(
-      const Ttx::Concept::Abstract& semantic,
+      const Tetrodotoxin::Source::Abstract& semantic,
       Perimortem::Core::View::Bytes message) const -> Bool;
 
   static auto select_source(
       const Tetrodotoxin::Library::Language::Model::Pack& pack,
-      const Ttx::Concept::Layout& target,
+      const Tetrodotoxin::Source::Layout& target,
       Count target_index) -> Perimortem::Core::Option<Count>;
 
   Ids& ids;

@@ -9,7 +9,7 @@
 #include "tetrodotoxin/library/language/type_reference.hpp"
 #include "tetrodotoxin/library/language/types/interface.hpp"
 #include "tetrodotoxin/library/language/types/object.hpp"
-#include "ttx/concept/reference.hpp"
+#include "tetrodotoxin/source/reference.hpp"
 
 namespace Tetrodotoxin::Library::Language::Types {
 
@@ -33,15 +33,15 @@ class Implemented : public Object {
       Tetrodotoxin::Library::Language::TypeReference requirement)
       -> Implemented&;
 
-  auto bind_authored_requirement(Ttx::Lexical::Cursor& cursor) -> Bool;
+  auto bind_authored_requirement(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool;
 
   auto complete_body() -> void override;
 
-  auto link_fields(Ttx::Lexical::Cursor& cursor) -> Bool override;
+  auto link_fields(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
 
-  auto link_initializers(Ttx::Lexical::Cursor& cursor) -> Bool override;
+  auto link_initializers(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
 
-  auto finalize(Ttx::Lexical::Cursor& cursor) -> Bool override;
+  auto finalize(Tetrodotoxin::Source::Lexical::Cursor& cursor) -> Bool override;
 
   auto link_restored_fields() -> Bool override;
 
@@ -49,7 +49,7 @@ class Implemented : public Object {
 
   auto finalize_restored() -> Bool override;
 
-  auto satisfies(const Ttx::Concept::Abstract& requirement) const
+  auto satisfies(const Tetrodotoxin::Source::Abstract& requirement) const
       -> Bool override;
 
   constexpr auto get_requirement_reference() const
@@ -61,7 +61,7 @@ class Implemented : public Object {
       -> Perimortem::Core::Option<const Interface&> {
     return requirement.visit(
         []() -> Perimortem::Core::Option<const Interface&> { return {}; },
-        [](const Ttx::Concept::Reference<const Interface>& selected)
+        [](const Tetrodotoxin::Source::Reference<const Interface>& selected)
             -> Perimortem::Core::Option<const Interface&> {
           return selected.get();
         });
@@ -73,8 +73,8 @@ class Implemented : public Object {
     constexpr GeneratedField(const Field& requirement, Field& implementation)
         : requirement(requirement), implementation(implementation) {}
 
-    Ttx::Concept::Reference<const Field> requirement;
-    Ttx::Concept::Reference<Field> implementation;
+    Tetrodotoxin::Source::Reference<const Field> requirement;
+    Tetrodotoxin::Source::Reference<Field> implementation;
   };
 
   Implemented(
@@ -90,7 +90,7 @@ class Implemented : public Object {
   auto materialize_fields() -> Bool;
 
   Tetrodotoxin::Library::Language::TypeReference requirement_reference;
-  Perimortem::Core::Option<Ttx::Concept::Reference<const Interface>>
+  Perimortem::Core::Option<Tetrodotoxin::Source::Reference<const Interface>>
       requirement;
   Perimortem::Memory::Managed::Vector<GeneratedField> generated_fields;
   Bool body_complete = False;

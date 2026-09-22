@@ -43,7 +43,7 @@ class Writer {
   auto write(S64 value) -> void;
   auto write(R64 value) -> void;
   auto write(Perimortem::Core::View::Bytes value) -> Bool;
-  auto write(const Ttx::Concept::Documentation& value) -> Bool;
+  auto write(const Tetrodotoxin::Source::Documentation& value) -> Bool;
   auto write(
       Perimortem::Core::View::Vector<Tetrodotoxin::Language::Attribute>
           attributes) -> Bool;

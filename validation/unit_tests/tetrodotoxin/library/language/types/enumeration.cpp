@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/library/language/types/enumeration.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "validation/unit_test.hpp"
 #include "validation/unit_tests/tetrodotoxin/library/workspace.hpp"
 
@@ -24,17 +26,17 @@
 #include "tetrodotoxin/library/language/monograph.hpp"
 #include "tetrodotoxin/library/language/types/source.hpp"
 #include "tetrodotoxin/library/language/types/structure.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/errors.hpp"
-#include "ttx/lexical/tokenizer.hpp"
-#include "ttx/model/alias.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
+#include "tetrodotoxin/source/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/alias.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::Utility;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
-using namespace Ttx::Model;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
+using namespace Tetrodotoxin::Source;
 using namespace Tetrodotoxin::Library;
 using Tetrodotoxin::Environment::Workspace;
 using namespace Validation;
@@ -57,14 +59,14 @@ static auto parse_authored(
     Errors& errors,
     View::Bytes source) -> Option<Language::Monograph&> {
   Tokenizer tokenizer(lexical, source, "enumeration.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   if (!cursor.get_code().is_comment()) {
     return {};
   }
 
   Token source_opening = cursor.current();
-  const Documentation& documentation =
+  const Tetrodotoxin::Source::Documentation& documentation =
       Tetrodotoxin::Language::Parser::Comment::parse(cursor);
   Token dialect_declaration = cursor.current();
   if (Tetrodotoxin::Language::Parser::Dialect::parse(cursor) !=
@@ -110,7 +112,7 @@ static auto rejects_link(View::Bytes source) -> Bool {
 
   Allocator::Arena completion;
   Tokenizer tokenizer(completion, source, "enumeration.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   Bool linked = monograph->link(cursor);
   return !linked && !errors.is_empty() &&
@@ -134,7 +136,7 @@ static auto rejects_completion_without_cases(View::Bytes source) -> Bool {
   auto& monograph = *owner;
   Allocator::Arena completion;
   Tokenizer tokenizer(completion, source, "enumeration.ttx"_view);
-  Ttx::Lexical::Associations associations(tokenizer.get_arena());
+  Tetrodotoxin::Source::Lexical::Associations associations(tokenizer.get_arena());
   Cursor cursor(tokenizer, errors, associations);
   Bool linked = monograph.link(cursor);
   const Abstract& selected = monograph.resolve_concept("Bad"_view);

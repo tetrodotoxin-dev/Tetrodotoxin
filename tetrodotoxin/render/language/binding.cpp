@@ -3,11 +3,13 @@
 
 #include "tetrodotoxin/render/language/binding.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "tetrodotoxin/render/language/declarations.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Render;
 
 auto Language::Binding::create_authored(
@@ -19,18 +21,18 @@ auto Language::Binding::create_authored(
   return domain.construct_from<Binding>([&]() {
     return Binding(
         definition.get_name(), definition, kind, access, type,
-        Option<Reference<const Ttx::Model::Type>>());
+        Option<Reference<const Tetrodotoxin::Source::Type>>());
   });
 }
 
 auto Language::Binding::create_slot(
     Perimortem::Memory::Allocator::Arena& domain,
     View::Bytes name,
-    const Ttx::Model::Type& type) -> Binding& {
+    const Tetrodotoxin::Source::Type& type) -> Binding& {
   return domain.construct_from<Binding>([&]() {
     return Binding(
         name, {}, Kind::Parameter, Access::None, {},
-        Reference<const Ttx::Model::Type>(type));
+        Reference<const Tetrodotoxin::Source::Type>(type));
   });
 }
 
@@ -41,7 +43,7 @@ auto Language::Binding::create_restored_slot(
   return domain.construct_from<Binding>([&]() {
     return Binding(
         name, {}, Kind::Value, Access::None, type,
-        Option<Reference<const Ttx::Model::Type>>());
+        Option<Reference<const Tetrodotoxin::Source::Type>>());
   });
 }
 
@@ -54,7 +56,7 @@ auto Language::Binding::link(Cursor& cursor, const Abstract& context) -> Bool {
       context, type_reference->get_root());
   auto selected = type_reference->resolve_selected(cursor, root);
   BAIL_IF(!selected || selected->get_layout().is_empty());
-  type = Reference<const Ttx::Model::Type>(*selected);
+  type = Reference<const Tetrodotoxin::Source::Type>(*selected);
   return True;
 }
 
@@ -67,15 +69,15 @@ auto Language::Binding::link_restored(const Abstract& context) -> Bool {
       context, type_reference->get_root());
   auto selected = type_reference->resolve_restored_selected(root);
   BAIL_IF(!selected || selected->get_layout().is_empty());
-  type = Reference<const Ttx::Model::Type>(*selected);
+  type = Reference<const Tetrodotoxin::Source::Type>(*selected);
   return True;
 }
 
-auto Language::Binding::get_documentation() const -> const Documentation& {
+auto Language::Binding::get_documentation() const -> const Tetrodotoxin::Source::Documentation& {
   return definition.visit(
-      []() -> const Documentation& { return Documentation::get_empty(); },
+      []() -> const Tetrodotoxin::Source::Documentation& { return Tetrodotoxin::Source::Documentation::get_empty(); },
       [](const Tetrodotoxin::Language::Definition& selected)
-          -> const Documentation& { return selected.get_documentation(); });
+          -> const Tetrodotoxin::Source::Documentation& { return selected.get_documentation(); });
 }
 
 auto Language::Binding::get_type() const -> const Abstract& {

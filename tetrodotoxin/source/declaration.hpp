@@ -3,97 +3,65 @@
 
 #pragma once
 
-#include "ttx/semantic/binding.hpp"
-#include "ttx/semantic/bound.hpp"
-#include "ttx/lexical/anchor.hpp"
-#include "ttx/lexical/cursor.hpp"
+#include "perimortem/core/option.hpp"
+
+#include "perimortem/system/uuid.hpp"
+
+#include "tetrodotoxin/source/anchor.hpp"
+#include "tetrodotoxin/source/declaration.h"
+#include "ttx/semantic/negotiation/binding.hpp"
 
 namespace Tetrodotoxin::Source {
 
-// A declaration can answer source questions without making its semantic value
-// responsible for the language that created it. The source owner supplies this
-// binding when an editor needs provenance or a source pass needs to complete
-// the declaration. Memory and Type queries remain separate contracts.
-//
-// The enclosing source orders completion across its declarations. Keeping that
-// order at the source allows every explicit Type to settle before inference,
-// and every initializer to link before constant evaluation. The selected
-// provider performs the work rather than exposing its implementation class.
-//
-// Anchor and Cursor make this a native payload agreement. The state is still
-// opaque, and a caller cannot cast it to an authored declaration. The source
-// transaction keeps both the provider and its source facts alive. Selecting a
-// binding has no side effects. Calling complete requires the source owner's
-// exclusive construction authority and may change the declaration.
+// Declaration borrows a provider's source observation. Its API record is the
+// complete negotiated value, so foreign providers need neither a C++ base
+// class nor a second wrapper object. Evaluation belongs to the language query
+// being answered. Reading provenance does not require evaluating that value.
 class Declaration {
  public:
   static constexpr Perimortem::System::Uuid contract_id{
-    0x01a087abcbf97905,
-    0x9ea29543510280bb,
+    TETRODOTOXIN_SOURCE_DECLARATION_ID_HIGH,
+    TETRODOTOXIN_SOURCE_DECLARATION_ID_LOW,
   };
 
-  enum class Phase : U8 {
-    Type,
-    InferredType,
-    Initializer,
-    Constant,
-    Signature,
-    Body,
-    Finalize,
-    RestoredType,
-    RestoredInitializer,
-    RestoredSignature,
-  };
+  using Api = tetrodotoxin_source_declaration;
 
-  using Failure = Ttx::Semantic::Binding::Failure;
-  using Completion = Perimortem::Utility::Result<Bool, Failure>;
+  explicit constexpr Declaration(Api api) : api(api) {}
 
-  struct Operations {
-    auto (*get_anchor)(const void*)
-        -> Perimortem::Core::Option<Ttx::Lexical::Anchor>;
-    auto (*complete)(const void*, Phase, Ttx::Lexical::Cursor*) -> Completion;
-  };
-
-  class Handle : public Ttx::Semantic::Bound<Operations> {
-   public:
-    using Bound::Bound;
-
-    auto get_anchor() const
-        -> Perimortem::Core::Option<Ttx::Lexical::Anchor> {
-      return operations.get_anchor(source);
+  auto get_anchor() const -> Perimortem::Core::Option<Anchor> {
+    auto anchor = Anchor(Ttx::Concept::Abstract(ttx_none()), Range());
+    if (!api.get_anchor(api.source, &anchor)) {
+      return {};
     }
 
-    // Restored phases need no Cursor. Authored phases borrow one for this
-    // synchronous call so diagnostics remain attached to their actual source.
-    auto complete(Phase phase, Ttx::Lexical::Cursor* cursor = nullptr) const
-        -> Completion {
-      return operations.complete(source, phase, cursor);
-    }
-  };
-
-  // A native source offers this only for declarations it constructed as
-  // mutable objects. Const binding preserves observation during selection,
-  // while the completion thunk recovers the owner's mutable source state.
-  template <typename Provider>
-  static auto provide(const Provider& provider) -> Ttx::Semantic::Binding {
-    static const Operations operations = {
-      [](const void* source)
-          -> Perimortem::Core::Option<Ttx::Lexical::Anchor> {
-        return static_cast<const Provider*>(source)->get_declaration_anchor();
-      },
-      [](const void* source, Phase phase, Ttx::Lexical::Cursor* cursor)
-          -> Completion {
-        if (phase > Phase::RestoredSignature ||
-            (phase < Phase::RestoredType && cursor == nullptr)) {
-          return Failure::Rejected;
-        }
-        auto& declaration =
-            *const_cast<Provider*>(static_cast<const Provider*>(source));
-        return declaration.complete_source(phase, cursor);
-      },
-    };
-    return Ttx::Semantic::Binding::provide<Declaration>(&provider, operations);
+    return anchor;
   }
+
+  template <typename Provider>
+  static auto provide(
+      const Provider& provider,
+      Ttx::Data::Form::Storage destination)
+      -> Ttx::Semantic::Negotiation::Binding::Status {
+    const Api api = {
+      &provider, [](const void* source, Anchor* output) -> U8 {
+        return static_cast<const Provider*>(source)->get_anchor().visit(
+            []() -> U8 { return 0; },
+            [&](Anchor anchor) -> U8 {
+              *output = anchor;
+              return 1;
+            });
+      }};
+    return Ttx::Semantic::Negotiation::Binding::provide<Declaration>(
+        api, destination);
+  }
+
+ private:
+  Api api;
 };
 
 }  // namespace Tetrodotoxin::Source
+
+TTX_DATA_RECORD(
+    tetrodotoxin_source_declaration,
+    TTX_DATA_MEMBER(tetrodotoxin_source_declaration, source),
+    TTX_DATA_MEMBER(tetrodotoxin_source_declaration, get_anchor));

@@ -4,10 +4,10 @@
 #pragma once
 
 #include "tetrodotoxin/library/language/model/callable.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/model/documentations/comment.hpp"
-#include "ttx/model/layouts/addressable.hpp"
-#include "ttx/model/layouts/ranged.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/documentations/comment.hpp"
+#include "tetrodotoxin/source/layouts/addressable.hpp"
+#include "tetrodotoxin/source/layouts/ranged.hpp"
 
 namespace Tetrodotoxin::Library::Builtin::Fixed {
 
@@ -28,28 +28,28 @@ class Access : public Language::Model::Callable {
   TTX_DOCUMENTATION(documentation);
 
   constexpr auto get_parameters() const
-      -> const Ttx::Concept::Layout& override {
+      -> const Tetrodotoxin::Source::Layout& override {
     return parameters;
   }
 
-  constexpr auto get_results() const -> const Ttx::Concept::Layout& override {
+  constexpr auto get_results() const -> const Tetrodotoxin::Source::Layout& override {
     return results;
   }
 
   auto accepts_receiver(
-      const Ttx::Concept::Abstract& receiver,
-      const Ttx::Concept::Abstract& host) const -> Bool override;
+      const Tetrodotoxin::Source::Abstract& receiver,
+      const Tetrodotoxin::Source::Abstract& host) const -> Bool override;
 
  private:
   constexpr Access(
-      Ttx::Model::Layouts::Addressable& self,
+      Tetrodotoxin::Source::Layouts::Addressable& self,
       const Language::Model::Type& result)
       : parameters(self, 1), results(result, 1) {}
 
-  Ttx::Model::Layouts::Ranged parameters;
-  Ttx::Model::Layouts::Ranged results;
+  Tetrodotoxin::Source::Layouts::Ranged parameters;
+  Tetrodotoxin::Source::Layouts::Ranged results;
 
-  static constexpr Ttx::Model::Documentations::Comment documentation{
+  static constexpr Tetrodotoxin::Source::Documentations::Comment documentation{
     "Borrows writable access to every element of this Fixed value."_view,
   };
 };

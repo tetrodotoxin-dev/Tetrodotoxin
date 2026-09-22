@@ -3,6 +3,8 @@
 
 #include "tetrodotoxin/library/language/monograph.hpp"
 
+#include "tetrodotoxin/source/documentation.hpp"
+
 #include "perimortem/core/diagnostics/log.hpp"
 
 #include "tetrodotoxin/library/language/generics/access.hpp"
@@ -24,13 +26,13 @@
 #include "tetrodotoxin/library/language/types/u32.hpp"
 #include "tetrodotoxin/library/language/types/u64.hpp"
 #include "tetrodotoxin/library/language/types/u8.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/unknown.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin;
 
 static auto is_missing(const Abstract& abstract) -> Bool {
@@ -39,7 +41,7 @@ static auto is_missing(const Abstract& abstract) -> Bool {
 
 Library::Language::Monograph::Monograph(
     Allocator::Arena& arena,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     const Anchor& source_anchor,
     const Abstract& language,
     Abstract& context)
@@ -86,7 +88,7 @@ Library::Language::Monograph::Monograph(
 
 auto Library::Language::Monograph::create_authored(
     Allocator::Arena& arena,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     const Anchor& source_anchor,
     const Abstract& language,
     Abstract& context) -> Monograph& {
@@ -95,7 +97,7 @@ auto Library::Language::Monograph::create_authored(
 
 auto Library::Language::Monograph::create(
     Allocator::Arena& arena,
-    const Documentation& documentation,
+    const Tetrodotoxin::Source::Documentation& documentation,
     const Anchor& source_anchor,
     const Abstract& language,
     Abstract& context) -> Monograph& {
@@ -148,7 +150,7 @@ auto Library::Language::Monograph::resolve_concept(View::Bytes route) const
 }
 
 auto Library::Language::Monograph::visit_concepts(
-    Ttx::Concept::Abstract::Visitor visitor) const -> void {
+    Tetrodotoxin::Source::Abstract::Visitor visitor) const -> void {
   source.visit_concepts(visitor);
 }
 

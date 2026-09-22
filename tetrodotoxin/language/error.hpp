@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "ttx/concept/abstract.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/errors.hpp"
+#include "tetrodotoxin/source/abstract.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
 
 namespace Tetrodotoxin::Language {
 
@@ -13,15 +13,15 @@ namespace Tetrodotoxin::Language {
 // body, and range. A concrete Error contributes its retained owner facts to
 // that Report without moving source or publication state into this cross
 // Dialect contract.
-class Error : public Ttx::Concept::Abstract {
+class Error : public Tetrodotoxin::Source::Abstract {
  public:
-  TTX_CONTRACT(Error, Ttx::Concept::Abstract);
+  TTX_CONTRACT(Error, Tetrodotoxin::Source::Abstract);
 
   TTX_NAME("Error"_view);
 
   TTX_EMPTY_DOCUMENTATION();
 
-  virtual auto describe(Ttx::Lexical::Errors::Report& report) const -> void = 0;
+  virtual auto describe(Tetrodotoxin::Source::Lexical::Errors::Report& report) const -> void = 0;
 };
 
 }  // namespace Tetrodotoxin::Language

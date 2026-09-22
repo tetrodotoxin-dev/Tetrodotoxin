@@ -6,16 +6,16 @@
 #include "tetrodotoxin/library/interpreter/type_reference.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 
 auto Interpreter::Declarations::Alias::parse(
     Cursor& cursor,
     Tetrodotoxin::Language::Definition& definition)
     -> Option<Parsed<Language::Alias>> {
-  if (definition.get_name_token().get_code() != Code::Type::Type) {
+  if (definition.get_authored().get_name().get_code() != Code::Type::Type) {
     cursor.create_token_error(
-        definition.get_name_token(),
+        definition.get_authored().get_name(),
         "Library Alias definitions require a Type shaped name."_view);
     return {};
   }
@@ -23,14 +23,14 @@ auto Interpreter::Declarations::Alias::parse(
   if (definition.get_visibility() >
       Tetrodotoxin::Language::Visibility::Exposed) {
     cursor.create_token_error(
-        definition.get_visibility_token(),
+        definition.get_authored().get_visibility(),
         "Library Aliases accept only `expose` or `private` visibility."_view);
     return {};
   }
 
-  if (!definition.get_modifiers().is_empty()) {
+  if (!definition.get_authored().get_modifiers().is_empty()) {
     cursor.create_token_error(
-        definition.get_modifiers().get_data()[0],
+        definition.get_authored().get_modifiers().get_data()[0],
         "Library Aliases do not accept evaluation modifiers."_view);
     return {};
   }
@@ -47,7 +47,7 @@ auto Interpreter::Declarations::Alias::parse(
       Interpreter::TypeReference::parse(definition.get_host(), cursor);
   if (!target_reference) {
     auto missing = Language::TypeReference::create(
-        {}, definition.get_name_anchor(), Token());
+        {}, Anchor::create(Span(definition.get_authored().get_name())), Token());
     auto& alias = Language::Alias::create_authored(
         cursor.get_arena(), definition, missing);
     return Parsed<Language::Alias>(alias, ParseState::Incomplete);
@@ -57,9 +57,13 @@ auto Interpreter::Declarations::Alias::parse(
       "Library Alias definitions require one terminating `;`."_view);
   ParseState state = ParseState::Incomplete;
   if (terminator) {
-    state = definition.complete(alias_token, terminator) ? ParseState::Accepted
-                                                         : ParseState::Rejected;
+    auto& authored = definition.get_authored();
+    authored.set_anchor(Anchor::create(
+        alias_token,
+        Span(authored.get_anchor().get_span().get_start(), terminator)));
+    state = ParseState::Accepted;
   }
+
   auto& alias = Language::Alias::create_authored(
       cursor.get_arena(), definition, *target_reference);
   return Parsed<Language::Alias>(alias, state);

@@ -20,6 +20,6 @@ cc_library(
         "//tetrodotoxin/shader/interpreter",
         "//tetrodotoxin/shader/language",
         "//ttx:concept",
-        "//ttx:lexical",
+        "//tetrodotoxin/source:lexical",
     ],
 )

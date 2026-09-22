@@ -27,13 +27,13 @@
 #include "tetrodotoxin/library/language/types/fixed.hpp"
 #include "tetrodotoxin/library/language/types/source.hpp"
 #include "tetrodotoxin/library/language/types/structure.hpp"
-#include "ttx/concept/none.hpp"
-#include "ttx/concept/unknown.hpp"
-#include "ttx/lexical/errors.hpp"
+#include "tetrodotoxin/source/none.hpp"
+#include "tetrodotoxin/source/unknown.hpp"
+#include "tetrodotoxin/source/lexical/errors.hpp"
 
 using namespace Perimortem::Core;
-using namespace Ttx::Concept;
-using namespace Ttx::Lexical;
+using namespace Tetrodotoxin::Source;
+using namespace Tetrodotoxin::Source::Lexical;
 using namespace Tetrodotoxin::Library;
 using Tetrodotoxin::Environment::Workspace;
 using namespace Validation;
@@ -467,7 +467,7 @@ PERIMORTEM_UNIT_TEST(CallTests, call_selection) {
   ASSERT(self_call->get_callable());
   auto self_entry = invoke->get_parameters().get_abstract(0);
   ASSERT(self_entry);
-  auto self = self_entry->select<Ttx::Model::Addressable>();
+  auto self = self_entry->select<Tetrodotoxin::Source::Addressable>();
   ASSERT(self);
   const Abstract& u64 = monograph->resolve_concept("U64"_view);
   const Abstract& boolean = monograph->resolve_concept("Bool"_view);
@@ -693,7 +693,7 @@ PERIMORTEM_UNIT_TEST(CallTests, call_result_access) {
   ASSERT(selected->get_initializer()->is_identity<Language::Access::Address>());
   const auto& address = static_cast<const Language::Access::Address&>(
       *selected->get_initializer());
-  EXPECT(address.get_receiver().get_result().is<Ttx::Model::Addressable>());
+  EXPECT(address.get_receiver().get_result().is<Tetrodotoxin::Source::Addressable>());
   EXPECT(&selected->get_type() == &monograph->resolve_concept("U64"_view));
   EXPECT(errors.is_empty());
 
