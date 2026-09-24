@@ -62,8 +62,9 @@ PERIMORTEM_UNIT_TEST(Composition, records_and_cycles) {
   const Schema::Argument args[] = {
     Schema::pointer(&recursive), Schema::Argument(integer)};
   const auto function = Schema::callable(
-      Schema::Abi::SystemVAMD64, {args, 2}, Schema::pointer(&recursive));
-  const auto no_arguments = Schema::callable(Schema::Abi::SystemVAMD64, {});
+      Schema::Convention::SystemVAMD64, {args, 2}, Schema::pointer(&recursive));
+  const auto no_arguments =
+      Schema::callable(Schema::Convention::SystemVAMD64, {});
   const Schema::Position calls[] = {{function, 0}, {no_arguments, 8}};
   check_pair(Schema::composite({calls, 2}, 16, 8), result);
 }
@@ -72,8 +73,9 @@ PERIMORTEM_UNIT_TEST(Composition, compact_ranges) {
   Validation::DataTests::Preparation prepare;
   const auto integer = Schema::primitive(Schema::Value::U32);
   const auto range = Schema::range(integer, 1000000000, 4, 4000000000ULL, 4);
-  // A compiled Range has a whole-form root. Embedding that form is equivalent
-  // to an explicit struct around the range, not flattening away its boundary.
+  // A compiled Range has a root covering the whole form. Embedding that form is
+  // equivalent to an explicit struct around the range, not flattening away its
+  // boundary.
   const Schema::Position field(range, 0);
   check_pair(Schema::composite({&field, 1}, range.get_extent(), 4), result);
 }

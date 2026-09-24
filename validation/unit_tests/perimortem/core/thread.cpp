@@ -34,6 +34,7 @@ struct WorkerNameResult {
   U64 checksum = 0;
   Bool matches_expected = False;
   Bool read_successfully = False;
+  Bool on_main_thread = True;
 };
 
 struct WorkerCountResult {
@@ -90,6 +91,7 @@ static auto read_thread_name_job(View::Bytes job_data) -> void {
 
   auto* worker_result = reinterpret_cast<WorkerNameResult*>(*result_address);
   const View::Bytes actual_name = Thread::Worker::get_thread_name();
+  worker_result->on_main_thread = Thread::Worker::on_main_thread();
   worker_result->name_size = actual_name.get_size();
   worker_result->checksum = checksum_worker_payload(actual_name);
   worker_result->matches_expected = actual_name == *expected_name;
@@ -174,6 +176,23 @@ PERIMORTEM_UNIT_TEST(CoreThreadWorker, copies_thread_name) {
   EXPECT(worker_result.matches_expected);
   EXPECT_EQ(worker_result.name_size, long_worker_name_size);
   EXPECT_EQ(worker_result.checksum, expected_checksum);
+}
+
+PERIMORTEM_UNIT_TEST(CoreThreadWorker, unnamed_worker) {
+  // A diagnostic name is optional. Omitting it must not change the worker's
+  // identity or substitute the foreign thread's default name.
+  WorkerNameResult worker_result;
+  Static::Bytes<sizeof(U64) * 2> storage;
+  Writer::Binary<Data::ByteOrder::Native> writer(storage.get_access());
+  writer << reinterpret_cast<U64>(&worker_result) << U64(0);
+
+  auto worker = Thread::Worker::start(""_view, read_thread_name_job, writer);
+  worker.join();
+
+  EXPECT(worker_result.read_successfully);
+  EXPECT(!worker_result.on_main_thread);
+  EXPECT(worker_result.matches_expected);
+  EXPECT_EQ(worker_result.name_size, Count(0));
 }
 
 PERIMORTEM_UNIT_TEST(CoreThreadWorker, worker_count) {

@@ -6,27 +6,21 @@
 
 #include "ttx/data/status.h"
 
-// Right now native pointers are all 64 bit on the supported platforms. We'll
-// need to extend this in the future (most likely at the ABI layer) but for now
-// pointer schemas retain a description of their target while storage and
-// payload traversal treat the pointer as 8 bytes axiomatically. Callable
-// targets include the pointer depth as part of their call ABI so adding 32 bit
-// pointer support in the future won't break back compat as it would be an ABI
-// change which would prevent any successful negotation between 32 bit and 64
-// bit systems.
-//
-// This check makes sure that we build that support BEFORE we deploy the C++
-// runtime to a 32 bit system.
+// Native authoring takes pointer storage from the host. Compilation can select
+// four or eight byte pointers explicitly for another target. Both supported
+// widths use their size as alignment, including function pointer storage.
 #ifdef __cplusplus
-static_assert(sizeof(void*) == 8 && alignof(void*) == 8);
-static_assert(sizeof(void (*)(void)) == 8 && alignof(void (*)(void)) == 8);
+static_assert(sizeof(void*) == 4 || sizeof(void*) == 8);
+static_assert(alignof(void*) == sizeof(void*));
+static_assert(sizeof(void (*)(void)) == sizeof(void*));
+static_assert(alignof(void (*)(void)) == sizeof(void*));
 #else
 _Static_assert(
-    sizeof(void*) == 8 && _Alignof(void*) == 8,
-    "TTX requires eight byte native pointers and alignment.");
-_Static_assert(
-    sizeof(void (*)(void)) == 8 && _Alignof(void (*)(void)) == 8,
-    "TTX requires eight byte native function pointers and alignment.");
+    (sizeof(void*) == 4 || sizeof(void*) == 8) &&
+        _Alignof(void*) == sizeof(void*) &&
+        sizeof(void (*)(void)) == sizeof(void*) &&
+        _Alignof(void (*)(void)) == sizeof(void*),
+    "Unsupported native pointer storage");
 #endif
 
 #ifdef __cplusplus
@@ -95,7 +89,8 @@ typedef struct ttx_schema_reference {
   U8 flags;
 #ifdef __cplusplus
   constexpr ttx_schema_reference(
-      const ttx_schema* schema = nullptr, U8 flags = 0)
+      const ttx_schema* schema = nullptr,
+      U8 flags = 0)
       : schema(schema), flags(flags) {}
 
   constexpr ttx_schema_reference(const ttx_schema& schema)
@@ -106,14 +101,24 @@ typedef struct ttx_schema_reference {
   }
 
   constexpr auto is_set() const -> Bool { return schema || is_pointer(); }
-  constexpr auto get_extent() const -> Count;
-  constexpr auto get_alignment() const -> Count;
+  constexpr auto get_extent(Count pointer_size = sizeof(void*)) const -> Count;
+  constexpr auto get_alignment(Count pointer_size = sizeof(void*)) const
+      -> Count;
 #endif
 } ttx_schema_reference;
 
-typedef U32 ttx_schema_abi;
-#define TTX_SCHEMA_SYSTEM_V_AMD64 ((ttx_schema_abi)1)
-#define TTX_SCHEMA_SYSTEM_V_AMD64_VARIADIC ((ttx_schema_abi)2)
+typedef U32 ttx_schema_convention;
+#define TTX_SCHEMA_SYSTEM_V_AMD64 ((ttx_schema_convention)1)
+#define TTX_SCHEMA_SYSTEM_V_AMD64_VARIADIC ((ttx_schema_convention)2)
+#define TTX_SCHEMA_EMSCRIPTEN_WASM32 ((ttx_schema_convention)3)
+#define TTX_SCHEMA_EMSCRIPTEN_WASM32_VARIADIC ((ttx_schema_convention)4)
+#if defined(__EMSCRIPTEN__)
+#define TTX_SCHEMA_NATIVE_CONVENTION TTX_SCHEMA_EMSCRIPTEN_WASM32
+#define TTX_SCHEMA_NATIVE_VARIADIC TTX_SCHEMA_EMSCRIPTEN_WASM32_VARIADIC
+#else
+#define TTX_SCHEMA_NATIVE_CONVENTION TTX_SCHEMA_SYSTEM_V_AMD64
+#define TTX_SCHEMA_NATIVE_VARIADIC TTX_SCHEMA_SYSTEM_V_AMD64_VARIADIC
+#endif
 
 // An argument entry can describe consecutive identical formal parameters with
 // one count. Their declaration order is retained, and compilation combines
@@ -141,7 +146,7 @@ typedef struct ttx_schema_callable {
   const ttx_schema_argument* arguments;
   Count count;
   ttx_schema_reference result;
-  ttx_schema_abi abi;
+  ttx_schema_convention convention;
 #ifdef __cplusplus
   constexpr auto get_arguments() const
       -> Perimortem::Core::View::Vector<ttx_schema_argument> {
@@ -162,7 +167,8 @@ typedef struct ttx_schema_position {
   Count offset;
 #ifdef __cplusplus
   constexpr ttx_schema_position(
-      ttx_schema_reference reference = ttx_schema_reference(), Count offset = 0)
+      ttx_schema_reference reference = ttx_schema_reference(),
+      Count offset = 0)
       : reference(reference), offset(offset) {}
 
   constexpr auto get_reference() const -> ttx_schema_reference {
@@ -254,9 +260,13 @@ typedef struct ttx_schema {
     V512 = TTX_SCHEMA_V512,
   };
 
-  enum class Abi : U32 {
+  enum class Convention : U32 {
     SystemVAMD64 = TTX_SCHEMA_SYSTEM_V_AMD64,
     SystemVAMD64Variadic = TTX_SCHEMA_SYSTEM_V_AMD64_VARIADIC,
+    EmscriptenWasm32 = TTX_SCHEMA_EMSCRIPTEN_WASM32,
+    EmscriptenWasm32Variadic = TTX_SCHEMA_EMSCRIPTEN_WASM32_VARIADIC,
+    Native = TTX_SCHEMA_NATIVE_CONVENTION,
+    NativeVariadic = TTX_SCHEMA_NATIVE_VARIADIC,
   };
 
   enum class ByteOrder : U8 {
@@ -275,16 +285,21 @@ typedef struct ttx_schema {
   using V256 = ttx_vector256;
   using V512 = ttx_vector512;
 
-  static constexpr auto get_width(Value type) -> Count;
+  static constexpr auto get_width(
+      Value type,
+      Count pointer_size = sizeof(void*)) -> Count;
 
   static constexpr auto primitive(
       Value type,
-      ByteOrder order = ByteOrder::Little) -> ttx_schema;
-  static constexpr auto pointer(const ttx_schema* target = nullptr) -> Reference;
+      ByteOrder order = ByteOrder::Little,
+      Count pointer_size = sizeof(void*)) -> ttx_schema;
+  static constexpr auto pointer(const ttx_schema* target = nullptr)
+      -> Reference;
   static constexpr auto callable(
-      Abi abi,
+      Convention convention,
       Perimortem::Core::View::Vector<Argument> arguments,
-      Reference result = Reference()) -> ttx_schema;
+      Reference result = Reference(),
+      Count pointer_size = sizeof(void*)) -> ttx_schema;
   static constexpr auto composite(
       Perimortem::Core::View::Vector<Position> positions,
       Count extent,

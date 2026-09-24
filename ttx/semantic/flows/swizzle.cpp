@@ -54,7 +54,8 @@ auto Swizzle::Mapping::create(ttx_swizzle_selection selection)
                     },
                     [](const auto& entry) { return entry.value; });
         auto& group = selections[index];
-        if (group.input.get_value() != output.get_value()) {
+        if (group.input.get_value() != output.get_value() ||
+            group.input.get_extent() != output.get_extent()) {
           return Status::Incompatible;
         }
 
@@ -78,7 +79,8 @@ auto Swizzle::Mapping::create(ttx_swizzle_selection selection)
                 [] { return Status::Bounds; },
                 [&](const auto& entry) {
                   auto& group = selections[entry.value];
-                  if (input.get_value() != group.input.get_value()) {
+                  if (input.get_value() != group.input.get_value() ||
+                      input.get_extent() != group.input.get_extent()) {
                     return Status::Incompatible;
                   }
 
@@ -124,7 +126,7 @@ static auto memory(
   for (Count i = 0; i < mapping.count; ++i) {
     const auto& group = mapping.groups[i];
     const Count width = group.input.get_extent();
-    Static::Bytes<8> observation;
+    Static::Bytes<64> observation;
     Data::copy(
         observation.get_data(),
         static_cast<const U8*>(source) + group.input.offset, width);
@@ -153,7 +155,8 @@ static auto fragments(
     const auto status = Ttx::Semantic::Flows::Fragment::read(
         source, group.input, group.input.offset, [&](auto value) {
           for (Count j = 0; j < group.count; ++j) {
-            Ttx::Semantic::Flows::Fragment::put(target, group.outputs[j], value);
+            Ttx::Semantic::Flows::Fragment::put(
+                target, group.outputs[j], value);
           }
         });
     if (status != Status::Success) {
@@ -184,8 +187,10 @@ static auto swizzle(
       });
 }
 
-auto Swizzle::flow(const Ttx::Semantic::Transport::Flow& flow, const Mapping& mapping, Storage target)
-    -> Status {
+auto Swizzle::flow(
+    const Ttx::Semantic::Transport::Flow& flow,
+    const Mapping& mapping,
+    Storage target) -> Status {
   return swizzle(flow, mapping.get_abi(), target);
 }
 
@@ -193,6 +198,7 @@ auto ttx_swizzle(
     const ttx_flow* flow,
     ttx_swizzle_mapping mapping,
     ttx_storage target) -> ttx_data_status {
-  return static_cast<ttx_data_status>(
-      swizzle(*reinterpret_cast<const Ttx::Semantic::Transport::Flow*>(flow), mapping, Storage(target)));
+  return static_cast<ttx_data_status>(swizzle(
+      *reinterpret_cast<const Ttx::Semantic::Transport::Flow*>(flow), mapping,
+      Storage(target)));
 }

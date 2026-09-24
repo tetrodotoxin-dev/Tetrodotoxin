@@ -115,7 +115,7 @@ class Native<Result (*)(Arguments...)> {
 
  public:
   static constexpr Schema schema = Schema::callable(
-      Schema::Abi::SystemVAMD64,
+      Schema::Convention::Native,
       {arguments, sizeof...(Arguments)},
       Native<Result>::reference);
   static constexpr Schema::Reference reference = schema;
@@ -128,7 +128,7 @@ class Native<Result (*)(Arguments..., ...)> {
 
  public:
   static constexpr Schema schema = Schema::callable(
-      Schema::Abi::SystemVAMD64Variadic,
+      Schema::Convention::NativeVariadic,
       {arguments, sizeof...(Arguments)},
       Native<Result>::reference);
   static constexpr Schema::Reference reference = schema;

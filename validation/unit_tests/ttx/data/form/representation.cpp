@@ -51,11 +51,12 @@ PERIMORTEM_UNIT_TEST(TtxRepresentation, billion_positions) {
       .visit(
           [&](const Representation& value) {
             EXPECT_EQ(value.get_bytes().get_size(), Count(32));
-            value.next(3999999996).visit(
-                [&](Representation::Position entry) {
-                  EXPECT_EQ(entry.offset, Count(3999999996));
-                },
-                [&](Status) { EXPECT(false); });
+            value.next(3999999996)
+                .visit(
+                    [&](Representation::Position entry) {
+                      EXPECT_EQ(entry.offset, Count(3999999996));
+                    },
+                    [&](Status) { EXPECT(false); });
           },
           [&](Status) { EXPECT(false); });
 }
@@ -142,7 +143,8 @@ PERIMORTEM_UNIT_TEST(TtxRepresentation, publication_on_error) {
       return static_cast<Arena*>(owner)->allocate(size).get_data();
     }};
   EXPECT(
-      ttx_representation_compile(&source, allocator, &output) ==
+      ttx_representation_compile(
+          &source, sizeof(void*), allocator, &output) ==
       TTX_DATA_INVALID);
   EXPECT(output == &sentinel);
 }
@@ -245,13 +247,18 @@ PERIMORTEM_UNIT_TEST(TtxRepresentation, boundary_mismatch) {
   const Schema::Position pair_fields[] = {{u32, 0}, {u32, 4}};
   const Schema::Position triple_fields[] = {{u32, 0}, {u32, 4}, {u32, 8}};
   const Schema::Position single_field(u32, 0);
-  const auto pair = Schema::composite(View::Vector<Schema::Position>(pair_fields, 2), 8, 4);
-  const auto triple = Schema::composite(View::Vector<Schema::Position>(triple_fields, 3), 12, 4);
-  const auto single = Schema::composite(View::Vector<Schema::Position>(&single_field, 1), 4, 4);
+  const auto pair =
+      Schema::composite(View::Vector<Schema::Position>(pair_fields, 2), 8, 4);
+  const auto triple = Schema::composite(
+      View::Vector<Schema::Position>(triple_fields, 3), 12, 4);
+  const auto single =
+      Schema::composite(View::Vector<Schema::Position>(&single_field, 1), 4, 4);
   const Schema::Position two_pairs[] = {{pair, 0}, {pair, 8}};
   const Schema::Position one_three[] = {{single, 0}, {triple, 4}};
-  const auto a = Schema::composite(View::Vector<Schema::Position>(two_pairs, 2), 16, 4);
-  const auto b = Schema::composite(View::Vector<Schema::Position>(one_three, 2), 16, 4);
+  const auto a =
+      Schema::composite(View::Vector<Schema::Position>(two_pairs, 2), 16, 4);
+  const auto b =
+      Schema::composite(View::Vector<Schema::Position>(one_three, 2), 16, 4);
 
   Representation::compile(a, arena).visit(
       [&](const Representation& left) {
@@ -271,21 +278,27 @@ PERIMORTEM_UNIT_TEST(TtxRepresentation, boundary_mismatch) {
 PERIMORTEM_UNIT_TEST(TtxRepresentation, boundary_patterns) {
   Arena arena;
   const Schema::Position pair_fields[] = {{u32, 0}, {u32, 4}};
-  const auto pair = Schema::composite(View::Vector<Schema::Position>(pair_fields, 2), 8, 4);
+  const auto pair =
+      Schema::composite(View::Vector<Schema::Position>(pair_fields, 2), 8, 4);
   const Schema::Position record_fields[] = {{pair, 0}, {pair, 8}};
-  const auto record = Schema::composite(View::Vector<Schema::Position>(record_fields, 2), 16, 4);
+  const auto record = Schema::composite(
+      View::Vector<Schema::Position>(record_fields, 2), 16, 4);
   const auto repeated = Schema::range(record, 4, 16, 64, 4);
-  const Schema::Position listed[] = {{record, 0}, {record, 16}, {record, 32}, {record, 48}};
-  const auto explicit_record = Schema::composite(View::Vector<Schema::Position>(listed, 4), 64, 4);
+  const Schema::Position listed[] = {
+    {record, 0}, {record, 16}, {record, 32}, {record, 48}};
+  const auto explicit_record =
+      Schema::composite(View::Vector<Schema::Position>(listed, 4), 64, 4);
 
-  Representation::compile(repeated, arena).visit(
-      [&](const Representation& left) {
-        Representation::compile(explicit_record, arena).visit(
-            [&](const Representation& right) {
-              EXPECT(left.compatible(right));
-              EXPECT(right.compatible(left));
-            },
-            [&](Status) { EXPECT(false); });
-      },
-      [&](Status) { EXPECT(false); });
+  Representation::compile(repeated, arena)
+      .visit(
+          [&](const Representation& left) {
+            Representation::compile(explicit_record, arena)
+                .visit(
+                    [&](const Representation& right) {
+                      EXPECT(left.compatible(right));
+                      EXPECT(right.compatible(left));
+                    },
+                    [&](Status) { EXPECT(false); });
+          },
+          [&](Status) { EXPECT(false); });
 }

@@ -325,21 +325,21 @@ class Ttx::Data::Form::Native<ttx_abstract> {
                   alignof(ttx_concept_visitor))),
           receive(
               Schema::callable(
-                  Schema::Abi::SystemVAMD64,
+                  Schema::Convention::Native,
                   {receive_arguments, 3})),
           resolve(
               Schema::callable(
-                  Schema::Abi::SystemVAMD64,
+                  Schema::Convention::Native,
                   {resolve_arguments, 1},
                   root)),
           lookup(
               Schema::callable(
-                  Schema::Abi::SystemVAMD64,
+                  Schema::Convention::Native,
                   {lookup_arguments, 2},
                   root)),
           visit(
               Schema::callable(
-                  Schema::Abi::SystemVAMD64,
+                  Schema::Convention::Native,
                   {visit_arguments, 2})),
           receive_arguments{
             Schema::pointer(), Native<perimortem_view_bytes>::reference,

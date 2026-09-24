@@ -26,8 +26,9 @@ typedef struct ttx_module_acquisition {
 // The native entry is the same acquisition agreement an embedded Module can
 // provide. Host services arrive through an already established Query and remain
 // borrowed through every result that uses them. Failure transfers nothing.
-// Its prearranged System V AMD64 ABI lets the loader receive this first subject
-// before asking that subject to negotiate any further interfaces.
+// The module and loader agree on the target's native C ABI before this entry
+// runs. That bootstrap lets the loader receive its first subject before asking
+// the subject to negotiate further interfaces.
 // Only this Concept acquisition protocol promises an Abstract. Independent
 // Semantic endpoints can continue to supply Query without a Concept surface.
 typedef ttx_data_status (*ttx_module_entry)(

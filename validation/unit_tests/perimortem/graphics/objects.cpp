@@ -29,7 +29,10 @@ static Harness GraphicsObjects = {
 static auto one_pixel_image() -> Image {
   Dynamic::Vector<Pixel> pixels;
   pixels.emplace(Pixel::from_rgba(0x12, 0x34, 0x56, 0x78));
-  return Image(Data::take(pixels), 1, 1);
+  return Image::create(Size2D(1, 1), Data::take(pixels))
+      .visit(
+          [] { return Image(); },
+          [](Image& image) { return Data::take(image); });
 }
 
 static auto finalize_shader(U8*) -> void {}
@@ -52,7 +55,7 @@ static auto create_shader() -> Implementation {
   return shader ? static_cast<Implementation&&>(*shader) : Implementation();
 }
 
-PERIMORTEM_UNIT_TEST(GraphicsObjects, image_shares_immutable_pixels) {
+PERIMORTEM_UNIT_TEST(GraphicsObjects, image_copies_pixels) {
   Image empty;
   EXPECT_NOT(empty.is_drawable());
   EXPECT(empty.get_pixels().is_empty());
@@ -62,12 +65,12 @@ PERIMORTEM_UNIT_TEST(GraphicsObjects, image_shares_immutable_pixels) {
   EXPECT(image.is_drawable());
   EXPECT_EQ(image.get_size_pixels().width, U32(1));
   EXPECT_EQ(image.get_size_pixels().height, U32(1));
-  EXPECT_EQ(image.get_pixels().get_data(), alias.get_pixels().get_data());
+  EXPECT(image.get_pixels().get_data() != alias.get_pixels().get_data());
   image = Image();
   EXPECT_EQ(alias.get_pixel(0, 0).red, U8(0x12));
 }
 
-PERIMORTEM_UNIT_TEST(GraphicsObjects, pixel_factories_are_explicit) {
+PERIMORTEM_UNIT_TEST(GraphicsObjects, pixel_factories) {
   Pixel grey = Pixel::from_grey(0x22);
   Pixel grey_alpha = Pixel::from_grey_alpha(0x33, 0x44);
   Pixel rgb = Pixel::from_rgb(0x55, 0x66, 0x77);
@@ -87,7 +90,7 @@ PERIMORTEM_UNIT_TEST(GraphicsObjects, pixel_factories_are_explicit) {
   EXPECT_EQ(size.height, U32(34));
 }
 
-PERIMORTEM_UNIT_TEST(GraphicsObjects, decode_reports_success) {
+PERIMORTEM_UNIT_TEST(GraphicsObjects, decode_result) {
   auto source = Perimortem::System::File::read(
       "validation/data/pngs/checkerboard_2x2.png"_view);
   ASSERT(source);
@@ -99,21 +102,20 @@ PERIMORTEM_UNIT_TEST(GraphicsObjects, decode_reports_success) {
   EXPECT_NOT(Formats::Png::decode("not a png"_view).is_drawable());
 }
 
-PERIMORTEM_UNIT_TEST(GraphicsObjects, sprite_defaults_and_aliases) {
+PERIMORTEM_UNIT_TEST(GraphicsObjects, sprite_values) {
   Sprite sprite;
-  EXPECT_NOT(sprite.get_object().is_empty());
   EXPECT_NOT(sprite.is_drawable());
   EXPECT(sprite.is_visible());
   EXPECT_EQ(sprite.get_z_index(), S64(0));
   EXPECT(sprite.get_material().is_empty());
 
-  Image image = one_pixel_image();
+  Dynamic::Record<const Image> image(one_pixel_image());
   Texture2D texture(image);
   sprite.set_texture(texture);
   sprite.set_material(create_shader());
   sprite.set_size({64, 32});
   Transform2D transform;
-  transform.translation = {12.0, 34.0};
+  transform.translation = Point2D(12, 34);
   transform.scale_x = 2.0;
   sprite.set_transform(transform);
   sprite.set_z_index(7);
@@ -121,10 +123,13 @@ PERIMORTEM_UNIT_TEST(GraphicsObjects, sprite_defaults_and_aliases) {
 
   Sprite alias = sprite;
   alias.set_visible(False);
-  EXPECT_NOT(sprite.is_visible());
-  EXPECT_NOT(sprite.is_drawable());
-  EXPECT_EQ(sprite.get_transform().translation.x, R64(12.0));
+  EXPECT_NOT(alias.is_visible());
+  EXPECT_NOT(alias.is_drawable());
+  EXPECT(sprite.is_visible());
+  EXPECT(sprite.is_drawable());
+  EXPECT(sprite.get_transform().translation.x == 12);
   EXPECT_EQ(sprite.get_size().width, U32(64));
   EXPECT_EQ(sprite.get_material().get_projection(), &graphics_projection);
-  EXPECT_EQ(sprite.get_object().get_reservations(), Count(2));
+  EXPECT_EQ(
+      &alias.get_texture().get_image(), &sprite.get_texture().get_image());
 }

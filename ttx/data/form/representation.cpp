@@ -6,17 +6,6 @@
 using namespace Ttx::Data;
 using namespace Ttx::Data::Form;
 
-static auto header(const Representation& source, Count body)
-    -> Encoding::Struct {
-  return Encoding::Struct::decode(source.get_bytes(), body, source.get_depth());
-}
-
-static auto element(const Representation& source, Count block)
-    -> Encoding::Element {
-  return Encoding::Element::decode(
-      source.get_bytes(), block, source.get_depth());
-}
-
 // Byte lookup can skip padding and whole instances. A coordinate inside a
 // primitive asks for the next start, while an exact coordinate selects that
 // primitive. Whole traversal uses visit instead of repeating this search.
@@ -26,9 +15,11 @@ static auto next(
     Count offset,
     Count requested,
     Representation::Position& result) -> Bool {
-  const auto form = header(source, body);
+  const auto bytes = source.get_blocks();
+  const U8 depth = source.get_depth();
+  const auto form = Encoding::Struct::decode(bytes, body, depth);
   for (Count i = 0; i < form.count; ++i) {
-    const auto entry = element(source, body + i + 1);
+    const auto entry = Encoding::Element::decode(bytes, body + i + 1, depth);
     const Count first = offset + entry.offset;
     const Count local = requested > first ? requested - first : 0;
     Count instance = local / entry.distance;
@@ -49,7 +40,8 @@ static auto next(
         if (instance < entry.count) {
           result = Representation::Position(
               first + instance * entry.distance, entry.get_value(),
-              entry.get_byte_order());
+              entry.get_byte_order(),
+              U32(entry.get_extent(source.get_pointer_size())));
           return True;
         }
       }
@@ -119,7 +111,8 @@ auto ttx_representation_visit_selected(
 
 auto ttx_representation::compile(
     ttx_schema_reference schema,
-    Perimortem::Memory::Allocator::Arena& arena)
+    Perimortem::Memory::Allocator::Arena& arena,
+    Count pointer_size)
     -> Perimortem::Utility::Result<const ttx_representation&, Status> {
   const ttx_representation_allocator allocator = {
     &arena, [](void* owner, Count bytes, Count) -> void* {
@@ -128,7 +121,8 @@ auto ttx_representation::compile(
           .get_data();
     }};
   const ttx_representation* result = nullptr;
-  const auto status = ttx_representation_compile(schema, allocator, &result);
+  const auto status =
+      ttx_representation_compile(schema, pointer_size, allocator, &result);
   if (status != TTX_DATA_SUCCESS) {
     return static_cast<Status>(status);
   }

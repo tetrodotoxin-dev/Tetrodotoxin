@@ -100,3 +100,16 @@ cc_binary(
         "//validation:test_headers",
     ],
 )
+
+# The same independent C descriptor publication is executable on the native
+# host and through the browser toolchain. It requires no dlopen or test hooks.
+cc_binary(
+    name = "portable_binding",
+    srcs = [
+        "fixtures/portable_provider.c",
+        "fixtures/portable_provider.h",
+        "negotiation/portable.cpp",
+    ],
+    visibility = ["//visibility:public"],
+    deps = ["//ttx:semantic"],
+)

@@ -19,12 +19,12 @@ namespace Ttx::Data::Form {
 // determines that size without writing bytes, then a second prepares and fills
 // the array. Repeating preparation lets both passes use the runtime compiler's
 // algorithm without a separate implementation for measuring constant schemas.
-template <const auto& source>
+template <const auto& source, Count pointer_size = sizeof(void*)>
 class Compiled {
  private:
   static consteval auto measure() -> Count {
     Compiler compiler;
-    const auto status = compiler.compile(source);
+    const auto status = compiler.compile(source, pointer_size);
     return status == Status::Success ? compiler.get_size() : 0;
   }
 
@@ -40,7 +40,7 @@ class Compiled {
       // output extent. The repeated preparation follows the same algorithm,
       // so publication needs no second failure state or allocation policy.
       Compiler compiler;
-      compiler.compile(source);
+      compiler.compile(source, pointer_size);
       compiler.write(Perimortem::Core::Access::Bytes(bytes.get_data(), size));
     }
   };

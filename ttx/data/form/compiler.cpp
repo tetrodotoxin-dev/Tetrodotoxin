@@ -19,7 +19,7 @@ auto Compiler::import_body(
     return indices[block] - 1;
   }
 
-  const auto bytes = form.get_bytes();
+  const auto bytes = form.get_blocks();
   const auto depth = form.get_depth();
   Count count = 0;
   Element head;
@@ -47,9 +47,21 @@ auto Compiler::import_body(
   records.resize(first + count + 1);
   for (Count i = 0; i <= count; ++i) {
     auto entry = i ? Element::decode(bytes, block + i, depth) : head;
+    if (entry.is_pointer()) {
+      if (has_pointers && pointer_size != form.get_pointer_size()) {
+        return Unseen;
+      }
+
+      has_pointers = True;
+      pointer_size = form.get_pointer_size();
+    }
+
     if (entry.references()) {
       entry.type = import_body(
           form, entry.type, entry.attributes & Element::Callable, indices);
+      if (entry.type == Unseen) {
+        return Unseen;
+      }
     }
 
     records[first + i] = entry;
@@ -93,6 +105,10 @@ auto Compiler::compose(
                   return id;
                 },
                 [](const auto& entry) { return entry.value; });
+    if (child == Unseen) {
+      return Status::Incompatible;
+    }
+
     children.insert(child);
   }
 
@@ -147,6 +163,7 @@ static auto publish(
 // Compiler destruction releases the temporary preparation storage.
 auto ttx_representation_compile(
     ttx_schema_reference schema,
+    Count pointer_size,
     ttx_representation_allocator allocator,
     const ttx_representation** result) -> ttx_data_status {
   if (!schema.is_set() || !allocator.allocate || !result) {
@@ -154,7 +171,7 @@ auto ttx_representation_compile(
   }
 
   Compiler compiler;
-  const auto status = compiler.compile(schema);
+  const auto status = compiler.compile(schema, pointer_size);
   if (status != Status::Success) {
     return static_cast<ttx_data_status>(status);
   }

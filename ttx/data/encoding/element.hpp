@@ -10,7 +10,7 @@ namespace Ttx::Data::Encoding {
 
 // One element block describes a progression of primitives or references to
 // struct or callable bodies. References locate those bodies by absolute block
-// indices. The pointer flag changes the occupied storage to eight bytes while
+// indices. The pointer flag selects the buffer's pointer storage while
 // retaining the target description. Traversal can therefore stop at pointer
 // storage while agreement still compares the complete target format.
 struct Element {
@@ -47,6 +47,10 @@ struct Element {
   constexpr auto get_value() const -> Form::Schema::Value {
     return is_pointer() ? Form::Schema::Value::Pointer
                         : Form::Schema::Value(type & 63);
+  }
+
+  constexpr auto get_extent(Count pointer_size = sizeof(void*)) const -> Count {
+    return is_pointer() ? pointer_size : Form::Schema::get_width(get_value());
   }
 
   constexpr auto get_byte_order() const -> Form::Schema::ByteOrder {

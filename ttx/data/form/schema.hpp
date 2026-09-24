@@ -18,10 +18,10 @@ using Schema = ttx_schema;
 }  // namespace Ttx::Data::Form
 
 constexpr auto ttx_schema_callable::get_convention() const {
-  return ttx_schema::Abi(abi);
+  return ttx_schema::Convention(convention);
 }
 
-constexpr auto ttx_schema::get_width(Value type) -> Count {
+constexpr auto ttx_schema::get_width(Value type, Count pointer_size) -> Count {
   switch (type) {
   case Value::U8:
   case Value::S8:
@@ -36,9 +36,10 @@ constexpr auto ttx_schema::get_width(Value type) -> Count {
   case Value::U64:
   case Value::S64:
   case Value::R64:
-  case Value::Pointer:
   case Value::V64:
     return 8;
+  case Value::Pointer:
+    return pointer_size;
   case Value::V128:
     return 16;
   case Value::V256:
@@ -50,9 +51,11 @@ constexpr auto ttx_schema::get_width(Value type) -> Count {
   return 0;
 }
 
-constexpr auto ttx_schema::primitive(Value type, ByteOrder order)
-    -> ttx_schema {
-  const Count width = get_width(type);
+constexpr auto ttx_schema::primitive(
+    Value type,
+    ByteOrder order,
+    Count pointer_size) -> ttx_schema {
+  const Count width = get_width(type, pointer_size);
   return {
     width,
     width,
@@ -65,16 +68,17 @@ constexpr auto ttx_schema::pointer(const ttx_schema* target) -> Reference {
 }
 
 constexpr auto ttx_schema::callable(
-    Abi abi,
+    Convention convention,
     Perimortem::Core::View::Vector<Argument> arguments,
-    Reference result) -> ttx_schema {
+    Reference result,
+    Count pointer_size) -> ttx_schema {
   return {
-    8,
-    8,
+    pointer_size,
+    pointer_size,
     static_cast<U8>(Kind::Callable),
     {.callable = {
        arguments.get_data(), arguments.get_size(), result,
-       static_cast<ttx_schema_abi>(abi)}}};
+       static_cast<ttx_schema_convention>(convention)}}};
 }
 
 constexpr auto ttx_schema::composite(
@@ -101,10 +105,22 @@ constexpr auto ttx_schema::range(
     {.range = {element, repeats, distance}}};
 }
 
-constexpr auto ttx_schema_reference::get_extent() const -> Count {
-  return is_pointer() ? 8 : schema ? schema->get_extent() : 0;
+constexpr auto ttx_schema_reference::get_extent(Count pointer_size) const
+    -> Count {
+  if (is_pointer() ||
+      (schema && schema->get_kind() == ttx_schema::Kind::Callable)) {
+    return pointer_size;
+  }
+
+  return schema ? schema->get_extent() : 0;
 }
 
-constexpr auto ttx_schema_reference::get_alignment() const -> Count {
-  return is_pointer() ? 8 : schema ? schema->get_alignment() : 1;
+constexpr auto ttx_schema_reference::get_alignment(Count pointer_size) const
+    -> Count {
+  if (is_pointer() ||
+      (schema && schema->get_kind() == ttx_schema::Kind::Callable)) {
+    return pointer_size;
+  }
+
+  return schema ? schema->get_alignment() : 1;
 }

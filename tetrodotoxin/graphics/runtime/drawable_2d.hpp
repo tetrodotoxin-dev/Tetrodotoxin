@@ -13,8 +13,8 @@
 
 #include "perimortem/graphics/frame/pipeline.hpp"
 #include "perimortem/graphics/frame/program.hpp"
-#include "perimortem/graphics/frame/resource.hpp"
 #include "perimortem/graphics/size_2d.hpp"
+#include "perimortem/graphics/texture_2d.hpp"
 
 namespace Tetrodotoxin::Graphics::Runtime {
 
@@ -31,8 +31,8 @@ class Drawable2D {
     Draw() = default;
     Draw(
         Perimortem::Graphics::Frame::Program program,
-        Perimortem::Memory::Dynamic::Vector<
-            Perimortem::Graphics::Frame::Resource>&& resources,
+        Perimortem::Memory::Dynamic::Vector<Perimortem::Graphics::Texture2D>&&
+            resources,
         Perimortem::Memory::Dynamic::Bytes&& inputs,
         Perimortem::Graphics::Size2D size_pixels,
         Perimortem::Graphics::Frame::Pipeline pipeline,
@@ -41,7 +41,7 @@ class Drawable2D {
         : program(program),
           resources(
               static_cast<Perimortem::Memory::Dynamic::Vector<
-                  Perimortem::Graphics::Frame::Resource>&&>(resources)),
+                  Perimortem::Graphics::Texture2D>&&>(resources)),
           inputs(static_cast<Perimortem::Memory::Dynamic::Bytes&&>(inputs)),
           size_pixels(size_pixels),
           pipeline(pipeline),
@@ -51,8 +51,8 @@ class Drawable2D {
     constexpr auto get_program() const -> Perimortem::Graphics::Frame::Program {
       return program;
     }
-    constexpr auto get_resources() const -> Perimortem::Core::View::Vector<
-        Perimortem::Graphics::Frame::Resource> {
+    constexpr auto get_resources() const
+        -> Perimortem::Core::View::Vector<Perimortem::Graphics::Texture2D> {
       return resources.get_view();
     }
     auto get_inputs() const -> Perimortem::Core::View::Bytes {
@@ -68,9 +68,9 @@ class Drawable2D {
     constexpr auto get_vertex_count() const -> Count { return vertex_count; }
     constexpr auto get_z_offset() const -> S64 { return z_offset; }
     auto take_resources() -> Perimortem::Memory::Dynamic::Vector<
-        Perimortem::Graphics::Frame::Resource>&& {
+        Perimortem::Graphics::Texture2D>&& {
       return static_cast<Perimortem::Memory::Dynamic::Vector<
-          Perimortem::Graphics::Frame::Resource>&&>(resources);
+          Perimortem::Graphics::Texture2D>&&>(resources);
     }
     auto take_inputs() -> Perimortem::Memory::Dynamic::Bytes&& {
       return static_cast<Perimortem::Memory::Dynamic::Bytes&&>(inputs);
@@ -78,7 +78,7 @@ class Drawable2D {
 
    private:
     Perimortem::Graphics::Frame::Program program;
-    Perimortem::Memory::Dynamic::Vector<Perimortem::Graphics::Frame::Resource>
+    Perimortem::Memory::Dynamic::Vector<Perimortem::Graphics::Texture2D>
         resources;
     Perimortem::Memory::Dynamic::Bytes inputs;
     Perimortem::Graphics::Size2D size_pixels;

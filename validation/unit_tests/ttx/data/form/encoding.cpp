@@ -3,9 +3,9 @@
 
 #include "validation/unit_tests/ttx/data/form/preparation.hpp"
 
-#include "ttx/data/form/compiled.hpp"
-
 #include "perimortem/core/reader/binary.hpp"
+
+#include "ttx/data/form/compiled.hpp"
 
 using namespace Perimortem::Core;
 using namespace Ttx::Data;
@@ -144,8 +144,8 @@ PERIMORTEM_UNIT_TEST(TtxEncoding, padding_bytes) {
   const auto array =
       Schema::composite(View::Vector<Schema::Position>(grouped, 2), 8, 4);
   const U8 expected[] = {
-    0x21, 0x40, 0x80, 0x00, 0x01, 0x04, 0x00, 0x03, 0x03, 0x10, 0x04, 0x01,
-    0x00, 0x00, 0x00, 0x00,
+    0x21, 0x40, 0x80, 0x00, 0x01, 0x04, 0x00, 0x03,
+    0x03, 0x10, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00,
   };
 
   EXPECT(prepare(flat).compatible(Representation(expected, sizeof(expected))));
@@ -351,13 +351,15 @@ PERIMORTEM_UNIT_TEST(TtxEncoding, final_allocation) {
   invalid.data.value.type = 11;
 
   EXPECT(
-      ttx_representation_compile(&invalid, allocator, &output) ==
+      ttx_representation_compile(
+          &invalid, sizeof(void*), allocator, &output) ==
       TTX_DATA_INVALID);
   EXPECT_EQ(owner.allocations, Count(0));
   EXPECT(output == nullptr);
 
   ASSERT(
-      ttx_representation_compile(&integer, allocator, &output) ==
+      ttx_representation_compile(
+          &integer, sizeof(void*), allocator, &output) ==
       TTX_DATA_SUCCESS);
   EXPECT_EQ(owner.allocations, Count(1));
   EXPECT(output->compatible(Compiled<integer>::get_representation()));

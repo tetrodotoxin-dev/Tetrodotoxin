@@ -18,7 +18,9 @@ cc_library(
         "data/**/*.hpp",
     ]),
     deps = [
-        "//perimortem:headless",
+        "//perimortem:core",
+        "//perimortem:memory",
+        "//perimortem:utility",
     ],
 )
 
@@ -31,7 +33,10 @@ cc_library(
     ]),
     deps = [
         ":data",
-        "//perimortem:headless",
+        "//perimortem:core",
+        "//perimortem:memory",
+        "//perimortem:system",
+        "//perimortem:utility",
     ],
 )
 
@@ -46,7 +51,10 @@ cc_library(
     ]),
     deps = [
         ":semantic",
-        "//perimortem:headless",
+        "//perimortem:core",
+        "//perimortem:memory",
+        "//perimortem:system",
+        "//perimortem:utility",
     ],
 )
 
@@ -56,7 +64,10 @@ cc_library(
         ":concept",
         ":data",
         ":semantic",
-        "//perimortem:headless",
+        "//perimortem:core",
+        "//perimortem:memory",
+        "//perimortem:system",
+        "//perimortem:utility",
     ],
 )
 
@@ -65,24 +76,41 @@ cc_library(
 # Providers still control their publications and release them through their
 # own operations. The shared runtime is a C++ deployment choice, not a TTX
 # requirement that foreign implementations use the same allocator.
+config_setting(
+    name = "wasm32",
+    constraint_values = ["@platforms//cpu:wasm32"],
+)
+
 cc_shared_library(
     name = "runtime",
-    shared_lib_name = "libttx_runtime.so",
+    exports_filter = [
+        "//ttx:__pkg__",
+        "//perimortem:__pkg__",
+    ],
+    shared_lib_name = select({
+        ":wasm32": "libttx_runtime.wasm",
+        "//conditions:default": "libttx_runtime.so",
+    }),
+    user_link_flags = select({
+        ":wasm32": [
+            "--oformat=wasm",
+            "-sSIDE_MODULE=1",
+        ],
+        "//conditions:default": ["-Wl,-z,defs"],
+    }),
     # Link roots retain each compiled library's public symbols, including
     # operations used only by an external provider rather than TTX itself.
     deps = [
-        ":ttx",
         ":concept",
-        ":semantic",
         ":data",
+        ":semantic",
+        ":ttx",
         "//perimortem:abi",
-        "//perimortem:core",
-        "//perimortem:memory",
-        "//perimortem:system",
-        "//perimortem:serialization",
         "//perimortem:compression",
+        "//perimortem:core",
         "//perimortem:graphics",
+        "//perimortem:memory",
+        "//perimortem:serialization",
+        "//perimortem:system",
     ],
-    exports_filter = ["//ttx:__pkg__", "//perimortem:__pkg__"],
-    user_link_flags = ["-Wl,-z,defs"],
 )

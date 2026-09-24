@@ -9,8 +9,8 @@
 
 #include "ttx/data/encoding/callable.hpp"
 #include "ttx/data/encoding/struct.hpp"
-#include "ttx/data/form/schema.hpp"
 #include "ttx/data/form/representation.h"
+#include "ttx/data/form/schema.hpp"
 #include "ttx/data/status.hpp"
 
 namespace Ttx::Data::Form {
@@ -21,6 +21,23 @@ namespace Ttx::Data::Form {
 // width, but compilation promotes that width when any value needs more room.
 // We do the normalization before publishing so consumers can compare bytes or
 // follow offsets without reconstructing the source objects.
+//
+// Pointer storage can occupy four or eight bytes, aligned to that width.
+// Compilation takes this width as a constexpr input, defaulting to the host.
+// Compiled passes its template width through the same implementation.
+// Calling convention remains part of each callable description because
+// agreeing on pointer storage alone cannot establish how a function is called.
+//
+// Four byte pointer storage writes the little endian U64 value 0x100000010
+// once, before the root. Its zero depth nibble distinguishes
+// this prefix from a struct header. Bits four through 31 contain only the tag
+// 0x10. The root follows at byte eight and every block reference remains
+// relative to that root. Readers establish the width before interpreting
+// pointer slots. Eight byte pointers need no prefix. Forms without reachable
+// pointer descriptions also omit it, so ordinary scalar storage has identical
+// bytes across these targets. The selected width applies to every reachable
+// body. Composition rejects children with different pointer widths instead of
+// translating addresses.
 //
 // Struct blocks describe the number of following element descriptors, the
 // extent of the object including tail padding, and its required alignment.
@@ -50,7 +67,7 @@ namespace Ttx::Data::Form {
 //   D: Distance in bytes between repeated starts. A singleton uses its width.
 //   S: P references a struct header when set.
 //   C: P references a callable header when set. S must be clear and * set.
-//   *: The occupied value is an eight byte pointer with alignment eight.
+//   *: The occupied value uses the buffer's pointer size and alignment.
 //      Its target remains described by S, C and P but is not inline storage.
 //   P: Primitive code or absolute header index, at byte P * 4 * F.
 //
@@ -64,7 +81,8 @@ namespace Ttx::Data::Form {
 //
 //   N: Expanded number of formal arguments. For a variadic signature this is
 //      its fixed prefix. Following argument blocks have counts summing to N.
-//   C: ABI profile, 1 for System V AMD64 LP64 and 2 for its variadic convention.
+//   C: Calling convention, 1 for System V AMD64 LP64, 2 for its variadic form,
+//      3 for Emscripten Wasm32 and 4 for its variadic form.
 //
 //   x: Reserved, always zero. These bits participate in bytewise agreement.
 //
@@ -79,7 +97,8 @@ namespace Ttx::Data::Form {
 // implies a trailing ellipsis whose concrete argument types belong to each
 // call site. No signature interpretation or call is needed to transfer a table.
 //
-// The root is always a struct header, including for one callable pointer.
+// After the optional pointer width prefix, the root is always a struct header,
+// including for one callable pointer.
 // Referenced callable headers inherit F from that root. Their return target
 // is visited before their arguments when assigning first use block indices.
 //
@@ -221,7 +240,7 @@ namespace Ttx::Data::Form {
 //
 // 5. For N greater than one, D is the actual distance between starts. For N
 //    equal to one, D is the intrinsic element size: primitive width or the
-//    referenced header's E, or eight for a pointer. Argument D is always zero.
+//    referenced header's E, or the buffer's pointer size. Argument D is zero.
 //    Thus one U32 in an eight byte aligned, eight byte struct has element
 //    distance four. An array of those structs has reference distance eight.
 //    This leaves no discretionary padding value that could change the bytes of
@@ -273,7 +292,7 @@ namespace Ttx::Data::Form {
 // that flat primitive run uses S zero, so the two layouts cannot collide.
 //
 // Comparison is linear in the encoded byte length and requires no decoding.
-// Access reads the depth from the first byte, then follows header counts,
+// Access reads the depth from the root after any prefix, then follows counts,
 // offsets and references. Repetition computes an instance start from O and D
 // without storing an entry for each value. Enumeration necessarily visits each
 // requested primitive occurrence, not merely each compressed descriptor.
@@ -286,8 +305,15 @@ class Compiler {
 
   // Preparation owns one content inventory. Source graphs can disappear after
   // success because publication consumes only these normalized records.
-  constexpr auto compile(Schema::Reference source) -> Status {
+  constexpr auto compile(
+      Schema::Reference source,
+      Count selected = sizeof(void*)) -> Status {
     clear();
+    if (selected != 4 && selected != 8) {
+      return Status::Unsupported;
+    }
+
+    pointer_size = selected;
 
     Count root = 0;
     if ((source.flags & ~TTX_SCHEMA_REFERENCE_POINTER) || !source.is_set()) {
@@ -302,7 +328,8 @@ class Compiler {
 
     if (source.is_pointer() || (source.schema && source.schema->get_kind() ==
                                                      Schema::Kind::Callable)) {
-      const Count first = begin(8, 8);
+      const Count first = begin(
+          source.get_extent(pointer_size), source.get_alignment(pointer_size));
       records.insert(describe(source));
       root = bodies.get_size();
       bodies.insert(Body());
@@ -328,10 +355,12 @@ class Compiler {
   // same interning and numbering as source compilation, including cycles.
   auto compose(
       Perimortem::Core::View::Vector<ttx_representation_member> members,
-      Count extent, Count alignment) -> Status;
+      Count extent,
+      Count alignment) -> Status;
 
   constexpr auto get_size() const -> Count {
-    return Perimortem::Core::Data::align<8>(block_count * 4 * depth);
+    return prefix_size() +
+           Perimortem::Core::Data::align<8>(block_count * 4 * depth);
   }
   constexpr auto get_depth() const -> U8 { return depth; }
 
@@ -344,6 +373,9 @@ class Compiler {
     }
 
     Writer writer(target);
+    if (prefix_size()) {
+      writer << U64(0x100000010);
+    }
     for (Count item = first; item; item = bodies[item - 1].next) {
       const auto& body = bodies[item - 1];
       const auto& head = records[body.first];
@@ -422,8 +454,11 @@ class Compiler {
   // into this compiler's temporary inventory. These helpers share the same
   // private record ownership as source compilation, so normalization has one
   // implementation rather than a second externally mutable record API.
-  auto import_body(const ttx_representation& form, Count block, Bool callable,
-                   Indices& indices) -> Count;
+  auto import_body(
+      const ttx_representation& form,
+      Count block,
+      Bool callable,
+      Indices& indices) -> Count;
 
   constexpr auto clear() -> void {
     bodies.resize(0);
@@ -432,12 +467,14 @@ class Compiler {
     first = 0;
     block_count = 0;
     depth = 0;
+    has_pointers = False;
   }
 
   constexpr auto publish(Count root) -> Status {
     // A single body needs no interning. A struct and a callable are also
-    // necessarily distinct, so a form containing just those has nothing to merge.
-    // Larger graphs or two bodies of the same kind need structural settlement.
+    // necessarily distinct, so a form containing just those has nothing to
+    // merge. Larger graphs or two bodies of the same kind need structural
+    // settlement.
     const Count count = bodies.get_size();
     if (count > 1 &&
         (count > 2 || bool(header(0).distance) == bool(header(1).distance))) {
@@ -450,7 +487,6 @@ class Compiler {
     number(root, limits, last);
     return choose_depth(limits);
   }
-
 
   // The runtime view borrows the actual initialized content. Constant
   // evaluation cannot reinterpret an object pointer, so only that path copies
@@ -496,11 +532,11 @@ class Compiler {
 
   constexpr auto extent(Count body) const -> Count {
     const auto& value = header(body);
-    return value.distance ? value.offset : 8;
+    return value.distance ? value.offset : pointer_size;
   }
 
   constexpr auto width(const Element& entry) const -> Count {
-    return entry.is_pointer()  ? 8
+    return entry.is_pointer()  ? pointer_size
            : entry.is_inline() ? extent(entry.type)
                                : Schema::get_width(entry.get_value());
   }
@@ -609,8 +645,8 @@ class Compiler {
     return slot;
   }
 
-  static constexpr auto validate_value(const Schema& source) -> Status {
-    const Count size = Schema::get_width(source.get_value());
+  constexpr auto validate_value(const Schema& source) const -> Status {
+    const Count size = Schema::get_width(source.get_value(), pointer_size);
     if (!size || source.get_extent() != size ||
         source.get_alignment() != size) {
       return Status::Invalid;
@@ -667,7 +703,7 @@ class Compiler {
   constexpr auto describe(Schema::Reference reference) -> Element {
     const auto* source = reference.schema;
     if (!source) {
-      return Element(1, 0, 8, 0, Element::Pointer);
+      return Element(1, 0, pointer_size, 0, Element::Pointer);
     }
 
     if (source->get_kind() == Schema::Kind::Value &&
@@ -676,7 +712,7 @@ class Compiler {
       const auto type = source->get_value();
       const Bool pointer =
           reference.is_pointer() || type == Schema::Value::Pointer;
-      const Count size = pointer ? 8 : source->get_extent();
+      const Count size = pointer ? pointer_size : source->get_extent();
       const Count code =
           type == Schema::Value::Pointer
               ? 0
@@ -691,7 +727,7 @@ class Compiler {
     const Count slot = find_source(source);
     const Bool callable = source->get_kind() == Schema::Kind::Callable;
     return Element(
-        1, 0, reference.get_extent(), slot,
+        1, 0, reference.get_extent(pointer_size), slot,
         (callable ? Element::Callable | Element::Pointer : Element::Struct) |
             (reference.is_pointer() ? Element::Pointer : 0));
   }
@@ -807,7 +843,7 @@ class Compiler {
       Count count,
       Count distance,
       Run& run) -> void {
-    if (!count || !reference.get_extent()) {
+    if (!count || !reference.get_extent(pointer_size)) {
       return;
     }
 
@@ -857,7 +893,8 @@ class Compiler {
     for (const auto position : positions) {
       const auto reference = position.get_reference();
       if (position.offset > source.get_extent() ||
-          reference.get_extent() > source.get_extent() - position.offset) {
+          reference.get_extent(pointer_size) >
+              source.get_extent() - position.offset) {
         return Status::Invalid;
       }
 
@@ -885,7 +922,7 @@ class Compiler {
     }
 
     const Count count = value.get_count();
-    const Count size = reference.get_extent();
+    const Count size = reference.get_extent(pointer_size);
     const Count distance = value.get_distance();
     if ((!count || !size) && source.get_extent()) {
       return Status::Invalid;
@@ -909,7 +946,8 @@ class Compiler {
   }
 
   constexpr auto callable(const Schema& source, Count& result) -> Status {
-    if (source.get_extent() != 8 || source.get_alignment() != 8) {
+    if (source.get_extent() != pointer_size ||
+        source.get_alignment() != pointer_size) {
       return Status::Invalid;
     }
 
@@ -918,9 +956,14 @@ class Compiler {
       return Status::Invalid;
     }
 
-    const auto abi = value.get_convention();
-    if (abi != Schema::Abi::SystemVAMD64 &&
-        abi != Schema::Abi::SystemVAMD64Variadic) {
+    const auto convention = value.get_convention();
+    const bool narrow = pointer_size == 4;
+    const bool accepted =
+        narrow ? convention == Schema::Convention::EmscriptenWasm32 ||
+                     convention == Schema::Convention::EmscriptenWasm32Variadic
+               : convention == Schema::Convention::SystemVAMD64 ||
+                     convention == Schema::Convention::SystemVAMD64Variadic;
+    if (!accepted) {
       return Status::Invalid;
     }
 
@@ -939,7 +982,7 @@ class Compiler {
     Element head = value.get_result().is_set() ? describe(value.get_result())
                                                : Element(0, 0, 0, 0, Void);
     head.count = 0;
-    head.offset = static_cast<U32>(abi);
+    head.offset = static_cast<U32>(convention);
     head.distance = 0;
     const Count first = records.get_size();
     records.insert(head);
@@ -1072,7 +1115,8 @@ class Compiler {
   }
 
   // Direct settlement and cyclic refinement both share bodies by normalized
-  // content. Hashing that content keeps sharing independent of source addresses.
+  // content. Hashing that content keeps sharing independent of source
+  // addresses.
   static constexpr auto intern(
       Count id,
       Body body,
@@ -1236,6 +1280,7 @@ class Compiler {
     limits.extent |= head.distance ? head.offset : 0;
     for (Count i = 0; i < body.size; ++i) {
       const auto& entry = records[body.first + i];
+      has_pointers |= entry.is_pointer();
       if (i) {
         limits.common |= entry.count | entry.offset;
         limits.distance |= entry.distance;
@@ -1257,7 +1302,7 @@ class Compiler {
     required = max(required, (log2(limits.reference) + 8) / 8);
     required = max(required, (log2(limits.distance) + 9) / 8);
     required = max(required, (log2(limits.extent) + 19) / 16);
-    if (required > 15 || block_count > (Count(-1) - 7) / (4 * required)) {
+    if (required > 15 || block_count > (Count(-1) - 15) / (4 * required)) {
       return Status::Overflow;
     }
 
@@ -1271,6 +1316,12 @@ class Compiler {
   Count first = 0;
   Count block_count = 0;
   U8 depth = 0;
+  constexpr auto prefix_size() const -> Count {
+    return has_pointers && pointer_size == 4 ? 8 : 0;
+  }
+
+  Count pointer_size = sizeof(void*);
+  Bool has_pointers = False;
 };
 
 }  // namespace Ttx::Data::Form

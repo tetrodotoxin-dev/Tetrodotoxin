@@ -6,8 +6,8 @@
 #include "perimortem/core/static/bytes.hpp"
 #include "perimortem/core/data.hpp"
 
-#include "ttx/data/protocol/fragment.hpp"
 #include "ttx/data/form/storage.hpp"
+#include "ttx/data/protocol/fragment.hpp"
 
 namespace Ttx::Semantic::Flows {
 
@@ -29,6 +29,13 @@ class Fragment {
       Count position,
       Consumer consume) -> Data::Status {
     using Value = Data::Form::Schema::Value;
+    // This thunk returns a native pointer value. A foreign pointer carrier can
+    // still move as a block, but cannot be materialized through this getter.
+    if (type.get_value() == Value::Pointer &&
+        type.get_extent() != sizeof(void*)) {
+      return Data::Status::Unsupported;
+    }
+
     switch (type.get_value()) {
 #define READ(code, name)                      \
   case code:                                  \
@@ -74,11 +81,10 @@ class Fragment {
       T value) -> void {
     using Perimortem::Core::Data::ByteOrder;
     auto* output = target.get_bytes().get_data() + position.offset;
-    const Bool reverse =
-        position.get_byte_order() !=
-            (ByteOrder::Native == ByteOrder::Little
-                 ? Data::Form::Schema::ByteOrder::Little
-                 : Data::Form::Schema::ByteOrder::Big);
+    const Bool reverse = position.get_byte_order() !=
+                         (ByteOrder::Native == ByteOrder::Little
+                              ? Data::Form::Schema::ByteOrder::Little
+                              : Data::Form::Schema::ByteOrder::Big);
     if (!reverse) {
       Perimortem::Core::Data::copy(output, &value, 1);
       return;
@@ -92,4 +98,4 @@ class Fragment {
   }
 };
 
-}  // namespace Ttx::Semantic::Flows::Operations
+}  // namespace Ttx::Semantic::Flows

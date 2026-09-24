@@ -18,30 +18,36 @@ auto Runtime::PassUI::collect(
     const Perimortem::Graphics::Frame::Transform& parent,
     S64 parent_z_index) -> Bool {
   BAIL_IF(object.is_empty());
-  Perimortem::Graphics::Frame::Resource reservation(object);
-
-  Perimortem::Graphics::Frame::Transform transform = parent;
-  S64 z_index = parent_z_index;
-  if (placement != nullptr) {
-    auto selected = placement->placement(object);
-    BAIL_IF(!selected);
-    if (!selected->is_visible()) {
-      return True;
+  // The traversal borrows runtime objects through provider callbacks. Hold
+  // its reservation for this call, while emitted frames retain their typed
+  // textures independently of the source graph.
+  object.retain();
+  const Bool collected = [&]() -> Bool {
+    Perimortem::Graphics::Frame::Transform transform = parent;
+    S64 z_index = parent_z_index;
+    if (placement != nullptr) {
+      auto selected = placement->placement(object);
+      BAIL_IF(!selected);
+      if (!selected->is_visible()) {
+        return True;
+      }
+      transform = Perimortem::Graphics::Frame::Transform::compose(
+          parent, selected->get_transform());
+      BAIL_IF(__builtin_add_overflow(
+          parent_z_index, selected->get_z_index(), &z_index));
     }
-    transform = Perimortem::Graphics::Frame::Transform::compose(
-        parent, selected->get_transform());
-    BAIL_IF(__builtin_add_overflow(
-        parent_z_index, selected->get_z_index(), &z_index));
-  }
 
-  BAIL_IF(collection.path.contains(object.get_payload()));
+    BAIL_IF(collection.path.contains(object.get_payload()));
 
-  collection.path.insert(object.get_payload());
-  Bool complete =
-      collect_draws(collection, object, drawable, transform, z_index) &&
-      collect_children(collection, object, children, transform, z_index);
-  collection.path.remove(collection.path.get_size() - 1);
-  return complete;
+    collection.path.insert(object.get_payload());
+    Bool complete =
+        collect_draws(collection, object, drawable, transform, z_index) &&
+        collect_children(collection, object, children, transform, z_index);
+    collection.path.remove(collection.path.get_size() - 1);
+    return complete;
+  }();
+  object.release();
+  return collected;
 }
 
 auto Runtime::PassUI::collect_draws(

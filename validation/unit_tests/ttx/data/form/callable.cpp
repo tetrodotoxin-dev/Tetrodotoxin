@@ -19,7 +19,7 @@ static constexpr auto integer = Schema::primitive(Schema::Value::U32);
 static constexpr auto real = Schema::primitive(Schema::Value::R64);
 static constexpr Schema::Argument four(integer, 4);
 static constexpr auto function =
-    Schema::callable(Schema::Abi::SystemVAMD64, {&four, 1});
+    Schema::callable(Schema::Convention::SystemVAMD64, {&four, 1});
 static constexpr auto& constant = Compiled<function>::get_representation();
 static_assert(constant.get_bytes().get_size() == 16);
 
@@ -37,7 +37,7 @@ PERIMORTEM_UNIT_TEST(Callables, canonical_words) {
   const Schema::Argument singles[] = {
     {integer}, {integer}, {integer}, {integer}};
   const auto expanded =
-      Schema::callable(Schema::Abi::SystemVAMD64, {singles, 4});
+      Schema::callable(Schema::Convention::SystemVAMD64, {singles, 4});
   EXPECT(constant.compatible(prepare(expanded)));
   Count visited = 0;
   EXPECT(constant.visit([&](Representation::Position position) {
@@ -50,22 +50,24 @@ PERIMORTEM_UNIT_TEST(Callables, canonical_words) {
 }
 
 // Argument order, convention and return type all affect the negotiated call.
-// A no-argument function remains a real pointer even when it returns void.
+// A function with no arguments remains a real pointer even when it returns
+// void.
 PERIMORTEM_UNIT_TEST(Callables, signature_differences) {
   Validation::DataTests::Preparation prepare;
   const Schema::Argument mixed[] = {{integer}, {real}, {integer}};
   const Schema::Argument ordered[] = {{integer, 2}, {real}};
-  const auto a = Schema::callable(Schema::Abi::SystemVAMD64, {mixed, 3});
-  const auto b = Schema::callable(Schema::Abi::SystemVAMD64, {ordered, 2});
+  const auto a = Schema::callable(Schema::Convention::SystemVAMD64, {mixed, 3});
+  const auto b =
+      Schema::callable(Schema::Convention::SystemVAMD64, {ordered, 2});
   EXPECT_NOT(prepare(a).compatible(prepare(b)));
   const auto variadic =
-      Schema::callable(Schema::Abi::SystemVAMD64Variadic, {&four, 1});
+      Schema::callable(Schema::Convention::SystemVAMD64Variadic, {&four, 1});
   const auto returned =
-      Schema::callable(Schema::Abi::SystemVAMD64, {&four, 1}, &integer);
+      Schema::callable(Schema::Convention::SystemVAMD64, {&four, 1}, &integer);
   EXPECT_NOT(constant.compatible(prepare(variadic)));
   EXPECT_NOT(constant.compatible(prepare(returned)));
 
-  const auto empty = Schema::callable(Schema::Abi::SystemVAMD64, {});
+  const auto empty = Schema::callable(Schema::Convention::SystemVAMD64, {});
   const auto& ready = prepare(empty);
   EXPECT_EQ(ready.get_extent(), Count(8));
   EXPECT_EQ(ready.get_bytes().get_size(), Count(16));
@@ -74,11 +76,12 @@ PERIMORTEM_UNIT_TEST(Callables, signature_differences) {
 }
 
 // A large formal count remains one run. The wider header's unused fields and
-// the full-width void sentinel are checked without expanding those parameters.
+// the full width void sentinel are checked without expanding those parameters.
 PERIMORTEM_UNIT_TEST(Callables, wide_signature) {
   Validation::DataTests::Preparation prepare;
   const Schema::Argument many(integer, 1000000000);
-  const auto large = Schema::callable(Schema::Abi::SystemVAMD64, {&many, 1});
+  const auto large =
+      Schema::callable(Schema::Convention::SystemVAMD64, {&many, 1});
   const auto& ready = prepare(large);
   EXPECT_EQ(ready.get_depth(), U8(4));
   EXPECT_EQ(ready.get_bytes().get_size(), Count(64));
@@ -111,43 +114,44 @@ PERIMORTEM_UNIT_TEST(Callables, invalid_signatures) {
   const Schema::Argument array_argument(array);
   EXPECT(
       compiler.compile(
-          Schema::callable(Schema::Abi::SystemVAMD64, {&array_argument, 1})) ==
+          Schema::callable(
+              Schema::Convention::SystemVAMD64, {&array_argument, 1})) ==
       Status::Invalid);
   const Schema::Argument missing(integer, 0);
   EXPECT(
       compiler.compile(
-          Schema::callable(Schema::Abi::SystemVAMD64, {&missing, 1})) ==
+          Schema::callable(Schema::Convention::SystemVAMD64, {&missing, 1})) ==
       Status::Invalid);
   EXPECT(
-      compiler.compile(Schema::callable(Schema::Abi(9), {})) ==
+      compiler.compile(Schema::callable(Schema::Convention(9), {})) ==
       Status::Invalid);
   const Schema::Argument overflow[] = {{integer, Count(-1)}, {integer}};
   EXPECT(
       compiler.compile(
-          Schema::callable(Schema::Abi::SystemVAMD64, {overflow, 2})) ==
+          Schema::callable(Schema::Convention::SystemVAMD64, {overflow, 2})) ==
       Status::Overflow);
   const auto pointer = Schema::pointer(&array);
   const Schema::Argument indirect(pointer);
   EXPECT(
       compiler.compile(
-          Schema::callable(Schema::Abi::SystemVAMD64, {&indirect, 1})) ==
+          Schema::callable(Schema::Convention::SystemVAMD64, {&indirect, 1})) ==
       Status::Success);
 }
 
 // C authors its descriptions and executable table independently. Agreement
 // admits one ordinary copy into the C++ table, followed by actual fixed,
 // variadic and SIMD calls. No Semantic negotiation or invocation wrapper is
-// involved in this Data-format proof.
+// involved in this Data format proof.
 PERIMORTEM_UNIT_TEST(Callables, foreign_calls) {
   Validation::DataTests::Preparation prepare;
   const auto vector = Schema::primitive(Schema::Value::V128);
   const Schema::Argument count(integer), packed(vector);
   const auto sum =
-      Schema::callable(Schema::Abi::SystemVAMD64, {&four, 1}, &integer);
-  const auto variadic =
-      Schema::callable(Schema::Abi::SystemVAMD64Variadic, {&count, 1}, &real);
+      Schema::callable(Schema::Convention::SystemVAMD64, {&four, 1}, &integer);
+  const auto variadic = Schema::callable(
+      Schema::Convention::SystemVAMD64Variadic, {&count, 1}, &real);
   const auto twice =
-      Schema::callable(Schema::Abi::SystemVAMD64, {&packed, 1}, &vector);
+      Schema::callable(Schema::Convention::SystemVAMD64, {&packed, 1}, &vector);
   const Schema::Position fields[] = {
     {sum, __builtin_offsetof(ttx_test_callables, sum)},
     {variadic, __builtin_offsetof(ttx_test_callables, variadic)},

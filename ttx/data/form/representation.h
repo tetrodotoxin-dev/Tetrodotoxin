@@ -16,22 +16,27 @@
 // belong to the containing object, while type and byte order describe the
 // observation at that coordinate. No pointer to a reconstructed child object
 // needs to survive the lookup.
-// Pointer and callable slots both produce a native Pointer observation.
-// Their target descriptions remain in the canonical buffer for agreement,
-// but following those descriptions would read outside this object's payload.
+// Pointer and callable slots both produce a Pointer observation whose extent
+// comes from the representation's pointer width, even when the reader is native
+// to another target. That observation describes storage, not a usable host
+// address. Their target descriptions remain in the canonical buffer for
+// agreement, but following those descriptions would read outside this object's
+// payload.
 typedef struct ttx_representation_position {
   Count offset;
   ttx_schema_value type;
   U8 byte_order;
+  U32 extent;
 #ifdef __cplusplus
   using Value = ttx_schema::Value;
   using ByteOrder = ttx_schema::ByteOrder;
 
   constexpr ttx_representation_position(
       Count offset = 0, Value type = Value::U8,
-      ByteOrder byte_order = ByteOrder::Little)
+      ByteOrder byte_order = ByteOrder::Little, U32 extent = 0)
       : offset(offset), type(static_cast<U8>(type)),
-        byte_order(static_cast<U8>(byte_order)) {}
+        byte_order(static_cast<U8>(byte_order)),
+        extent(extent ? extent : U32(ttx_schema::get_width(type))) {}
 
   constexpr auto get_value() const -> Value { return static_cast<Value>(type); }
   constexpr auto get_byte_order() const -> ByteOrder {
@@ -39,7 +44,7 @@ typedef struct ttx_representation_position {
   }
   constexpr auto get_extent() const -> Count;
   constexpr auto compatible(const ttx_representation_position& other) const -> Bool {
-    return type == other.type && byte_order == other.byte_order;
+    return type == other.type && byte_order == other.byte_order && extent == other.extent;
   }
 #endif
 } ttx_representation_position;
@@ -68,7 +73,10 @@ typedef struct ttx_representation_member {
 //
 // The owner retains the bytes for every consumer of this view. Schema and
 // compiler storage can disappear independently. Relocating the bytes needs no
-// reference fixups because every child reference is an absolute block index.
+// reference fixups because every child reference is an absolute block index
+// from the root. A pointer width prefix can precede that root. get_bytes
+// includes the prefix for agreement, while get_blocks skips it for descriptor
+// decoding.
 typedef struct ttx_representation {
   const U8* data;
   Count size;
@@ -83,15 +91,25 @@ typedef struct ttx_representation {
   constexpr auto get_bytes() const -> Perimortem::Core::View::Bytes {
     return Perimortem::Core::View::Bytes(data, size);
   }
-  constexpr auto get_depth() const -> U8 { return data[0] & 15; }
+  constexpr auto get_blocks() const -> Perimortem::Core::View::Bytes {
+    const Count prefix = (data[0] & 15) ? 0 : 8;
+    return Perimortem::Core::View::Bytes(data + prefix, size - prefix);
+  }
+  constexpr auto get_pointer_size() const -> Count {
+    return (data[0] & 15) ? 8 : 4;
+  }
+  // Admission already established a complete root after any pointer prefix.
+  constexpr auto get_depth() const -> U8 { return get_blocks().get_data()[0] & 15; }
   constexpr auto get_extent() const -> Count;
   constexpr auto get_alignment() const -> Count;
   constexpr auto get_abi() const -> const ttx_representation& { return *this; }
   constexpr auto compatible(const ttx_representation& other) const -> Bool;
 
   static auto compile(
-      ttx_schema_reference schema, Perimortem::Memory::Allocator::Arena& arena)
-      -> Perimortem::Utility::Result<const ttx_representation&, Ttx::Data::Status>;
+      ttx_schema_reference schema,
+      Perimortem::Memory::Allocator::Arena& arena,
+      Count pointer_size = sizeof(void*)) -> Perimortem::Utility::
+      Result<const ttx_representation&, Ttx::Data::Status>;
 
   static auto compose(
       Perimortem::Core::View::Vector<Member> members, Count extent,
@@ -134,8 +152,13 @@ typedef struct ttx_representation_allocator {
   void* (*allocate)(void* source, Count bytes, Count alignment);
 } ttx_representation_allocator;
 
+// Select pointer storage in bytes, independently of the compiler's host.
+// Four and eight are supported for both data and function pointers. An
+// unsupported width declines before asking the owner to allocate output.
 PERIMORTEM_C ttx_data_status ttx_representation_compile(
-    ttx_schema_reference schema, ttx_representation_allocator allocator,
+    ttx_schema_reference schema,
+    Count pointer_size,
+    ttx_representation_allocator allocator,
     const ttx_representation** result);
 PERIMORTEM_C ttx_data_status ttx_representation_compose(
     const ttx_representation_member* members, Count count, Count extent,

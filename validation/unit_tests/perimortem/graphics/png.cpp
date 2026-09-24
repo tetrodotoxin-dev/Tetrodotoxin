@@ -77,7 +77,8 @@ PERIMORTEM_UNIT_TEST(GraphicsPng, unaligned_input) {
   Dynamic::Vector<U8> storage;
   storage.resize(source->get_size() + 1);
   Data::copy(
-      storage.get_data() + 1, source->get_view().get_data(), source->get_size());
+      storage.get_data() + 1, source->get_view().get_data(),
+      source->get_size());
 
   const View::Bytes shifted(storage.get_data() + 1, source->get_size());
   auto image = Formats::Png::decode(shifted);
@@ -184,9 +185,10 @@ PERIMORTEM_UNIT_TEST(GraphicsPng, decode_invalid) {
 PERIMORTEM_UNIT_TEST(GraphicsPng, roundtrip_1x1) {
   Dynamic::Vector<Pixel> source_pixels;
   source_pixels.insert(Pixel::from_rgba(0x12, 0x34, 0x56, 0x78));
-  Image source_image(Data::take(source_pixels), 1, 1);
+  auto source_image = Image::create(Size2D(1, 1), Data::take(source_pixels));
+  ASSERT(source_image);
 
-  auto encoded = Formats::Png::encode(source_image);
+  auto encoded = Formats::Png::encode(*source_image);
   ASSERT(encoded.get_size() > 0);
 
   auto decoded = Formats::Png::decode(encoded.get_view());
@@ -207,9 +209,10 @@ PERIMORTEM_UNIT_TEST(GraphicsPng, roundtrip_checker) {
   source_pixels.insert(Pixel::from_rgba(0x00, 0xFF, 0x00, 0xFF));
   source_pixels.insert(Pixel::from_rgba(0x00, 0x00, 0xFF, 0xFF));
   source_pixels.insert(Pixel::from_rgba(0xFF, 0xFF, 0xFF, 0xFF));
-  Image source_image(Data::take(source_pixels), 2, 2);
+  auto source_image = Image::create(Size2D(2, 2), Data::take(source_pixels));
+  ASSERT(source_image);
 
-  auto encoded = Formats::Png::encode(source_image);
+  auto encoded = Formats::Png::encode(*source_image);
   ASSERT(encoded.get_size() > 0);
 
   auto decoded = Formats::Png::decode(encoded.get_view());
@@ -236,13 +239,15 @@ PERIMORTEM_UNIT_TEST(GraphicsPng, roundtrip_64x64) {
     }
   }
 
-  Image source_image(Data::take(source_pixels), width, height);
+  auto source_image =
+      Image::create(Size2D(width, height), Data::take(source_pixels));
+  ASSERT(source_image);
 
-  auto encoded = Formats::Png::encode(source_image);
+  auto encoded = Formats::Png::encode(*source_image);
   ASSERT(encoded.get_size() > 0);
 
   auto decoded = Formats::Png::decode(encoded.get_view());
-  auto source_view = source_image.get_pixels();
+  auto source_view = source_image->get_pixels();
   auto decoded_pixels = decoded.get_pixels();
   const auto* source_data = source_view.get_data();
   const auto* decoded_data = decoded_pixels.get_data();
@@ -255,15 +260,9 @@ PERIMORTEM_UNIT_TEST(GraphicsPng, roundtrip_64x64) {
   }
 }
 
-PERIMORTEM_UNIT_TEST(GraphicsPng, zero_dimensions) {
-  Dynamic::Vector<Pixel> empty;
-  Image zero_width(Data::take(empty), 0, 1);
-  Dynamic::Vector<Pixel> empty2;
-  Image zero_height(Data::take(empty2), 1, 0);
-  auto encoded_w = Formats::Png::encode(zero_width);
-  auto encoded_h = Formats::Png::encode(zero_height);
-  EXPECT_EQ(encoded_w.get_size(), 0);
-  EXPECT_EQ(encoded_h.get_size(), 0);
+PERIMORTEM_UNIT_TEST(GraphicsPng, empty_image) {
+  auto encoded = Formats::Png::encode(Image());
+  EXPECT(encoded.is_empty());
 }
 
 PERIMORTEM_UNIT_TEST(GraphicsPng, chunk_header_trunc) {

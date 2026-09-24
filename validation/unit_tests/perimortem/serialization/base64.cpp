@@ -37,6 +37,34 @@ PERIMORTEM_UNIT_TEST(SerializationBase64, decode_simple) {
   EXPECT_TEXT(decoded_bytes.get_view(), source);
 }
 
+PERIMORTEM_UNIT_TEST(SerializationBase64, padded_vector_tail) {
+  // A final padded quartet can end exactly at a vector batch boundary. It
+  // still belongs to the scalar tail, otherwise subtracting that batch from
+  // the unpadded input count underflows and the decoder walks past the source.
+  U8 encoded[192];
+  for (Count size = 96; size <= 192; size += 96) {
+    for (Count padding = 1; padding <= 2; ++padding) {
+      for (auto& byte : encoded) {
+        byte = 'A';
+      }
+
+      for (Count index = 0; index < padding; ++index) {
+        encoded[size - index - 1] = '=';
+      }
+
+      const View::Bytes source(encoded, size);
+      const auto decoded = Base64::decode(source);
+      Allocator::Arena arena;
+      const auto borrowed = Base64::decode(arena, source);
+      EXPECT(decoded.get_size() == size / 4 * 3 - padding);
+      EXPECT(borrowed == decoded.get_view());
+      for (Count index = 0; index < decoded.get_size(); ++index) {
+        EXPECT(decoded.get_view()[index] == 0);
+      }
+    }
+  }
+}
+
 PERIMORTEM_UNIT_TEST(SerializationBase64, decode_image) {
   auto source = File::read("validation/data/pngs/perimortem_icon.png"_view);
   auto base64 =
