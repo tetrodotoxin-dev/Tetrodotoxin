@@ -229,8 +229,7 @@ auto Vulkan::Pipelines::find_realization(
     Perimortem::Graphics::Frame::Pipeline pipeline) -> Realization* {
   for (Core::Object<> object : realizations.get_view()) {
     Realization& realization = get_realization(object);
-    if (
-        realization.description->locator == locator &&
+    if (realization.description->locator == locator &&
         realization.pipeline == pipeline) {
       return &realization;
     }
@@ -244,8 +243,7 @@ auto Vulkan::Pipelines::find_realization(
     -> const Realization* {
   for (Core::Object<> object : realizations.get_view()) {
     const Realization& realization = get_realization(object);
-    if (
-        realization.description->locator == locator &&
+    if (realization.description->locator == locator &&
         realization.pipeline == pipeline) {
       return &realization;
     }
@@ -310,10 +308,9 @@ auto Vulkan::Pipelines::validate(
         batch.get_inputs().get_size() != description->parameters_size ||
         batch.get_size_pixels().width == 0 ||
         batch.get_size_pixels().height == 0);
-    for (const Perimortem::Graphics::Frame::Resource& resource :
+    for (const Perimortem::Graphics::Texture2D& resource :
          batch.get_resources()) {
-      auto image = Perimortem::Graphics::Image::retain(resource.get_object());
-      BAIL_IF(!image || !image->is_drawable());
+      BAIL_IF(!resource.is_drawable());
     }
   }
   return True;
@@ -330,7 +327,7 @@ auto Vulkan::Pipelines::record(
   // Texture or Program therefore leaves no partial draw sequence in this frame.
   for (const Perimortem::Graphics::Frame::Batch& batch : batches) {
     BAIL_IF(realize_pipeline(batch) == nullptr);
-    for (const Perimortem::Graphics::Frame::Resource& resource :
+    for (const Perimortem::Graphics::Texture2D& resource :
          batch.get_resources()) {
       BAIL_IF(!realize_image(resource) || !realize_texture(resource));
     }
@@ -415,7 +412,7 @@ auto Vulkan::Pipelines::make_host_inputs(
 }
 
 auto Vulkan::Pipelines::find_texture(
-    const Perimortem::Graphics::Frame::Resource& resource) -> Texture* {
+    const Perimortem::Graphics::Texture2D& resource) -> Texture* {
   for (Core::Object<> object : textures.get_view()) {
     TextureCacheEntry& entry = get_cache_entry(object);
     if (entry.resource.matches(resource)) {
@@ -427,11 +424,10 @@ auto Vulkan::Pipelines::find_texture(
 }
 
 auto Vulkan::Pipelines::find_image(
-    const Perimortem::Graphics::Frame::Resource& resource) -> TextureImage* {
+    const Perimortem::Graphics::Texture2D& resource) -> TextureImage* {
   for (Core::Object<> object : images.get_view()) {
     ImageCacheEntry& entry = get_image_cache_entry(object);
-    if (entry.resource.get_object().get_payload() ==
-        resource.get_object().get_payload()) {
+    if (&entry.resource.get_image() == &resource.get_image()) {
       return &entry.image;
     }
   }
@@ -440,7 +436,7 @@ auto Vulkan::Pipelines::find_image(
 }
 
 auto Vulkan::Pipelines::realize_image(
-    const Perimortem::Graphics::Frame::Resource& resource) -> TextureImage* {
+    const Perimortem::Graphics::Texture2D& resource) -> TextureImage* {
   TextureImage* retained = find_image(resource);
   if (retained) {
     return retained;
@@ -458,7 +454,7 @@ auto Vulkan::Pipelines::realize_image(
 }
 
 auto Vulkan::Pipelines::realize_texture(
-    const Perimortem::Graphics::Frame::Resource& resource) -> Texture* {
+    const Perimortem::Graphics::Texture2D& resource) -> Texture* {
   Texture* retained = find_texture(resource);
   if (retained) {
     return retained;
@@ -470,8 +466,8 @@ auto Vulkan::Pipelines::realize_texture(
   new (storage.get_payload(), Core::Placement::Construct) TextureCacheEntry();
   TextureCacheEntry& entry = get_cache_entry(storage);
   entry.resource = resource;
-  entry.texture = Texture::create(
-      context, resource, image->get_view(), descriptor_layout);
+  entry.texture =
+      Texture::create(context, resource, image->get_view(), descriptor_layout);
   Core::Object<>& inserted =
       textures.emplace(static_cast<Core::Object<>&&>(storage));
 
@@ -482,12 +478,11 @@ auto Vulkan::Pipelines::sweep_textures() -> void {
   Count index = 0;
   while (index < images.get_size()) {
     ImageCacheEntry& image = get_image_cache_entry(images[index]);
-    U8* identity = image.resource.get_object().get_payload();
+    const auto* identity = &image.resource.get_image();
     Count cached_reservations = 1;
     for (Core::Object<> object : textures.get_view()) {
       const TextureCacheEntry& texture = get_cache_entry(object);
-      cached_reservations +=
-          texture.resource.get_object().get_payload() == identity;
+      cached_reservations += &texture.resource.get_image() == identity;
     }
     if (image.resource.get_reservations() != cached_reservations) {
       index++;
@@ -498,7 +493,7 @@ auto Vulkan::Pipelines::sweep_textures() -> void {
     while (texture_index < textures.get_size()) {
       const TextureCacheEntry& texture =
           get_cache_entry(textures[texture_index]);
-      if (texture.resource.get_object().get_payload() != identity) {
+      if (&texture.resource.get_image() != identity) {
         texture_index++;
         continue;
       }

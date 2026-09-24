@@ -75,15 +75,15 @@ static auto transition_image_layout(
 
 auto Vulkan::TextureImage::create(
     const Vulkan::Context& context,
-    const Graphics::Frame::Resource& resource) -> TextureImage {
+    const Graphics::Texture2D& resource) -> TextureImage {
   TextureImage texture;
   texture.device = context.get_device();
 
-  auto source_image = Graphics::Image::retain(resource.get_object());
-  BAIL_IF(!source_image);
-  Core::View::Vector<Graphics::Pixel> pixels = source_image->get_pixels();
-  const U32 width = source_image->get_width();
-  const U32 height = source_image->get_height();
+  BAIL_IF(!resource.is_drawable());
+  const auto& source_image = resource.get_image();
+  Core::View::Vector<Graphics::Pixel> pixels = source_image.get_pixels();
+  const U32 width = source_image.get_width();
+  const U32 height = source_image.get_height();
   const VkDeviceSize image_size =
       VkDeviceSize(width) * height * Graphics::Pixel::get_byte_count();
   if (width == 0 || height == 0 || resource.is_empty() ||
@@ -139,8 +139,7 @@ auto Vulkan::TextureImage::create(
       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
   image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
   require_success(
-      vkCreateImage(
-          context.get_device(), &image_info, nullptr, &texture.image),
+      vkCreateImage(context.get_device(), &image_info, nullptr, &texture.image),
       "Vulkan: Failed to create texture image."_view);
 
   VkMemoryRequirements image_requirements = {};
@@ -149,16 +148,15 @@ auto Vulkan::TextureImage::create(
   texture.memory = allocate_memory(
       context, image_requirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
   require_success(
-      vkBindImageMemory(
-          context.get_device(), texture.image, texture.memory, 0),
+      vkBindImageMemory(context.get_device(), texture.image, texture.memory, 0),
       "Vulkan: Failed to bind texture image memory."_view);
 
   VkCommandBuffer command_buffer = context.begin_immediate_commands();
   transition_image_layout(
       command_buffer, texture.image, VK_IMAGE_LAYOUT_UNDEFINED,
-      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-      VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VkAccessFlags2(0),
-      VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
+      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+      VkAccessFlags2(0), VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+      VK_ACCESS_2_TRANSFER_WRITE_BIT);
   VkBufferImageCopy region = {};
   region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
   region.imageSubresource.layerCount = 1;
@@ -233,7 +231,7 @@ auto Vulkan::TextureImage::operator=(TextureImage&& other) noexcept
 
 auto Vulkan::Texture::create(
     const Vulkan::Context& context,
-    const Graphics::Frame::Resource& resource,
+    const Graphics::Texture2D& resource,
     VkImageView image_view,
     VkDescriptorSetLayout descriptor_set_layout) -> Texture {
   Texture texture;

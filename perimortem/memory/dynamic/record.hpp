@@ -51,6 +51,11 @@ class Record {
   constexpr auto operator*() -> value_type& { return *get_value(); }
   constexpr auto operator*() const -> const value_type& { return *get_value(); }
 
+  // A retaining cache can retire its entry when only cache reservations remain.
+  // Observing that count keeps this decision with the owner of the lifetime,
+  // without exposing the erased carrier or embedding it in the stored value.
+  auto get_reservations() const -> Count { return object.get_reservations(); }
+
  private:
   static auto destroy(U8* payload) -> void {
     Core::Data::cast<value_type>(payload)->~value_type();

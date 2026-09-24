@@ -11,7 +11,11 @@
 
 namespace Perimortem::System {
 
-// Stateless filesystem transactions.
+// File owns native filesystem transactions, including the directory handles
+// used to confine member access. A host without that capability rejects the
+// same operations through their ordinary failure results. Reads and Root
+// acquisition return None, while boolean operations return False. This lets
+// callers select another source without a platform dependent interface.
 class File {
  public:
   // Fingerprint identifies the exact regular filesystem object observed by a
@@ -91,7 +95,7 @@ class File {
 
     static auto open(Core::View::Bytes location) -> Core::Option<Root>;
     // Member reads and fingerprints are probes. Absence and I/O failure use
-    // the optional result without publishing an ambient diagnostic; the owner
+    // the optional result without publishing an ambient diagnostic. The owner
     // that requested the path supplies its authored context.
     auto read(Core::View::Bytes relative_path) const
         -> Core::Option<Memory::Dynamic::Bytes>;

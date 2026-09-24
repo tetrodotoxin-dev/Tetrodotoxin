@@ -3,9 +3,7 @@
 
 #pragma once
 
-#include "perimortem/core/object.hpp"
 #include "perimortem/core/option.hpp"
-#include "perimortem/core/view/vector.hpp"
 
 #include "perimortem/memory/dynamic/vector.hpp"
 
@@ -14,61 +12,78 @@
 
 namespace Perimortem::Graphics {
 
-// Image is one shared decoded RGBA identity. Copies retain the same worker
-// local content, while target images and sampling policy remain independent
-// runtime facts.
+// Image owns decoded RGBA pixels and their dimensions. Creation fits a pixel
+// buffer to the requested rectangle and reports invalid dimensions through
+// Option. Pixel format and content validation belong to the supplying codec.
+// Copies own independent pixel storage. Move assignment exchanges complete
+// values so the donor owns the displaced buffer.
+//
+// Pixel observations borrow the Image. Consumers that need to share its
+// lifetime can place it in a Record, as Texture2D does, without changing
+// Image's layout or making every Image allocation carry that policy.
 class Image {
  public:
-  Image();
-  Image(U32 width, U32 height);
-  Image(Memory::Dynamic::Vector<Pixel>&& source, U32 width, U32 height);
-  Image(const Image& source);
-  Image(Image&& source);
-  ~Image();
+  constexpr Image() = default;
+  constexpr Image(const Image&) = default;
+  constexpr Image(Image&& source) {
+    Core::Data::swap(pixels, source.pixels);
+    Core::Data::swap(size_pixels, source.size_pixels);
+  }
 
-  auto operator=(const Image& source) -> Image&;
-  auto operator=(Image&& source) -> Image&;
+  constexpr auto operator=(const Image&) -> Image& = default;
+  constexpr auto operator=(Image&& source) -> Image& {
+    if (this != &source) {
+      Core::Data::swap(pixels, source.pixels);
+      Core::Data::swap(size_pixels, source.size_pixels);
+    }
 
-  auto get_width() const -> U32;
-  auto get_height() const -> U32;
-  auto get_size_pixels() const -> Size2D;
-  // The returned row-major pixels borrow this Image lifetime.
-  auto get_pixels() const -> Core::View::Vector<Pixel>;
-  auto get_pixel(S32 x, S32 y) const -> Pixel;
-  auto is_drawable() const -> Bool;
-  constexpr auto get_object() const -> Core::Object<> { return object; }
+    return *this;
+  }
 
-  static auto retain(Core::Object<> object) -> Core::Option<Image>;
+  // The caller chooses whether to copy or transfer the buffer. Missing pixels
+  // are filled with zero bytes, including alpha. An oversized buffer keeps its
+  // allocation and capacity, with only the requested rectangle exposed.
+  // Zero dimensions or an unrepresentable byte extent return None before
+  // fitting the buffer. Allocation failure follows Vector's allocator policy.
+  static auto create(Size2D size, Memory::Dynamic::Vector<Pixel> source)
+      -> Core::Option<Image> {
+    const Count count = Count(size.width) * size.height;
+    if (!count || count > CppSize(-1) / sizeof(Pixel)) {
+      return Core::Option<Image>();
+    }
 
-  static constexpr auto get_color_depth() -> U8 { return color_depth; }
-  static constexpr auto get_channel_count() -> U8 { return channel_count; }
+    source.resize(count);
+    Image image;
+    Core::Data::swap(image.pixels, source);
+    image.size_pixels = size;
+    return image;
+  }
+
+  constexpr auto get_width() const -> U32 { return size_pixels.width; }
+  constexpr auto get_height() const -> U32 { return size_pixels.height; }
+  constexpr auto get_size_pixels() const -> Size2D { return size_pixels; }
+  constexpr auto get_pixels() const -> Core::View::Vector<Pixel> {
+    return pixels.get_view();
+  }
+
+  constexpr auto get_pixel(S32 x, S32 y) const -> Pixel {
+    if (x < 0 || x >= size_pixels.width || y < 0 || y >= size_pixels.height) {
+      return Pixel();
+    }
+
+    return pixels[Count(y) * size_pixels.width + Count(x)];
+  }
+
+  constexpr auto is_drawable() const -> Bool {
+    return size_pixels.width && size_pixels.height;
+  }
+
+  static constexpr auto get_color_depth() -> U8 { return 8; }
+  static constexpr auto get_channel_count() -> U8 { return 4; }
 
  private:
-  class Payload {
-   public:
-    Core::Object<Pixel> pixels;
-    Count pixel_count = 0;
-    Size2D size_pixels;
-  };
-  static_assert(__builtin_offsetof(Payload, pixels) == 0);
-  static_assert(__builtin_offsetof(Payload, pixel_count) == sizeof(U8*));
-  static_assert(
-      __builtin_offsetof(Payload, size_pixels) == sizeof(U8*) + sizeof(Count));
-  static_assert(
-      sizeof(Payload) == sizeof(U8*) + sizeof(Count) + sizeof(Size2D));
-
-  explicit Image(Core::Object<> object) : object(object) {}
-  static auto finalize(U8* payload) -> void;
-  auto get_payload() -> Payload&;
-  auto get_payload() const -> const Payload&;
-
-  static constexpr U8 color_depth = 8;
-  static constexpr U8 channel_count = 4;
-  static const Core::Object<>::Descriptor descriptor;
-  Core::Object<> object;
+  Memory::Dynamic::Vector<Pixel> pixels;
+  Size2D size_pixels;
 };
-
-static_assert(sizeof(Image) == sizeof(U8*));
-static_assert(alignof(Image) == alignof(U8*));
 
 }  // namespace Perimortem::Graphics

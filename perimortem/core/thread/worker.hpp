@@ -50,8 +50,8 @@ class Worker {
   static constexpr auto max_workers() -> Count { return 64; };
 
  private:
-  // pthread_t is an unsigned long on Linux x86_64 (8 bytes, 8 byte aligned).
-  // Validated by static_assert in thread.cpp.
+  // The implementation copies the native thread token into this storage. Its
+  // size is checked there, without aliasing this integer as a pthread object.
   U64 handle = 0;
 };
 

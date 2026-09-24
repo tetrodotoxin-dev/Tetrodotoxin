@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "perimortem/core/perimortem.hpp"
+#include "perimortem/core/data.hpp"
 
 namespace Perimortem::Abi::Memory::Dynamic {
 
@@ -27,7 +27,9 @@ class Bytes {
   Count size;
 };
 
-static_assert(sizeof(Bytes) == sizeof(U8*) + sizeof(Count));
+static_assert(
+    sizeof(Bytes) ==
+    Perimortem::Core::Data::align<alignof(Count)>(sizeof(U8*)) + sizeof(Count));
 static_assert(alignof(Bytes) == alignof(Count));
 static_assert(__is_trivial(Bytes));
 static_assert(__is_standard_layout(Bytes));

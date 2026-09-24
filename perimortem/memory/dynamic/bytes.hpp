@@ -93,7 +93,9 @@ class Bytes {
   Count size = 0;
 };
 
-static_assert(sizeof(Bytes) == sizeof(U8*) + sizeof(Count));
+static_assert(
+    sizeof(Bytes) ==
+    Core::Data::align<alignof(Bytes)>(sizeof(U8*) + sizeof(Count)));
 static_assert(alignof(Bytes) == alignof(Count));
 
 }  // namespace Perimortem::Memory::Dynamic

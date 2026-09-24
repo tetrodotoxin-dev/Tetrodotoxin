@@ -3,7 +3,7 @@
 
 #include "perimortem/serialization/base64.hpp"
 
-#include <x86intrin.h>
+#include <immintrin.h>
 
 #include "perimortem/core/bibliotheca.hpp"
 
@@ -94,7 +94,9 @@ auto vectorized_decode(U8* text, View::Bytes source) -> Count {
   }
 
   // Make sure we start at the end of the buffer space for vectorization.
-  const auto vectorized_chunks = source.get_size() / full_channel_width;
+  // Keep a padded final quartet in the scalar tail. Including it in a full
+  // vector batch would consume more bytes than remain after removing '='.
+  const auto vectorized_chunks = source_bytes / full_channel_width;
   const auto output_vectorized_bytes =
       vectorized_chunks * full_channel_width * output_stride / source_stride;
   const auto source_vectorized_bytes = vectorized_chunks * full_channel_width;
@@ -170,7 +172,7 @@ auto vectorized_decode(U8* text, View::Bytes source) -> Count {
     for (auto ymm = fused_channels - 1; ymm >= 0; ymm--) {
       // Load
       const auto channel_value = _mm256_loadu_si256(
-          Data::cast<const __m256i>(source_data + sizeof(__m256i) * ymm));
+          Data::cast<const __m256i_u>(source_data + sizeof(__m256i) * ymm));
 
       // Bit hacking the lookup index
       const auto shift = _mm256_srli_epi64(channel_value, 4);
@@ -217,7 +219,7 @@ auto vectorized_decode(U8* text, View::Bytes source) -> Count {
       // This aligns the upper bytes without needing _mm256_extractf128_si256,
       // which is super slow.
       _mm256_storeu_si256(
-          (__m256i*)(output_stream + 24 * ymm - upper_lane_underwrite_buffer),
+          (__m256i_u*)(output_stream + 24 * ymm - upper_lane_underwrite_buffer),
           lane_repack);
 
       // Store lower lane directly at the correct position.
@@ -370,7 +372,7 @@ auto vectorize_encode(Access::Bytes output, View::Bytes source) -> void {
       //  32   32   32   32  |  32   32   32   32
       // ____ AAAB BBCC CDDD | EEEF FFGG GHHH ____
       const auto channel_value = _mm256_loadu_si256(
-          Data::cast<const __m256i>(
+          Data::cast<const __m256i_u>(
               source_data - 4 + ymm * input_bytes_per_channel));
 
       const auto chunk_data = _mm256_shuffle_epi8(channel_value, byte_shuffle);
@@ -406,7 +408,7 @@ auto vectorize_encode(Access::Bytes output, View::Bytes source) -> void {
           _mm256_add_epi8(final_bit_values, offset_values), lower_alpha_offset);
 
       _mm256_storeu_si256(
-          Data::cast<__m256i>(output_stream + ymm * output_bytes_per_channel),
+          Data::cast<__m256i_u>(output_stream + ymm * output_bytes_per_channel),
           final_values);
     }
 

@@ -4,8 +4,14 @@
 #include "perimortem/system/random.hpp"
 
 #include <immintrin.h>
+#ifdef __EMSCRIPTEN__
+#include <stdlib.h>
+#include <unistd.h>
+#endif
 
 #include "perimortem/core/data.hpp"
+#include "perimortem/core/diagnostics/log.hpp"
+#include "perimortem/core/null_terminated.hpp"
 
 using namespace Perimortem::Core;
 using namespace Perimortem::System;
@@ -14,23 +20,32 @@ static constexpr Count channel_depth = 4;
 static constexpr Count max_index =
     sizeof(__m256i) / sizeof(U64) * channel_depth;
 
+// Emscripten's SIMD compatibility constructors are ordinary functions. Their
+// immutable constants initialize at startup, while native builds retain the
+// existing constant evaluation path.
+#ifdef __EMSCRIPTEN__
+#define RANDOM_CONSTANT inline const
+#else
+#define RANDOM_CONSTANT constexpr
+#endif
+
 struct PhiloxState {
   static constexpr Count round_count = 10;
 
   // Philox4x32 uses two multiplication constants and advances its key with two
   // Weyl constants after each round. Duplicating those pairs across the AVX2
   // lanes evaluates two independent Philox generators per vector.
-  static constexpr __m256i philox4x32_constants = _mm256_set_epi64x(
+  static RANDOM_CONSTANT __m256i philox4x32_constants = _mm256_set_epi64x(
       S64(0x00000000'D2511F53),
       S64(0x00000000'CD9E8D57),
       S64(0x00000000'D2511F53),
       S64(0x00000000'CD9E8D57));
-  static constexpr __m256i philox4x32_xor_mask = _mm256_set_epi64x(
+  static RANDOM_CONSTANT __m256i philox4x32_xor_mask = _mm256_set_epi64x(
       S64(0xFFFFFFFF'00000000),
       S64(0xFFFFFFFF'00000000),
       S64(0xFFFFFFFF'00000000),
       S64(0xFFFFFFFF'00000000));
-  static constexpr __m256i philox4x32_weyl = _mm256_set_epi64x(
+  static RANDOM_CONSTANT __m256i philox4x32_weyl = _mm256_set_epi64x(
       S64(0x9E2779B9'00000000),
       S64(0xBB67AE85'00000000),
       S64(0x9E2779B9'00000000),
@@ -44,8 +59,17 @@ struct PhiloxState {
   __m256i dual_channel_counter;
   Count index;
 };
+#undef RANDOM_CONSTANT
 
 auto Random::read_entropy() -> U64 {
+#ifdef __EMSCRIPTEN__
+  U64 value;
+  if (getentropy(&value, sizeof(value)) != 0) {
+    Diagnostics::Log::fatal("Unable to obtain runtime seed entropy."_view);
+  }
+
+  return value;
+#else
   U64 value;
   Count timeout = 100000;
   while (!_rdrand64_step(&value) and timeout) {
@@ -60,6 +84,7 @@ auto Random::read_entropy() -> U64 {
   }
 
   return value;
+#endif
 }
 
 // Advances four counter depths for each of the two vectorized Philox channels.

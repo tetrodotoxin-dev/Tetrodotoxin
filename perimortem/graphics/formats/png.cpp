@@ -717,7 +717,7 @@ constexpr auto read_header(const View::Bytes source) -> ImageInfo {
 constexpr auto process_data(
     const ImageInfo info,
     View::Bytes source,
-    View::Bytes palette) -> Image {
+    View::Bytes palette) -> Option<Image> {
   // The exact decompressed size can be derived from the image info so we can
   // use that to preallocate the buffer.
   Count bytes_per_pixel = number_of_color_channels(info.get_color_type());
@@ -727,7 +727,7 @@ constexpr auto process_data(
   Dynamic::Bytes filtered_rows =
       Compression::Deflate::inflate(source, decompressed_capacity);
   if (filtered_rows.is_empty()) [[unlikely]] {
-    return Image();
+    return Option<Image>();
   }
 
   // If the target format is our desired format then we can reconstruct the data
@@ -740,10 +740,11 @@ constexpr auto process_data(
             bytes_per_pixel, pixels.get_access().get_bytes())) [[unlikely]] {
       Diagnostics::Log::error(
           "Png: Filter reconstruction failed. Decompressed data may be truncated"_view);
-      return Image();
+      return Option<Image>();
     }
 
-    return Image(Data::take(pixels), info.get_width(), info.get_height());
+    return Image::create(
+        Size2D(info.get_width(), info.get_height()), Data::take(pixels));
   }
 
   // If we can't construct in place then we have to use a temp buffer to store
@@ -756,7 +757,7 @@ constexpr auto process_data(
           bytes_per_pixel, raw_pixels)) [[unlikely]] {
     Diagnostics::Log::error(
         "Png: Filter reconstruction failed. Decompressed data may be truncated"_view);
-    return Image();
+    return Option<Image>();
   }
 
   // Convert the arbitrary color format into Pixel's RGBA format.
@@ -765,10 +766,11 @@ constexpr auto process_data(
           raw_pixels.get_view(), info.get_width(), info.get_height(),
           info.get_color_type(), palette, pixels)) [[unlikely]] {
     Diagnostics::Log::error("Png: Pixel conversion failed"_view);
-    return Image();
+    return Option<Image>();
   }
 
-  return Image(Data::take(pixels), info.get_width(), info.get_height());
+  return Image::create(
+      Size2D(info.get_width(), info.get_height()), Data::take(pixels));
 }
 
 auto Formats::Png::decode(const View::Bytes source) -> Image {
@@ -825,7 +827,9 @@ auto Formats::Png::decode(const View::Bytes source) -> Image {
     return Image();
   }
 
-  return process_data(info, binary_data, palette);
+  return process_data(info, binary_data, palette).visit(
+      [] { return Image(); },
+      [](Image& image) { return Data::take(image); });
 }
 
 auto Formats::Png::encode(const Image& image) -> Dynamic::Bytes {

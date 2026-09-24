@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "perimortem/core/data.hpp"
+
 namespace Perimortem::Memory::Const {
 
 // Provides a compile time wrapper for a dynamic object.

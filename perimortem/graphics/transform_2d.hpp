@@ -23,7 +23,7 @@ struct Transform2D {
   R64 rotation = 0.0;
 };
 
-static_assert(sizeof(Transform2D) == sizeof(R64) * 5);
+static_assert(sizeof(Transform2D) == sizeof(Point2D) + sizeof(R64) * 3);
 static_assert(__is_standard_layout(Transform2D));
 
 }  // namespace Perimortem::Graphics

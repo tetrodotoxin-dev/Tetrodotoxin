@@ -55,6 +55,18 @@ class Vector {
     return *this;
   };
 
+  constexpr auto operator=(Vector&& rhs) -> Vector& {
+    if (this == &rhs) {
+      return *this;
+    }
+
+    destruct();
+    Core::Data::swap(source_block, rhs.source_block);
+    Core::Data::swap(size, rhs.size);
+    Core::Data::swap(capacity, rhs.capacity);
+    return *this;
+  }
+
   constexpr auto insert(type value) -> type& {
     ensure_capacity(get_size() + 1);
     source_block[size] = static_cast<type&&>(value);
@@ -68,9 +80,12 @@ class Vector {
 
     Count last_index = size - 1;
     if (index != last_index) {
-      Core::Data::swap(source_block[index], source_block[last_index]);
+      source_block[index] = static_cast<type&&>(source_block[last_index]);
     }
 
+    // The array owns every capacity slot until delete[]. Assignment releases
+    // the removed value while keeping that slot alive for later insertion.
+    source_block[last_index] = type();
     size--;
     return True;
   }
@@ -82,16 +97,21 @@ class Vector {
 
     Count last_index = size - 1;
     for (Count shift_index = index; shift_index < last_index; shift_index++) {
-      Core::Data::swap(
-          source_block[shift_index], source_block[shift_index + 1]);
+      source_block[shift_index] =
+          static_cast<type&&>(source_block[shift_index + 1]);
     }
 
+    source_block[last_index] = type();
     size--;
     return True;
   }
 
   constexpr auto resize(Count new_size) -> void {
     ensure_capacity(new_size);
+    for (Count i = new_size; i < size; ++i) {
+      source_block[i] = type();
+    }
+
     size = new_size;
   }
   constexpr auto contains(const type& data) const -> Bool {

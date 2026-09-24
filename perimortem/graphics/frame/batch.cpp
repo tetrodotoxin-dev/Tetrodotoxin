@@ -7,7 +7,7 @@ using namespace Perimortem;
 
 Graphics::Frame::Batch::Batch(
     Program program,
-    Memory::Dynamic::Vector<Resource>&& resources,
+    Memory::Dynamic::Vector<Texture2D>&& resources,
     Memory::Dynamic::Bytes&& inputs,
     Transform transform,
     Size2D size_pixels,
@@ -16,7 +16,7 @@ Graphics::Frame::Batch::Batch(
     S64 z_index,
     Count authored_order)
     : program(program),
-      resources(static_cast<Memory::Dynamic::Vector<Resource>&&>(resources)),
+      resources(static_cast<Memory::Dynamic::Vector<Texture2D>&&>(resources)),
       inputs(static_cast<Memory::Dynamic::Bytes&&>(inputs)),
       transform(transform),
       size_pixels(size_pixels),

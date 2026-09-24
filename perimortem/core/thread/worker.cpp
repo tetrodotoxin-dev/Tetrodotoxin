@@ -15,8 +15,8 @@
 #include "perimortem/core/null_terminated.hpp"
 
 static_assert(
-    sizeof(pthread_t) == sizeof(U64) && alignof(pthread_t) == sizeof(U64),
-    "pthread_t layout differs from U64. Update Thread::handle");
+    sizeof(pthread_t) <= sizeof(U64) && alignof(pthread_t) <= alignof(U64),
+    "pthread_t does not fit the worker token storage");
 
 using namespace Perimortem::Core;
 
@@ -34,8 +34,6 @@ using WorkerJobFunction = Thread::Worker::JobFunction;
 // the safe handoff automatic instead of making every caller remember the
 // lifetime rules.
 class ThreadInitializer {
-  friend Thread::Worker;
-
  public:
   ThreadInitializer(
       View::Bytes requested_name,
@@ -56,12 +54,15 @@ class ThreadInitializer {
     // If for some reason the system fails to create the thread then emit fatal
     // log and exit since we are most likely in a broken state.
     thread_id = reserve_thread();
+    pthread_t thread;
     const auto pthread_result =
-        pthread_create(Data::cast<pthread_t>(&handle), nullptr, dispatch, this);
+        pthread_create(&thread, nullptr, dispatch, this);
     if (pthread_result != 0) {
       release_thread(thread_id);
       Diagnostics::Log::fatal("Thread::Worker failed to create pthread."_view);
     }
+
+    Data::copy(reinterpret_cast<U8*>(&handle), &thread, 1);
 
     // Block until the spawned thread marks itself as initialized.
     // This blocks the host thread until all required data is safely copied.
@@ -74,6 +75,18 @@ class ThreadInitializer {
   // Prevent dumb bugs from accidentally copying a thread initializer.
   ThreadInitializer(const ThreadInitializer&) = delete;
   auto operator=(const ThreadInitializer&) -> ThreadInitializer& = delete;
+
+  static auto get_worker_count() -> Count {
+    pthread_mutex_lock(&mutex);
+
+    Count worker_count = 0;
+    for (Count i = 0; i < thread_occupancy.get_size(); i++) {
+      worker_count += thread_occupancy[i] != 0 ? 1 : 0;
+    }
+
+    pthread_mutex_unlock(&mutex);
+    return worker_count;
+  }
 
  private:
   // Releases the host thread and lets it clean up any data that was loaned to
@@ -103,18 +116,6 @@ class ThreadInitializer {
     pthread_mutex_lock(&mutex);
     thread_occupancy[worker_index] = 0;
     pthread_mutex_unlock(&mutex);
-  }
-
-  static auto get_worker_count() -> Count {
-    pthread_mutex_lock(&mutex);
-
-    Count worker_count = 0;
-    for (Count i = 0; i < thread_occupancy.get_size(); i++) {
-      worker_count += thread_occupancy[i] != 0 ? 1 : 0;
-    }
-
-    pthread_mutex_unlock(&mutex);
-    return worker_count;
   }
 
   static auto copy_thread_bytes(View::Bytes source_bytes) -> View::Bytes {
@@ -230,7 +231,11 @@ auto Thread::Worker::operator=(Worker&& other_worker) -> Worker& {
 
 auto Thread::Worker::join() -> void {
   if (handle) {
-    pthread_join(*Data::cast<pthread_t>(&handle), nullptr);
+    pthread_t thread;
+    Data::copy(
+        reinterpret_cast<U8*>(&thread), reinterpret_cast<const U8*>(&handle),
+        sizeof(thread));
+    pthread_join(thread, nullptr);
     handle = 0;
   }
 }
@@ -245,7 +250,7 @@ auto Thread::Worker::start(
 }
 
 auto Thread::Worker::on_main_thread() -> Bool {
-  return this_thread_name.is_empty();
+  return this_thread_id == Count(-1);
 }
 
 auto Thread::Worker::get_thread_id() -> Count {

@@ -19,7 +19,7 @@
 
 namespace Perimortem::Vulkan {
 
-// Pipelines realizes each generated Program and draw-state pair selected by a
+// Pipelines realizes each generated Program and draw state pair selected by a
 // frame. It caches target resources by shared Image identity plus sampling
 // policy while frame Batches keep exact program selection, fixed state, and
 // parameter bytes.
@@ -46,13 +46,13 @@ class Pipelines {
  private:
   class ImageCacheEntry {
    public:
-    Perimortem::Graphics::Frame::Resource resource;
+    Perimortem::Graphics::Texture2D resource;
     TextureImage image;
   };
 
   class TextureCacheEntry {
    public:
-    Perimortem::Graphics::Frame::Resource resource;
+    Perimortem::Graphics::Texture2D resource;
     Texture texture;
   };
 
@@ -70,8 +70,7 @@ class Pipelines {
   auto validate(
       Perimortem::Core::View::Vector<Perimortem::Graphics::Frame::Batch>
           batches) const -> Bool;
-  auto find_description(const U8* locator) const
-      -> const Description::Program*;
+  auto find_description(const U8* locator) const -> const Description::Program*;
   auto find_realization(
       const U8* locator,
       Perimortem::Graphics::Frame::Pipeline pipeline) -> Realization*;
@@ -79,15 +78,15 @@ class Pipelines {
       const U8* locator,
       Perimortem::Graphics::Frame::Pipeline pipeline) const
       -> const Realization*;
-  auto realize_pipeline(
-      const Perimortem::Graphics::Frame::Batch& batch) -> Realization*;
-  auto find_image(const Perimortem::Graphics::Frame::Resource& resource)
+  auto realize_pipeline(const Perimortem::Graphics::Frame::Batch& batch)
+      -> Realization*;
+  auto find_image(const Perimortem::Graphics::Texture2D& resource)
       -> TextureImage*;
-  auto realize_image(const Perimortem::Graphics::Frame::Resource& resource)
+  auto realize_image(const Perimortem::Graphics::Texture2D& resource)
       -> TextureImage*;
-  auto find_texture(const Perimortem::Graphics::Frame::Resource& resource)
+  auto find_texture(const Perimortem::Graphics::Texture2D& resource)
       -> Texture*;
-  auto realize_texture(const Perimortem::Graphics::Frame::Resource& resource)
+  auto realize_texture(const Perimortem::Graphics::Texture2D& resource)
       -> Texture*;
   auto make_host_inputs(
       const Description::Program& description,

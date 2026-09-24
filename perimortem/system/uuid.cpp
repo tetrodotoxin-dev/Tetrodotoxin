@@ -11,7 +11,7 @@
 using namespace Perimortem::System;
 using namespace Perimortem::Core;
 
-#include <x86intrin.h>
+#include <immintrin.h>
 
 static constexpr S8 null = 0x80;
 
@@ -115,9 +115,9 @@ auto Uuid::deserialize(const Static::Bytes<36>& uuid_string) -> Uuid& {
   // RFC 4122 groups hexadecimal digits in widths of eight, four, four, four,
   // and twelve.
   const auto buffer =
-      _mm256_loadu_si256(Data::cast<const __m256i>(uuid_string.get_data()));
-  const auto offset_buffer =
-      _mm256_loadu_si256(Data::cast<const __m256i>(uuid_string.get_data() + 4));
+      _mm256_loadu_si256(Data::cast<const __m256i_u>(uuid_string.get_data()));
+  const auto offset_buffer = _mm256_loadu_si256(
+      Data::cast<const __m256i_u>(uuid_string.get_data() + 4));
 
   const auto packing_shuffle = _mm256_set_epi8(
       null, null, null, null, 15, 14, 13, 12, 11, 10, 9, 8, 6, 5, 4, 3, null,
@@ -140,7 +140,7 @@ auto Uuid::deserialize(const Static::Bytes<36>& uuid_string) -> Uuid& {
 
 auto Uuid::deserialize(const Static::Bytes<32>& uuid_string) -> Uuid& {
   const auto ascii_buffer =
-      _mm256_loadu_si256(Data::cast<const __m256i>(uuid_string.get_data()));
+      _mm256_loadu_si256(Data::cast<const __m256i_u>(uuid_string.get_data()));
 
   deserialize_ascii(ascii_buffer, this->value);
   return *this;
@@ -172,7 +172,7 @@ auto Uuid::serialize() const -> const Static::Bytes<36> {
   auto dashed_ascii = _mm256_or_si256(spaced_ascii, dashes);
 
   // Stamp as much data as we can.
-  _mm256_storeu_si256(Data::cast<__m256i>(byte_buffer), dashed_ascii);
+  _mm256_storeu_si256(Data::cast<__m256i_u>(byte_buffer), dashed_ascii);
 
   // Stamp the dropped ascii into the output.
   // Since shuffle only works on 128 bit lanes for AVX we need to do a stamp for

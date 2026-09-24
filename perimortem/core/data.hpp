@@ -5,7 +5,13 @@
 
 #include "perimortem/core/perimortem.hpp"
 
-// Provide the blessed memory operations so C++ compilers can properly optimize.
+#ifdef __EMSCRIPTEN__
+// TODO: For WASM just pull in <string.h> directly. It seems like Emscripten
+// doesn't directly provide the symbols or optimizations if we stub them?
+#include <string.h>
+#else
+// Provide the blessed memory operations so C++ compilers can properly optimize
+// while minimizing bloat.
 extern "C" {
 typedef CppSize size_t;
 extern void* memcpy(
@@ -19,6 +25,7 @@ extern int memcmp(const void* a, const void* b, size_t count) noexcept(true);
 
 extern void* memset(void* a, S32 value, size_t count) noexcept(true);
 }  // extern "C"
+#endif
 
 namespace Perimortem::Core::Data {
 

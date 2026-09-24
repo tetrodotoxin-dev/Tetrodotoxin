@@ -7,19 +7,19 @@
 
 #include "perimortem/core/perimortem.hpp"
 
-#include "perimortem/graphics/frame/resource.hpp"
+#include "perimortem/graphics/texture_2d.hpp"
 #include "perimortem/vulkan/context.hpp"
 
 namespace Perimortem::Vulkan {
 
-// TextureImage owns one device-local realization of shared Image content.
+// TextureImage owns one device local realization of shared Image content.
 // Sampling policy does not participate in this identity, so several bindings
 // can reuse the upload.
 class TextureImage {
  public:
   static auto create(
       const Context& context,
-      const Graphics::Frame::Resource& resource) -> TextureImage;
+      const Graphics::Texture2D& resource) -> TextureImage;
 
   TextureImage() = default;
   ~TextureImage();
@@ -45,7 +45,7 @@ class Texture {
  public:
   static auto create(
       const Context& context,
-      const Graphics::Frame::Resource& resource,
+      const Graphics::Texture2D& resource,
       VkImageView image_view,
       VkDescriptorSetLayout descriptor_set_layout) -> Texture;
 

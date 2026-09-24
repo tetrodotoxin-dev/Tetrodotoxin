@@ -11,11 +11,11 @@ namespace Perimortem::Graphics {
 // representation is deliberately plain because the native reference and the
 // generated TTX surface share these two values directly.
 struct Point2D {
-  R64 x = 0.0;
-  R64 y = 0.0;
+  S32 x = 0.0;
+  S32 y = 0.0;
 };
 
-static_assert(sizeof(Point2D) == sizeof(R64) * 2);
+static_assert(sizeof(Point2D) == sizeof(S32) * 2);
 static_assert(__is_standard_layout(Point2D));
 
 }  // namespace Perimortem::Graphics

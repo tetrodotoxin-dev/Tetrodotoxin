@@ -3,7 +3,7 @@
 
 #include "perimortem/compression/lz77.hpp"
 
-#include <x86intrin.h>
+#include <immintrin.h>
 
 #include "perimortem/core/static/bytes.hpp"
 #include "perimortem/core/data.hpp"
@@ -47,16 +47,16 @@ constexpr auto extend_match(
   while (match_length + full_channel_width <= scan_limit) {
     // Load the lower bytes
     const auto lower_source_chunk = _mm256_loadu_si256(
-        Data::cast<const __m256i>(data + position + match_length));
+        Data::cast<const __m256i_u>(data + position + match_length));
     const auto lower_candidate_chunk = _mm256_loadu_si256(
-        Data::cast<const __m256i>(data + candidate + match_length));
+        Data::cast<const __m256i_u>(data + candidate + match_length));
 
     // Load the upper bytes
     const auto upper_source_chunk = _mm256_loadu_si256(
-        Data::cast<const __m256i>(
+        Data::cast<const __m256i_u>(
             data + position + match_length + avx2_channel_width));
     const auto upper_candidate_chunk = _mm256_loadu_si256(
-        Data::cast<const __m256i>(
+        Data::cast<const __m256i_u>(
             data + candidate + match_length + avx2_channel_width));
 
     // Perform two parallel compares and merge the masks on the data dependency.

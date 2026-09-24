@@ -8,7 +8,7 @@
 using namespace Perimortem;
 using namespace Perimortem::Core;
 
-#include <x86intrin.h>
+#include <immintrin.h>
 
 auto Algorithm::search(View::Bytes src, View::Bytes value) -> Count {
   // Fall back to the more optimized value check if the View::Bytes is only a

@@ -6,11 +6,12 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 #ifdef PERI_LINUX
 #include <linux/openat2.h>
-#include <sys/stat.h>
 #include <sys/syscall.h>
-#include <unistd.h>
 #endif
 
 #include "perimortem/core/static/bytes.hpp"
@@ -25,6 +26,76 @@
 using namespace Perimortem::Core;
 using namespace Perimortem::Memory;
 using namespace Perimortem::System;
+
+// Native filesystem access begins at these primitives. An unavailable host
+// refuses acquisition, path mutation, and path observation here, so the same
+// read and write transactions handle that failure without reaching its virtual
+// filesystem. Once acquired, descriptors and streams use the common C runtime.
+#ifdef PERI_LINUX
+static auto open_stream(const char* path, const char* mode) -> FILE* {
+  return fopen(path, mode);
+}
+
+static auto open_directory(const char* path) -> S32 {
+  return ::open(path, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+}
+
+// Opens one member relative to the retained root descriptor. Kernel resolution
+// keeps traversal beneath that root and rejects magic link escapes without
+// reopening the root pathname.
+static auto
+    open_root_member(S32 descriptor, const char* path, U64 flags, U64 mode = 0)
+        -> S32 {
+  open_how policy = {
+    .flags = flags,
+    .mode = mode,
+    .resolve = RESOLVE_BENEATH | RESOLVE_NO_MAGICLINKS,
+  };
+  return S32(syscall(SYS_openat2, descriptor, path, &policy, sizeof(policy)));
+}
+
+static auto replace_path(const char* source, const char* destination) -> S32 {
+  return rename(source, destination);
+}
+
+static auto remove_path(const char* path) -> S32 {
+  return ::remove(path);
+}
+
+static auto inspect_path(const char* path, struct stat64& status) -> S32 {
+  return stat64(path, &status);
+}
+#else
+static auto open_stream(const char*, const char*) -> FILE* {
+  errno = ENOSYS;
+  return nullptr;
+}
+
+static auto open_directory(const char*) -> S32 {
+  errno = ENOSYS;
+  return -1;
+}
+
+static auto open_root_member(S32, const char*, U64, U64 = 0) -> S32 {
+  errno = ENOSYS;
+  return -1;
+}
+
+static auto replace_path(const char*, const char*) -> S32 {
+  errno = ENOSYS;
+  return -1;
+}
+
+static auto remove_path(const char*) -> S32 {
+  errno = ENOSYS;
+  return -1;
+}
+
+static auto inspect_path(const char*, struct stat64&) -> S32 {
+  errno = ENOSYS;
+  return -1;
+}
+#endif
 
 // Bibliotheca can represent byte allocations through the 32 GiB archive.
 // Reject the next radix before it can index beyond that owned range.
@@ -170,8 +241,7 @@ static auto read_file(
   if (items_read != CppSize(size) || ferror(file) != 0) {
     S32 read_error = errno;
     report_file_warning(
-        reporting, operation, path, "content"_view, "errno"_view,
-        read_error);
+        reporting, operation, path, "content"_view, "errno"_view, read_error);
     return False;
   }
 
@@ -218,7 +288,6 @@ static auto close_stream(
   return False;
 }
 
-#ifdef PERI_LINUX
 // Descriptor only operations use the same checked closure rule as streams.
 static auto close_descriptor(
     S32 descriptor,
@@ -250,21 +319,6 @@ static auto close_root_descriptor(S32 descriptor) -> void {
   warning << root_close_operation << " failed. descriptor="_view << descriptor
           << " errno="_view << close_error;
 }
-
-// Opens one member relative to the retained root descriptor. Kernel resolution
-// keeps traversal beneath that root and rejects magic link escapes without
-// reopening the root pathname.
-static auto
-    open_root_member(S32 descriptor, const char* path, U64 flags, U64 mode = 0)
-        -> S32 {
-  open_how policy = {
-    .flags = flags,
-    .mode = mode,
-    .resolve = RESOLVE_BENEATH | RESOLVE_NO_MAGICLINKS,
-  };
-  return S32(syscall(SYS_openat2, descriptor, path, &policy, sizeof(policy)));
-}
-#endif
 
 // Writes one slash normalized path and exactly one final null into caller
 // storage. The returned view excludes the terminator so it retains ordinary
@@ -321,9 +375,9 @@ static auto read_root_member(
     View::Bytes relative_path,
     bytes_type& data,
     File::Fingerprint& fingerprint) -> Bool {
-  // Stage 1: Produce the bounded relative spelling used by kernel resolution.
-  // Empty, rooted, and malformed routes never reach open; the requesting owner
-  // retains the authored path needed to diagnose that failed probe.
+  // Produce the bounded relative spelling used by kernel resolution.
+  // Empty, rooted, and malformed routes never reach open. The requesting
+  // owner retains the authored path needed to diagnose that failed probe.
   Static::Bytes<max_path_size> path_buffer;
   auto path = create_relative_path(path_buffer, relative_path);
   if (!path) {
@@ -332,8 +386,7 @@ static auto read_root_member(
 
   const char* native_path = Data::cast<const char>((*path).get_data());
 
-#ifdef PERI_LINUX
-  // Stage 2: Open the member beneath the retained root capability, then attach
+  // Open the member beneath the retained root capability, then attach
   // a stream to that exact descriptor. No path lookup occurs between them.
   S32 member =
       open_root_member(descriptor, native_path, U64(O_RDONLY | O_CLOEXEC));
@@ -343,27 +396,22 @@ static auto read_root_member(
 
   FILE* file = fdopen(member, "rb");
   if (!file) {
-    close_descriptor(
-        member, {}, relative_path, FailureReporting::Silent);
+    close_descriptor(member, {}, relative_path, FailureReporting::Silent);
     return False;
   }
 
-  // Stage 3: Classify and fill the selected byte owner from the same stream.
+  // Classify and fill the selected byte owner from the same stream.
   // Checked closure completes the transaction even when content already read.
   Bool read = read_file(
       file, data, fingerprint, {}, relative_path, FailureReporting::Silent);
-  Bool closed = close_stream(
-      file, {}, relative_path, FailureReporting::Silent);
+  Bool closed = close_stream(file, {}, relative_path, FailureReporting::Silent);
 
   return read && closed;
-#else
-#error Perimortem does not have a file implementation for this platform.
-#endif
 }
 
 template <typename bytes_type>
 static auto read_file(View::Bytes location, bytes_type& data) -> Bool {
-  // Stage 1: Serialize the caller path into bounded native storage before any
+  // Serialize the caller path into bounded native storage before any
   // filesystem operation begins.
   Static::Bytes<max_path_size> path_buffer;
   auto path = create_path(path_buffer, location);
@@ -374,10 +422,10 @@ static auto read_file(View::Bytes location, bytes_type& data) -> Bool {
     return False;
   }
 
-  // Stage 2: Open the selected path exactly once. Metadata, content, and close
+  // Open the selected path exactly once. Metadata, content, and close
   // below all describe this stream even if the pathname later changes.
   const char* native_path = Data::cast<const char>((*path).get_data());
-  FILE* file = fopen(native_path, "rb");
+  FILE* file = open_stream(native_path, "rb");
   if (!file) {
     S32 open_error = errno;
     log_file_warning(
@@ -385,7 +433,7 @@ static auto read_file(View::Bytes location, bytes_type& data) -> Bool {
     return False;
   }
 
-  // Stage 3: Fill the storage selected by the public overload and include
+  // Fill the storage selected by the public overload and include
   // stream closure in the reported result.
   File::Fingerprint fingerprint;
   Bool read = read_file(
@@ -397,50 +445,8 @@ static auto read_file(View::Bytes location, bytes_type& data) -> Bool {
   return read && closed;
 }
 
-File::Root::Root(S32 descriptor) : descriptor(descriptor) {}
-
-File::Root::Root(Root&& source) : descriptor(source.descriptor) {
-  // Root uniquely owns the retained directory capability. Disable the source
-  // immediately so only the destination can close it.
-  source.descriptor = -1;
-}
-
-auto File::Root::operator=(Root&& source) -> Root& {
-  if (this == &source) {
-    return *this;
-  }
-
-  // Release the current capability before adopting the source descriptor.
-#ifdef PERI_LINUX
-  if (descriptor >= 0) {
-    close_root_descriptor(descriptor);
-  }
-#else
-#error Perimortem does not have a file implementation for this platform.
-#endif
-
-  descriptor = source.descriptor;
-  source.descriptor = -1;
-  return *this;
-}
-
-File::Root::~Root() {
-#ifdef PERI_LINUX
-  if (descriptor < 0) {
-    return;
-  }
-
-  // Root has no failure channel during destruction, so closure reports through
-  // the diagnostic path reserved for retained descriptors.
-  close_root_descriptor(descriptor);
-  descriptor = -1;
-#else
-#error Perimortem does not have a file implementation for this platform.
-#endif
-}
-
 auto File::Root::open(View::Bytes location) -> Option<Root> {
-  // Stage 1: Materialize one bounded root path. Root does not retain this
+  // Materialize one bounded root path. Root does not retain this
   // spelling after the directory is opened.
   Static::Bytes<max_path_size> path_buffer;
   auto path = create_path(path_buffer, location);
@@ -450,18 +456,14 @@ auto File::Root::open(View::Bytes location) -> Option<Root> {
 
   const char* native_path = Data::cast<const char>((*path).get_data());
 
-#ifdef PERI_LINUX
-  // Stage 2: Retain the directory itself as the capability used by every
+  // Retain the directory itself as the capability used by every
   // future member operation.
-  S32 descriptor = ::open(native_path, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+  S32 descriptor = open_directory(native_path);
   if (descriptor < 0) {
     return {};
   }
 
   return Option<Root>(Root(descriptor));
-#else
-#error Perimortem does not have a file implementation for this platform.
-#endif
 }
 
 auto File::Root::read(View::Bytes relative_path) const
@@ -499,22 +501,18 @@ auto File::Root::fingerprint(View::Bytes relative_path) const
 
   const char* native_path = Data::cast<const char>((*path).get_data());
 
-#ifdef PERI_LINUX
   S32 member =
       open_root_member(descriptor, native_path, U64(O_RDONLY | O_CLOEXEC));
   if (member < 0) {
     return {};
   }
 
-  auto selected = get_file_fingerprint(
-      member, {}, relative_path, FailureReporting::Silent);
-  Bool closed = close_descriptor(
-      member, {}, relative_path, FailureReporting::Silent);
+  auto selected =
+      get_file_fingerprint(member, {}, relative_path, FailureReporting::Silent);
+  Bool closed =
+      close_descriptor(member, {}, relative_path, FailureReporting::Silent);
 
   return closed ? selected : Option<File::Fingerprint>();
-#else
-#error Perimortem does not have a file implementation for this platform.
-#endif
 }
 
 auto File::Root::read(Allocator::Arena& arena, View::Bytes relative_path) const
@@ -533,7 +531,7 @@ auto File::Root::read(Allocator::Arena& arena, View::Bytes relative_path) const
 
 auto File::Root::write(View::Bytes data, View::Bytes relative_path) const
     -> Bool {
-  // Stage 1: Reject any route that cannot be expressed as a confined relative
+  // Reject any route that cannot be expressed as a confined relative
   // member before asking the kernel to resolve it.
   Static::Bytes<max_path_size> path_buffer;
   auto path = create_relative_path(path_buffer, relative_path);
@@ -546,8 +544,7 @@ auto File::Root::write(View::Bytes data, View::Bytes relative_path) const
 
   const char* native_path = Data::cast<const char>((*path).get_data());
 
-#ifdef PERI_LINUX
-  // Stage 2: Create or replace the member beneath the retained root and attach
+  // Create or replace the member beneath the retained root and attach
   // a stream to that exact descriptor.
   constexpr U64 create_mode =
       S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
@@ -569,25 +566,21 @@ auto File::Root::write(View::Bytes data, View::Bytes relative_path) const
         root_write_operation, relative_path, "stream"_view, "errno"_view,
         stream_error);
     close_descriptor(
-        member, root_write_operation, relative_path,
-        FailureReporting::Warning);
+        member, root_write_operation, relative_path, FailureReporting::Warning);
     return False;
   }
 
-  // Stage 3: Write the complete caller view and include stream closure in the
+  // Write the complete caller view and include stream closure in the
   // transaction result.
   Bool written = write_file(file, data, root_write_operation, relative_path);
   Bool closed = close_stream(
       file, root_write_operation, relative_path, FailureReporting::Warning);
 
   return written && closed;
-#else
-#error Perimortem does not have a file implementation for this platform.
-#endif
 }
 
 auto File::Root::remove(View::Bytes relative_path) const -> Bool {
-  // Stage 1: Normalize the confined route and locate its final member name.
+  // Normalize the confined route and locate its final member name.
   Static::Bytes<max_path_size> path_buffer;
   auto path = create_relative_path(path_buffer, relative_path);
   if (!path) {
@@ -603,8 +596,7 @@ auto File::Root::remove(View::Bytes relative_path) const -> Bool {
 
   const char* native_path = Data::cast<const char>((*path).get_data());
 
-#ifdef PERI_LINUX
-  // Stage 2: For a nested route, retain its containing directory beneath the
+  // For a nested route, retain its containing directory beneath the
   // root. The final unlink is then relative to an already resolved parent.
   S32 parent = descriptor;
   Bool close_parent = False;
@@ -619,27 +611,23 @@ auto File::Root::remove(View::Bytes relative_path) const -> Bool {
     close_parent = True;
   }
 
-  // Stage 3: Remove only the final member and close any temporary parent
+  // Remove only the final member and close any temporary parent
   // capability before reporting success.
   const char* member_path = native_path + member_offset;
   S32 removed = unlinkat(parent, member_path, 0);
 
   Bool parent_closed = True;
   if (close_parent) {
-    parent_closed =
-        close_descriptor(
-            parent, root_remove_operation, relative_path,
-            FailureReporting::Warning);
+    parent_closed = close_descriptor(
+        parent, root_remove_operation, relative_path,
+        FailureReporting::Warning);
   }
 
   return removed == 0 && parent_closed;
-#else
-#error Perimortem does not have a file implementation for this platform.
-#endif
 }
 
 auto File::Root::exists(View::Bytes relative_path) const -> Bool {
-  // Stage 1: Reject malformed or rooted input before confined resolution.
+  // Reject malformed or rooted input before confined resolution.
   Static::Bytes<max_path_size> path_buffer;
   auto path = create_relative_path(path_buffer, relative_path);
   if (!path) {
@@ -648,8 +636,7 @@ auto File::Root::exists(View::Bytes relative_path) const -> Bool {
 
   const char* native_path = Data::cast<const char>((*path).get_data());
 
-#ifdef PERI_LINUX
-  // Stage 2: Pin the member without opening its content, classify that same
+  // Pin the member without opening its content, classify that same
   // descriptor, then include closure in the answer.
   S32 member =
       open_root_member(descriptor, native_path, U64(O_PATH | O_CLOEXEC));
@@ -662,13 +649,9 @@ auto File::Root::exists(View::Bytes relative_path) const -> Bool {
   Bool regular = status_read == 0 && S_ISREG(status.st_mode);
 
   Bool closed = close_descriptor(
-      member, root_exists_operation, relative_path,
-      FailureReporting::Warning);
+      member, root_exists_operation, relative_path, FailureReporting::Warning);
 
   return regular && closed;
-#else
-#error Perimortem does not have a file implementation for this platform.
-#endif
 }
 
 auto File::read(View::Bytes location) -> Option<Dynamic::Bytes> {
@@ -695,7 +678,7 @@ auto File::read(Allocator::Arena& arena, View::Bytes location)
 }
 
 auto File::write(View::Bytes data, View::Bytes location) -> Bool {
-  // Stage 1: Serialize the caller path into bounded native storage.
+  // Serialize the caller path into bounded native storage.
   Static::Bytes<max_path_size> path_buffer;
   auto path = create_path(path_buffer, location);
   if (!path) {
@@ -707,9 +690,9 @@ auto File::write(View::Bytes data, View::Bytes location) -> Bool {
 
   const char* native_path = Data::cast<const char>((*path).get_data());
 
-  // Stage 2: Open once for replacement, write through that stream, then treat
+  // Open once for replacement, write through that stream, then treat
   // closure as part of the operation result.
-  FILE* file = fopen(native_path, "wb");
+  FILE* file = open_stream(native_path, "wb");
   if (!file) {
     S32 open_error = errno;
     log_file_warning(
@@ -740,7 +723,7 @@ auto File::replace(View::Bytes source, View::Bytes destination) -> Bool {
   const char* native_source = Data::cast<const char>(source_path->get_data());
   const char* native_destination =
       Data::cast<const char>(destination_path->get_data());
-  S32 replaced = rename(native_source, native_destination);
+  S32 replaced = replace_path(native_source, native_destination);
   if (replaced == 0) {
     return True;
   }
@@ -760,7 +743,7 @@ auto File::remove(View::Bytes location) -> Bool {
   }
 
   const char* native_path = Data::cast<const char>((*path).get_data());
-  S32 removed = ::remove(native_path);
+  S32 removed = remove_path(native_path);
   return removed == 0;
 }
 
@@ -773,11 +756,41 @@ auto File::exists(View::Bytes location) -> Bool {
 
   const char* native_path = Data::cast<const char>((*path).get_data());
 
-#ifdef PERI_LINUX
   struct stat64 status;
-  S32 status_read = stat64(native_path, &status);
+  S32 status_read = inspect_path(native_path, status);
   return status_read == 0 && Bool(status.st_mode & S_IFREG);
-#else
-#error Perimortem does not have a file implementation for this platform.
-#endif
+}
+
+File::Root::Root(S32 descriptor) : descriptor(descriptor) {}
+
+File::Root::Root(Root&& source) : descriptor(source.descriptor) {
+  // Root uniquely owns the retained directory capability. Disable the source
+  // immediately so only the destination can close it.
+  source.descriptor = -1;
+}
+
+auto File::Root::operator=(Root&& source) -> Root& {
+  if (this == &source) {
+    return *this;
+  }
+
+  // Release the current capability before adopting the source descriptor.
+  if (descriptor >= 0) {
+    close_root_descriptor(descriptor);
+  }
+
+  descriptor = source.descriptor;
+  source.descriptor = -1;
+  return *this;
+}
+
+File::Root::~Root() {
+  if (descriptor < 0) {
+    return;
+  }
+
+  // Root has no failure channel during destruction, so closure reports through
+  // the diagnostic path reserved for retained descriptors.
+  close_root_descriptor(descriptor);
+  descriptor = -1;
 }

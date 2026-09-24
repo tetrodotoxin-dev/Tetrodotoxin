@@ -5,16 +5,15 @@
 
 #include "perimortem/core/view/bytes.hpp"
 #include "perimortem/core/view/vector.hpp"
-#include "perimortem/core/object.hpp"
 
 #include "perimortem/memory/dynamic/bytes.hpp"
 #include "perimortem/memory/dynamic/vector.hpp"
 
 #include "perimortem/graphics/frame/pipeline.hpp"
 #include "perimortem/graphics/frame/program.hpp"
-#include "perimortem/graphics/frame/resource.hpp"
 #include "perimortem/graphics/frame/transform.hpp"
 #include "perimortem/graphics/size_2d.hpp"
+#include "perimortem/graphics/texture_2d.hpp"
 
 namespace Perimortem::Graphics::Frame {
 
@@ -27,7 +26,7 @@ class Batch {
 
   Batch(
       Program program,
-      Memory::Dynamic::Vector<Resource>&& resources,
+      Memory::Dynamic::Vector<Texture2D>&& resources,
       Memory::Dynamic::Bytes&& inputs,
       Transform transform,
       Size2D size_pixels,
@@ -37,7 +36,7 @@ class Batch {
       Count authored_order);
 
   constexpr auto get_program() const -> Program { return program; }
-  constexpr auto get_resources() const -> Core::View::Vector<Resource> {
+  constexpr auto get_resources() const -> Core::View::Vector<Texture2D> {
     return resources.get_view();
   }
   auto get_inputs() const -> Core::View::Bytes;
@@ -54,7 +53,7 @@ class Batch {
 
  private:
   Program program;
-  Memory::Dynamic::Vector<Resource> resources;
+  Memory::Dynamic::Vector<Texture2D> resources;
   Memory::Dynamic::Bytes inputs;
   Transform transform;
   Size2D size_pixels;

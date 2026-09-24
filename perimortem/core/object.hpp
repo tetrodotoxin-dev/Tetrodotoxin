@@ -185,7 +185,8 @@ static_assert(alignof(Object<>) == alignof(U8*));
 static_assert(__is_trivially_copyable(Object<>));
 static_assert(
     sizeof(Object<>::Descriptor) ==
-    sizeof(Count) * 2 + sizeof(Object<>::Finalizer));
+    Data::align<alignof(Object<>::Descriptor)>(
+        sizeof(Count) * 2 + sizeof(Object<>::Finalizer)));
 static_assert(alignof(Object<>::Descriptor) == alignof(Count));
 static_assert(__is_standard_layout(Object<>::Descriptor));
 static_assert(sizeof(Object<U8>) == sizeof(Object<>));

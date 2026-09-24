@@ -3,6 +3,10 @@
 
 #include "perimortem/core/bibliotheca.hpp"
 
+#ifdef __EMSCRIPTEN__
+#include <stdlib.h>
+#endif
+
 #ifdef PERI_LINUX
 #include <sys/mman.h>
 #endif
@@ -20,7 +24,7 @@ constexpr auto log2_pre_shift(U64 value) -> U64 {
 }
 
 // If Count is 64 bits then limit us to some level below the 256 TB limits.
-// 64 GB blocks is the current upper limit.
+// The upper radix is exclusive so the largest block holds 32 GiB.
 static constexpr U8 max_radix = sizeof(Count) * 8 > 32 ? 36 : sizeof(Count) * 8;
 static constexpr U8 min_radix = log2_pre_shift(64);
 static constexpr Count min_size = (1 << min_radix);
@@ -37,7 +41,31 @@ class alignas(64) Slab {
   // chunking based on Bibliotheca access patterns.
   static constexpr Count allocator_size = (megabytes_2 << 4) + megabytes_2;
   static auto get(Count block_size) -> Slab* {
-#ifdef PERI_LINUX
+#ifdef __EMSCRIPTEN__
+    // Browser linear memory has no page mapping contract. Retain the slab
+    // allocator above an aligned allocation so its chunk ownership is shared
+    // with the native path without emulating virtual memory operations.
+    const auto size = Data::align<64>(
+        block_size > allocator_size ? block_size : allocator_size);
+    // Count still describes 64 bit quantities on Wasm32. Reject an allocation
+    // that would narrow at the allocator boundary instead of renting a smaller
+    // block and recording the original capacity.
+    if (size > Count(CppSize(-1))) [[unlikely]] {
+      Diagnostics::Log::fatal("Requested slab exceeds the address space."_view);
+    }
+
+    // The Bibliotheca requires 64 byte aligned memory which Wasm32 doesn't
+    // guarantee so we need to use aligned_alloc explicitly.
+    auto* slab = static_cast<Slab*>(aligned_alloc(64, size));
+    if (!slab) [[unlikely]] {
+      Diagnostics::Log::fatal("Unable to allocate a runtime slab."_view);
+    }
+
+    slab->mapped_size = size;
+    slab->ancestor = nullptr;
+    slab->bump_ptr = sizeof(Slab);
+    return slab;
+#elif defined(PERI_LINUX)
     auto size = allocator_size;
 
     // If we need a specificly large slab then grab one but make sure it falls
@@ -80,7 +108,12 @@ class alignas(64) Slab {
   }
 
   static auto release(Slab* slab) -> Bool {
-#ifdef PERI_LINUX
+#ifdef __EMSCRIPTEN__
+    // Wasm32 doesn't need any special processing of it's blocks since they just
+    // wrap regular alloc.
+    free(slab);
+    return True;
+#elif defined(PERI_LINUX)
     auto success = munmap(slab, slab->mapped_size);
     if (success != 0) {
       Diagnostics::Log::error(
@@ -295,6 +328,11 @@ auto Bibliotheca::check_out(Count requested_bytes) -> Allocation {
 
   // Caculate the archive information for the request.
   const Count archive_bucket = calculate_archive_bucket(requested_bytes);
+  if (archive_bucket >= max_radix) [[unlikely]] {
+    Diagnostics::Log::fatal(
+        "Requested allocation exceeds Bibliotheca's size classes."_view);
+  }
+
   const Count actual_bytes =
       archive_page_width(archive_bucket) + sizeof(Preface);
   const Count archive_index = archive_bucket - min_radix;
