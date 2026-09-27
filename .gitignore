@@ -9,6 +9,7 @@ MODULE.bazel.lock
 # LSP Client
 extension/package-lock.json
 extension/puffer
+extension/libperimortem*.so
 extension/packages/
 extension/ttx-lang-server
 extension/tsconfig.tsbuildinfo
@@ -32,3 +33,4 @@ AGENTS.md
 puffer/lsp/__pycache__/*
 extension/lldb/__pycache__/*
 .vscode/*.vsix
+.bazelrc.local

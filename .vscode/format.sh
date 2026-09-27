@@ -10,8 +10,8 @@ format_ttx() {
     return
   fi
 
-  bazel build //puffer:puffer >/dev/null
-  .bin/bin/puffer/puffer -format "$@"
+  bazel build //source/puffer:puffer >/dev/null
+  .bin/bin/source/puffer/puffer -format "$@"
 }
 
 if (($# > 0)); then

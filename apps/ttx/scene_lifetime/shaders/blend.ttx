@@ -9,7 +9,7 @@ public Math : alias = package(.name = "Perimortem.Math", .version = "1.0");
 public Graphics : alias = package(.name = "Perimortem.Graphics", .version = "1.0");
 implements package(.name = "Perimortem.Graphics", .version = "1.0")::Pipeline::TexturedQuad2D;
 
-public noise : resource read Graphics::Texture2D -> Graphics::Texture2D;
+public noise : resource read Photophore::Texture2D -> Photophore::Texture2D;
 public time_milliseconds : uniform U32 = new[U32];
 
 Shader vertex[

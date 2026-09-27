@@ -1,15 +1,16 @@
 # # Tetrodotoxin
 # Copyright (c) 2023-present Matt Kaes and contributors
 
-"Bazel file for building Perimortem"
+"Bazel file for building TTX and Tetrodotoxin"
 
 module(
-    name = "perimortem",
+    name = "tetrodotoxin",
     version = "0.0.1",
 )
 
 bazel_dep(name = "rules_cc", version = "0.2.17")
 bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "rules_pkg", version = "1.3.0")
 
 # LLVM is a backend implementation SDK rather than the repository's C++
 # toolchain.  Keeping it as an ordinary repository dependency prevents its
@@ -21,6 +22,44 @@ llvm_sdk_repository = use_repo_rule(
 
 llvm_sdk_repository(name = "llvm_22_1_8")
 
-register_toolchains(
-    "//toolchain:cc_toolchain_for_linux_x86_64",
+# Target headers belong to the consumer's compiler configuration. Importing
+# the Perimortem binary SDK does not register or download another compiler.
+
+bazel_dep(name = "tetro_toolchain", version = "0.1.0")
+archive_override(
+    module_name = "tetro_toolchain",
+    sha256 = "c34c2230660426abefb7344305969b72ebb7cfe119e9adeaaa81d5533c7cd1f5",
+    urls = ["https://github.com/tetrodotoxin-dev/Toolchain/releases/download/v0.1.0/tetro_toolchain-0.1.0-source.tar.gz"],
 )
+
+register_toolchains("@tetro_toolchain//:cc_toolchain_for_linux_x86_64", "@tetro_toolchain//:cc_toolchain_for_wasm32", "@tetro_toolchain//:cc_toolchain_for_windows_x64")
+
+sdks = use_extension("@tetro_toolchain//:sdk.bzl", "dependencies")
+sdks.release(
+    name = "perimortem",
+    archives = {
+        "linux-x86_64-v3": "6c64132eebb13ef8db2458f77c3885c9cf1e0a6ff4ef72826397de53277510b3",
+        "wasm32-emscripten": "0f04ee2af8c803e96b893430ea5215e448d79c41ef28d7c286086c9536330878",
+    },
+    project = "Perimortem",
+    version = "0.1.0",
+    deps = [],
+)
+sdks.release(
+    name = "ttx",
+    archives = {
+        "linux-x86_64-v3": "930c5a1c770a841f9a04bc41264942373c70076805634e0cba8a5021d010e2a8",
+        "wasm32-emscripten": "d5daa90ee9bddbb2b89a39ccd27bd6593eee667a3fae17ec45928694577cffcc",
+    },
+    project = "TTX",
+    version = "0.1.0",
+    deps = ["@perimortem"],
+)
+sdks.release(
+    name = "photophore",
+    archives = {"linux-x86_64-v3": "f7e082d7e9030da7aa4a94866add24dcb9c34381387e4bbbd01e1adddf46adcf"},
+    project = "Photophore",
+    version = "0.1.0",
+    deps = ["@perimortem"],
+)
+use_repo(sdks, "perimortem", "photophore", "ttx")
