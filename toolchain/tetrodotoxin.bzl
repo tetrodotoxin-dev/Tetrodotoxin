@@ -74,7 +74,7 @@ _ttx_source = rule(
         ),
         "source_tree": attr.label_list(allow_files = True),
         "_compiler": attr.label(
-            default = "//puffer:puffer",
+            default = "//source/puffer:puffer",
             executable = True,
             cfg = "exec",
         ),

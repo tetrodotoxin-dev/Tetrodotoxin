@@ -18,12 +18,7 @@ public Texture2D : alias = source("texture2d.ttx")::Texture2D;
 public Sprite : alias = source("sprite.ttx")::Sprite;
 public DrawableUI : alias = source("sprite.ttx")::DrawableUI;
 public TexturedQuad2DMaterial : alias = source("shaders/textured_2d.ttx")::Material;
-private PNGSource : alias = source("png.ttx");
 private PipelineSource : alias = source("pipelines/textured_2d.ttx");
-
-public Format : namespace {
-  public PNG : alias = PNGSource::PNG;
-}
 
 public Pipeline : namespace {
   public TexturedQuad2D : alias = PipelineSource;

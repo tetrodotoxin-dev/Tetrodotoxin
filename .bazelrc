@@ -1,37 +1,14 @@
-#option-defaults
-common --symlink_prefix=./.bin/
-common --spawn_strategy=standalone
+common --symlink_prefix=.bin/
 run --run_in_cwd
-# Base Linux settings — applied to every build regardless of configuration.
-# compilation_mode=dbg makes bare `bazel build` a debug-mode build by default;
-# -g is intentionally absent here so the stripping warning cannot fire when
-# --config=release is used (Bazel only checks explicit --copt=-g, not toolchain
-# features, for that warning).
-build --compilation_mode=dbg
-build --copt=-fdiagnostics-color=always
-build --copt=-DPERI_LINUX
 build --copt=-DPERI_EDITOR
-
-# Mirror platform defines for exec-config tools (e.g. the TTX compiler)
-# so perimortem compiles correctly when built as a host tool dependency.
-build --host_copt=-DPERI_LINUX
-build --host_copt=-DPERI_DEBUG
-
-# Linux Debug
-build:debug --compilation_mode=dbg
-build:debug --copt=-g
-build:debug --copt=-O0
+build --compilation_mode=dbg
 build:debug --copt=-DPERI_DEBUG
-
-# Linux Release — ThinLTO, native tuning, stripped.
-# Usage: bazel build --config=release //...
 build:release --compilation_mode=opt
-build:release --copt=-g0
-build:release --copt=-O3
-build:release --copt=-march=native
-build:release --copt=-UPERI_DEBUG
 build:release --copt=-DPERI_RELEASE
-build:release --copt=-flto=thin
-build:release --linkopt=-flto=thin
-build:release --linkopt=-fuse-ld=lld
 build:release --strip=always
+
+build:web --platforms=@tetro_toolchain//:wasm32
+
+build:windows --platforms=@tetro_toolchain//:windows_x64
+build:linux --platforms=@tetro_toolchain//:linux_x86_64
+try-import %workspace%/.bazelrc.local

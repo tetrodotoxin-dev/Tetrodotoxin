@@ -13,20 +13,20 @@ private const hold_time : R64 = 1.5;
 
 signal finished;
 private state elapsed : R64 = 0.0;
-private state icons : Fixed[Graphics::Sprite, 2];
+private state icons : Fixed[Photophore::Sprite, 2];
 private state shared_material : Material;
 
 Scene prepare[self] -> [] {
   state image   := Graphics::Format::PNG -> decode(.bytes = $[../resources/icon.png] ->
       get_view())!;
-  state texture : Graphics::Texture2D = (
+  state texture : Photophore::Texture2D = (
     .image = image,
-    .sampler = new[Graphics::Sampler2D],
+    .sampler = new[Photophore::Sampler2D],
   );
   state size    := image.size;
   state offset  : R64 = 0.0;
   self.elapsed = 0.0;
-  for [.icon : Graphics::Sprite] in self.icons {
+  for [.icon : Photophore::Sprite] in self.icons {
     state position : Graphics::Point2D = (
       .x = 190.0 + offset,
       .y = 240.0 + offset,

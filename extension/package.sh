@@ -14,7 +14,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 VSIX_DIR="$REPO_ROOT/.vscode"
-SERVER_BIN="$REPO_ROOT/.bin/bin/puffer/puffer"
 PACKAGE_SERVER="$SCRIPT_DIR/puffer"
 PACKAGE_GRAPHICS_ROOT="$SCRIPT_DIR/packages/Perimortem.Graphics"
 PACKAGE_MATH_ROOT="$SCRIPT_DIR/packages/Perimortem.Math"
@@ -43,20 +42,21 @@ fi
 echo "==> Building the Puffer SDK and standard Packages (release)..."
 cd "$REPO_ROOT"
 bazel build --config=release \
-  //puffer:puffer \
+  //:sdk \
   //packages/ttx:perimortem_graphics \
   //packages/ttx:perimortem_math \
   //packages/ttx:perimortem_memory \
   //packages/ttx:perimortem_system
 
-if [ ! -x "$SERVER_BIN" ]; then
-  echo "Expected server binary was not created: $SERVER_BIN" >&2
+SERVER_ARCHIVE=$(bazel cquery --config=release //:sdk --output=files)
+if [ ! -f "$SERVER_ARCHIVE" ]; then
+  echo "Expected server archive was not created: $SERVER_ARCHIVE" >&2
   exit 1
 fi
 
 echo "==> Copying latest language server into extension package..."
-rm -f "$PACKAGE_SERVER" "$SCRIPT_DIR/ttx-lang-server"
-cp -L "$SERVER_BIN" "$PACKAGE_SERVER"
+rm -f "$PACKAGE_SERVER" "$SCRIPT_DIR/ttx-lang-server" "$SCRIPT_DIR"/libperimortem*.so
+tar -xf "$SERVER_ARCHIVE" -C "$SCRIPT_DIR"
 chmod 755 "$PACKAGE_SERVER"
 
 echo "==> Copying versioned standard Package sources, resources, and products..."
