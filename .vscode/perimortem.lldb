@@ -1,5 +1,0 @@
-command script import .vscode/lldb_scripts/avx2.py
-command script import .vscode/lldb_scripts/data_types.py
-command script import .vscode/lldb_scripts/json.py
-command script import .vscode/lldb_scripts/graphics_types.py
-command script import .vscode/lldb_scripts/system_types.py

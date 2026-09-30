@@ -1,0 +1,94 @@
+load("@tetro_toolchain//:validation.bzl", "test")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load("@tetro_toolchain//:library.bzl", "LINUX", "WINDOWS", "exports")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
+
+package(default_testonly = True)
+
+filegroup(name = "sources", srcs = glob(["**"]), testonly = False, visibility = ["//visibility:public"])
+
+test(
+    name = "test",
+    srcs = [
+        "dialects/source/anchor.cpp",
+        "dialects/source/stream.cpp",
+        "source_protocol.c",
+        "source_protocol.h",
+        "dialects/source/associations.cpp",
+        "dialects/source/formatter.cpp",
+        "dialects/source/tokenizer.cpp",
+    ],
+    deps = ["//:tetrodotoxin"],
+    size = "small",
+)
+
+cc_test(
+    name = "consumer",
+    srcs = ["consumer.cpp", "consumer.c", "consumer.h"],
+    args = ["$(rootpath //:build)"],
+    data = ["//:build"],
+    deps = ["//:headers"],
+    size = "small",
+    linkopts = select({LINUX: ["-Wl,-rpath,$ORIGIN"], "//conditions:default": []}),
+)
+
+cc_library(name = "export_impl", srcs = ["export.cpp"], local_defines = ["CATALOG_SECOND=0"], deps = ["//:headers", "//source/dialects/build:headers"])
+exports(name = "export_symbols", library = ":export_impl")
+cc_shared_library(
+    name = "export_module",
+    deps = [":export_impl"],
+    shared_lib_name = select({WINDOWS: "source_export.dll", "//conditions:default": "libsource_export.so"}),
+    tags = ["__DONT_DEPEND_ON_DEF_PARSER__"],
+    win_def_file = select({WINDOWS: ":export_symbols", "//conditions:default": None}),
+)
+cc_library(name = "second_export_impl", srcs = ["export.cpp"], local_defines = ["CATALOG_SECOND=1"], deps = ["//:headers", "//source/dialects/build:headers"])
+exports(name = "second_export_symbols", library = ":second_export_impl")
+cc_shared_library(
+    name = "second_export_module",
+    deps = [":second_export_impl"],
+    shared_lib_name = select({WINDOWS: "second_source_export.dll", "//conditions:default": "libsecond_source_export.so"}),
+    tags = ["__DONT_DEPEND_ON_DEF_PARSER__"],
+    win_def_file = select({WINDOWS: ":second_export_symbols", "//conditions:default": None}),
+)
+cc_test(
+    name = "puffer",
+    srcs = ["puffer.cpp"],
+    args = [
+        "$(rootpath //source/puffer:puffer)",
+        "$(rootpath //source/dialects/build:module)",
+        "$(rootpath //:build)",
+        "$(rootpath :dialects/source/example.ttx)",
+        "$(rootpath :export_module)",
+        "$(rootpath :second_export_module)",
+        "$(rootpath :dialects/source/invalid.ttx)",
+        "$(rootpath :unretained_module)",
+    ],
+    data = ["//source/puffer:puffer", "//source/dialects/build:module", "//:build", ":export_module", ":second_export_module", ":unretained_module", "dialects/source/example.ttx", "dialects/source/invalid.ttx"],
+    deps = ["@tetro_toolchain//source/validation:process", "@perimortem"],
+    size = "small",
+)
+
+cc_library(name = "unretained_impl", srcs = ["unretained.cpp"], deps = ["@ttx"])
+exports(name = "unretained_symbols", library = ":unretained_impl")
+cc_shared_library(
+    name = "unretained_module",
+    deps = [":unretained_impl"],
+    shared_lib_name = select({WINDOWS: "unretained.dll", "//conditions:default": "libunretained.so"}),
+    tags = ["__DONT_DEPEND_ON_DEF_PARSER__"],
+    win_def_file = select({WINDOWS: ":unretained_symbols", "//conditions:default": None}),
+)
+
+cc_test(
+    name = "workspace",
+    srcs = ["workspace.cpp"],
+    args = [
+        "$(rootpath //source/dialects/build:module)",
+        "$(rootpath //:build)",
+        "$(rootpath :export_module)",
+        "$(rootpath :dialects/source/example.ttx)",
+    ],
+    data = ["//source/dialects/build:module", "//:build", ":export_module", "dialects/source/example.ttx"],
+    deps = ["//:headers", "//source/dialects/build:headers"],
+    size = "small",
+)

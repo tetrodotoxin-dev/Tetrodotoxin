@@ -1,0 +1,14 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@tetro_toolchain//:library.bzl", "LINUX", "WEB")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_binary(
+    name = "puffer",
+    srcs = ["main.cpp"],
+    deps = ["//source/dialects/build:headers"],
+    linkopts = select({LINUX: ["-Wl,-rpath,$ORIGIN"], "//conditions:default": []}),
+    target_compatible_with = select({WEB: ["@platforms//:incompatible"], "//conditions:default": []}),
+)
+
+filegroup(name = "sources", srcs = glob(["**"]))

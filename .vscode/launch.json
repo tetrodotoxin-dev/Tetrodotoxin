@@ -2,157 +2,393 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "[Tests] Perimortem (Linux)",
+      "name": "Source tests (Linux)",
       "type": "lldb",
       "request": "launch",
-      "terminal": "integrated",
-      "program": "${workspaceFolder}/.bin/bin/validation/unit_tests",
+      "program": "${workspaceFolder}/.bin/bin/tests/test",
       "args": [],
       "cwd": "${workspaceFolder}",
-      "sourceLanguages": [
-        "tetrodotoxin"
-      ],
-      // Why are you like this VSCode???
-      "sourceMap": {
-        "/proc/self/cwd/external/": "${workspaceFolder}/.bin/Perimortem/external/",
-        "/proc/self/cwd/": "${workspaceFolder}"
+      "preLaunchTask": "Tests: prepare debug",
+      "presentation": {
+        "group": "Tests",
+        "order": 0,
+        "hidden": false
       },
-      "initCommands": [
-        "command source '${workspaceFolder}/.vscode/perimortem.lldb'"
-      ],
-      "preLaunchTask": "Validation Unit Tests Build (Linux) [Debug]",
-      "presentation": {
-        "clear": true
-      }
-    },
-    {
-      "name": "[Tests] Perimortem Release (Linux)",
-      "type": "lldb",
-      "request": "launch",
-      "terminal": "integrated",
-      "program": "${workspaceFolder}/.bin/bin/validation/unit_tests",
-      "args": [],
-      "cwd": "${workspaceFolder}",
-      "sourceLanguages": [
-        "tetrodotoxin"
-      ],
-      // Why are you like this VSCode???
-      "sourceMap": {
-        "/proc/self/cwd/external/": "${workspaceFolder}/.bin/Perimortem/external/",
-        "/proc/self/cwd/": "${workspaceFolder}"
+      "env": {
+        "TEST_TMPDIR": "${workspaceFolder}/.bin/debug/test"
       },
-      "initCommands": [
-        "command source '${workspaceFolder}/.vscode/perimortem.lldb'"
-      ],
-      "preLaunchTask": "Validation Unit Tests Build (Linux) [Release]",
-      "presentation": {
-        "clear": true
-      }
-    },
-    {
-      "name": "[Benchmarks] Run All (Linux)",
-      "type": "lldb",
-      "request": "launch",
       "terminal": "integrated",
-      "program": "${workspaceFolder}/.bin/bin/validation/benchmarks",
-      "args": [],
-      "cwd": "${workspaceFolder}",
-      // Why are you like this VSCode???
       "sourceMap": {
-        "/proc/self/cwd/external/": "${workspaceFolder}/.bin/Perimortem/external/",
-        "/proc/self/cwd/": "${workspaceFolder}"
+        "/proc/self/cwd/external/": "${workspaceFolder}/.bin/${workspaceFolderBasename}/external/",
+        "/proc/self/cwd/bazel-out/": "${workspaceFolder}/.bin/out/",
+        "/proc/self/cwd/": "${workspaceFolder}/"
       },
-      "initCommands": [
-        "command source '${workspaceFolder}/.vscode/perimortem.lldb'"
-      ],
-      "preLaunchTask": "Validation Benchmarks Build (Linux) [Release]",
-      "presentation": {
-        "clear": true
+      "relativePathBase": "${workspaceFolder}",
+      "windows": {
+        "presentation": {
+          "hidden": true
+        }
       }
     },
     {
-      "name": "[TTX] Runtime Validation (Linux)",
+      "name": "Consumer (Linux)",
       "type": "lldb",
       "request": "launch",
-      "terminal": "integrated",
-      "program": "${workspaceFolder}/.bin/bin/validation/unit_tests",
-      "args": [],
-      "cwd": "${workspaceFolder}",
-      "sourceLanguages": [
-        "tetrodotoxin"
-      ],
-      "initCommands": [
-        "command script import '${workspaceFolder}/extension/lldb/tetrodotoxin.py'"
-      ],
-      "preLaunchTask": "TTX LLVM Debug Validation Build (Linux)",
-      "presentation": {
-        "clear": true
-      }
-    },
-    {
-      "name": "[TTX] Launch Echo (Linux)",
-      "type": "lldb",
-      "request": "launch",
-      "terminal": "integrated",
-      "program": "${workspaceFolder}/.bin/bin/apps/ttx/echo/echo",
-      "args": [],
-      "cwd": "${workspaceFolder}",
-      "sourceLanguages": [
-        "tetrodotoxin"
-      ],
-      // Why are you like this VSCode???
-      "sourceMap": {
-        "/proc/self/cwd/external/": "${workspaceFolder}/.bin/Perimortem/external/",
-        "/proc/self/cwd/": "${workspaceFolder}"
-      },
-      "initCommands": [
-        "command source '${workspaceFolder}/.vscode/perimortem.lldb'",
-        "command script import '${workspaceFolder}/extension/lldb/tetrodotoxin.py'"
-      ],
-      "preLaunchTask": "TTX Echo Build (Linux) [Debug]",
-      "presentation": {
-        "clear": true
-      }
-    },
-    {
-      "name": "[TTX] Launch Scene Lifetime (Linux)",
-      "type": "lldb",
-      "request": "launch",
-      "terminal": "integrated",
-      "program": "${workspaceFolder}/.bin/bin/apps/ttx/scene_lifetime/scene_lifetime",
-      "args": [],
-      "cwd": "${workspaceFolder}",
-      "sourceLanguages": [
-        "tetrodotoxin"
-      ],
-      // Why are you like this VSCode???
-      "sourceMap": {
-        "/proc/self/cwd/external/": "${workspaceFolder}/.bin/Perimortem/external/",
-        "/proc/self/cwd/": "${workspaceFolder}"
-      },
-      "initCommands": [
-        "command source '${workspaceFolder}/.vscode/perimortem.lldb'",
-        "command script import '${workspaceFolder}/extension/lldb/tetrodotoxin.py'"
-      ],
-      "preLaunchTask": "TTX Scene Lifetime Build (Linux) [Debug]",
-      "presentation": {
-        "clear": true
-      }
-    },
-    {
-      "name": "[Lsp] Launch TTX client",
-      "type": "extensionHost",
-      "request": "launch",
-      "runtimeExecutable": "${execPath}",
+      "program": "${workspaceFolder}/.bin/bin/tests/consumer",
       "args": [
-        "${workspaceFolder}",
-        "--extensionDevelopmentPath=${workspaceFolder}/extension/"
+        "${workspaceFolder}/.bin/bin/libtetrodotoxin.so"
       ],
-      "outFiles": [
-        "${workspaceFolder}/extension/out/**/*.js"
-      ],
-      "autoAttachChildProcesses": true,
-      "preLaunchTask": "TTX Lsp Build",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Tests: prepare debug",
+      "presentation": {
+        "group": "Tests",
+        "order": 1,
+        "hidden": true
+      },
+      "env": {
+        "TEST_TMPDIR": "${workspaceFolder}/.bin/debug/consumer"
+      },
+      "terminal": "integrated",
+      "sourceMap": {
+        "/proc/self/cwd/external/": "${workspaceFolder}/.bin/${workspaceFolderBasename}/external/",
+        "/proc/self/cwd/bazel-out/": "${workspaceFolder}/.bin/out/",
+        "/proc/self/cwd/": "${workspaceFolder}/"
+      },
+      "relativePathBase": "${workspaceFolder}",
+      "windows": {
+        "presentation": {
+          "hidden": true
+        }
+      }
     },
+    {
+      "name": "Workspace (Linux)",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/.bin/bin/tests/workspace",
+      "args": [
+        "${workspaceFolder}/.bin/bin/source/dialects/build/libtetrodotoxin_build.so",
+        "${workspaceFolder}/.bin/bin/libtetrodotoxin.so",
+        "${workspaceFolder}/.bin/bin/tests/libsource_export.so",
+        "${workspaceFolder}/tests/dialects/source/example.ttx"
+      ],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Tests: prepare debug",
+      "presentation": {
+        "group": "Tests",
+        "order": 2,
+        "hidden": true
+      },
+      "env": {
+        "TEST_TMPDIR": "${workspaceFolder}/.bin/debug/workspace"
+      },
+      "terminal": "integrated",
+      "sourceMap": {
+        "/proc/self/cwd/external/": "${workspaceFolder}/.bin/${workspaceFolderBasename}/external/",
+        "/proc/self/cwd/bazel-out/": "${workspaceFolder}/.bin/out/",
+        "/proc/self/cwd/": "${workspaceFolder}/"
+      },
+      "relativePathBase": "${workspaceFolder}",
+      "windows": {
+        "presentation": {
+          "hidden": true
+        }
+      }
+    },
+    {
+      "name": "Puffer tests (Linux)",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/.bin/bin/tests/puffer",
+      "args": [
+        "${workspaceFolder}/.bin/bin/source/puffer/puffer",
+        "${workspaceFolder}/.bin/bin/source/dialects/build/libtetrodotoxin_build.so",
+        "${workspaceFolder}/.bin/bin/libtetrodotoxin.so",
+        "${workspaceFolder}/tests/dialects/source/example.ttx",
+        "${workspaceFolder}/.bin/bin/tests/libsource_export.so",
+        "${workspaceFolder}/.bin/bin/tests/libsecond_source_export.so",
+        "${workspaceFolder}/tests/dialects/source/invalid.ttx",
+        "${workspaceFolder}/.bin/bin/tests/libunretained.so"
+      ],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Tests: prepare debug",
+      "presentation": {
+        "group": "Tests",
+        "order": 3,
+        "hidden": true
+      },
+      "env": {
+        "TEST_TMPDIR": "${workspaceFolder}/.bin/debug/puffer"
+      },
+      "terminal": "integrated",
+      "sourceMap": {
+        "/proc/self/cwd/external/": "${workspaceFolder}/.bin/${workspaceFolderBasename}/external/",
+        "/proc/self/cwd/bazel-out/": "${workspaceFolder}/.bin/out/",
+        "/proc/self/cwd/": "${workspaceFolder}/"
+      },
+      "relativePathBase": "${workspaceFolder}",
+      "windows": {
+        "presentation": {
+          "hidden": true
+        }
+      }
+    },
+    {
+      "name": "Puffer (Linux)",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/.bin/bin/source/puffer/puffer",
+      "args": [
+        "${workspaceFolder}/.bin/bin/source/dialects/build/libtetrodotoxin_build.so",
+        "--module",
+        "source",
+        "${workspaceFolder}/.bin/bin/libtetrodotoxin.so",
+        "--module",
+        "first",
+        "${workspaceFolder}/.bin/bin/tests/libsource_export.so",
+        "--module",
+        "second",
+        "${workspaceFolder}/.bin/bin/tests/libsecond_source_export.so",
+        "--source",
+        "main",
+        "${workspaceFolder}/tests/dialects/source/example.ttx",
+        "source",
+        "--source",
+        "support",
+        "${workspaceFolder}/tests/dialects/source/example.ttx",
+        "source",
+        "--output",
+        "${workspaceFolder}/.bin/debug/pipeline"
+      ],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Tests: prepare debug",
+      "presentation": {
+        "group": "Puffer",
+        "order": 4,
+        "hidden": true
+      },
+      "env": {
+        "TEST_TMPDIR": "${workspaceFolder}/.bin/debug/pipeline"
+      },
+      "terminal": "integrated",
+      "sourceMap": {
+        "/proc/self/cwd/external/": "${workspaceFolder}/.bin/${workspaceFolderBasename}/external/",
+        "/proc/self/cwd/bazel-out/": "${workspaceFolder}/.bin/out/",
+        "/proc/self/cwd/": "${workspaceFolder}/"
+      },
+      "relativePathBase": "${workspaceFolder}",
+      "windows": {
+        "presentation": {
+          "hidden": true
+        }
+      }
+    },
+    {
+      "name": "Source tests (Windows)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/.bin/bin/tests/test.exe",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Tests: prepare debug",
+      "presentation": {
+        "group": "Tests",
+        "order": 0,
+        "hidden": true
+      },
+      "environment": [
+        {
+          "name": "TEST_TMPDIR",
+          "value": "${workspaceFolder}/.bin/debug/test"
+        }
+      ],
+      "console": "integratedTerminal",
+      "sourceFileMap": {
+        "/proc/self/cwd/external/": "${workspaceFolder}/.bin/${workspaceFolderBasename}/external/",
+        "/proc/self/cwd/bazel-out/": "${workspaceFolder}/.bin/out/",
+        "/proc/self/cwd/": "${workspaceFolder}/"
+      },
+      "symbolSearchPath": "${workspaceFolder}/.bin/bin;${workspaceFolder}/.bin/bin/tests;${workspaceFolder}/.bin/bin/source/puffer;${workspaceFolder}/.bin/bin/source/dialects/build",
+      "windows": {
+        "presentation": {
+          "group": "Tests",
+          "order": 0,
+          "hidden": false
+        }
+      }
+    },
+    {
+      "name": "Consumer (Windows)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/.bin/bin/tests/consumer.exe",
+      "args": [
+        "${workspaceFolder}/.bin/bin/tetrodotoxin.dll"
+      ],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Tests: prepare debug",
+      "presentation": {
+        "group": "Tests",
+        "order": 1,
+        "hidden": true
+      },
+      "environment": [
+        {
+          "name": "TEST_TMPDIR",
+          "value": "${workspaceFolder}/.bin/debug/consumer"
+        }
+      ],
+      "console": "integratedTerminal",
+      "sourceFileMap": {
+        "/proc/self/cwd/external/": "${workspaceFolder}/.bin/${workspaceFolderBasename}/external/",
+        "/proc/self/cwd/bazel-out/": "${workspaceFolder}/.bin/out/",
+        "/proc/self/cwd/": "${workspaceFolder}/"
+      },
+      "symbolSearchPath": "${workspaceFolder}/.bin/bin;${workspaceFolder}/.bin/bin/tests;${workspaceFolder}/.bin/bin/source/puffer;${workspaceFolder}/.bin/bin/source/dialects/build",
+      "windows": {
+        "presentation": {
+          "group": "Tests",
+          "order": 1,
+          "hidden": true
+        }
+      }
+    },
+    {
+      "name": "Workspace (Windows)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/.bin/bin/tests/workspace.exe",
+      "args": [
+        "${workspaceFolder}/.bin/bin/source/dialects/build/tetrodotoxin_build.dll",
+        "${workspaceFolder}/.bin/bin/tetrodotoxin.dll",
+        "${workspaceFolder}/.bin/bin/tests/source_export.dll",
+        "${workspaceFolder}/tests/dialects/source/example.ttx"
+      ],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Tests: prepare debug",
+      "presentation": {
+        "group": "Tests",
+        "order": 2,
+        "hidden": true
+      },
+      "environment": [
+        {
+          "name": "TEST_TMPDIR",
+          "value": "${workspaceFolder}/.bin/debug/workspace"
+        }
+      ],
+      "console": "integratedTerminal",
+      "sourceFileMap": {
+        "/proc/self/cwd/external/": "${workspaceFolder}/.bin/${workspaceFolderBasename}/external/",
+        "/proc/self/cwd/bazel-out/": "${workspaceFolder}/.bin/out/",
+        "/proc/self/cwd/": "${workspaceFolder}/"
+      },
+      "symbolSearchPath": "${workspaceFolder}/.bin/bin;${workspaceFolder}/.bin/bin/tests;${workspaceFolder}/.bin/bin/source/puffer;${workspaceFolder}/.bin/bin/source/dialects/build",
+      "windows": {
+        "presentation": {
+          "group": "Tests",
+          "order": 2,
+          "hidden": true
+        }
+      }
+    },
+    {
+      "name": "Puffer tests (Windows)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/.bin/bin/tests/puffer.exe",
+      "args": [
+        "${workspaceFolder}/.bin/bin/source/puffer/puffer.exe",
+        "${workspaceFolder}/.bin/bin/source/dialects/build/tetrodotoxin_build.dll",
+        "${workspaceFolder}/.bin/bin/tetrodotoxin.dll",
+        "${workspaceFolder}/tests/dialects/source/example.ttx",
+        "${workspaceFolder}/.bin/bin/tests/source_export.dll",
+        "${workspaceFolder}/.bin/bin/tests/second_source_export.dll",
+        "${workspaceFolder}/tests/dialects/source/invalid.ttx",
+        "${workspaceFolder}/.bin/bin/tests/unretained.dll"
+      ],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Tests: prepare debug",
+      "presentation": {
+        "group": "Tests",
+        "order": 3,
+        "hidden": true
+      },
+      "environment": [
+        {
+          "name": "TEST_TMPDIR",
+          "value": "${workspaceFolder}/.bin/debug/puffer"
+        }
+      ],
+      "console": "integratedTerminal",
+      "sourceFileMap": {
+        "/proc/self/cwd/external/": "${workspaceFolder}/.bin/${workspaceFolderBasename}/external/",
+        "/proc/self/cwd/bazel-out/": "${workspaceFolder}/.bin/out/",
+        "/proc/self/cwd/": "${workspaceFolder}/"
+      },
+      "symbolSearchPath": "${workspaceFolder}/.bin/bin;${workspaceFolder}/.bin/bin/tests;${workspaceFolder}/.bin/bin/source/puffer;${workspaceFolder}/.bin/bin/source/dialects/build",
+      "windows": {
+        "presentation": {
+          "group": "Tests",
+          "order": 3,
+          "hidden": true
+        }
+      }
+    },
+    {
+      "name": "Puffer (Windows)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/.bin/bin/source/puffer/puffer.exe",
+      "args": [
+        "${workspaceFolder}/.bin/bin/source/dialects/build/tetrodotoxin_build.dll",
+        "--module",
+        "source",
+        "${workspaceFolder}/.bin/bin/tetrodotoxin.dll",
+        "--module",
+        "first",
+        "${workspaceFolder}/.bin/bin/tests/source_export.dll",
+        "--module",
+        "second",
+        "${workspaceFolder}/.bin/bin/tests/second_source_export.dll",
+        "--source",
+        "main",
+        "${workspaceFolder}/tests/dialects/source/example.ttx",
+        "source",
+        "--source",
+        "support",
+        "${workspaceFolder}/tests/dialects/source/example.ttx",
+        "source",
+        "--output",
+        "${workspaceFolder}/.bin/debug/pipeline"
+      ],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Tests: prepare debug",
+      "presentation": {
+        "group": "Puffer",
+        "order": 4,
+        "hidden": true
+      },
+      "environment": [
+        {
+          "name": "TEST_TMPDIR",
+          "value": "${workspaceFolder}/.bin/debug/pipeline"
+        }
+      ],
+      "console": "integratedTerminal",
+      "sourceFileMap": {
+        "/proc/self/cwd/external/": "${workspaceFolder}/.bin/${workspaceFolderBasename}/external/",
+        "/proc/self/cwd/bazel-out/": "${workspaceFolder}/.bin/out/",
+        "/proc/self/cwd/": "${workspaceFolder}/"
+      },
+      "symbolSearchPath": "${workspaceFolder}/.bin/bin;${workspaceFolder}/.bin/bin/tests;${workspaceFolder}/.bin/bin/source/puffer;${workspaceFolder}/.bin/bin/source/dialects/build",
+      "windows": {
+        "presentation": {
+          "group": "Puffer",
+          "order": 4,
+          "hidden": true
+        }
+      }
+    }
   ]
 }

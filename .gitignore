@@ -1,33 +1,7 @@
-# Perimortem .gitignore config
-
-# Buildsystem
-.bin/*
-.reference/*
+.bin/
+.bazelrc.local
 MODULE.bazel.lock
-
-# LSP Client
-extension/package-lock.json
-extension/puffer
-extension/packages/
-extension/ttx-lang-server
-extension/tsconfig.tsbuildinfo
-extension/*.vsix
-extension/out/*
-extension/node_modules/*
-
-# Agent tooling
 .agents/
 .codex/
 .claude/
-
-# Profiling
-perf.*
-
-# Testing locally.
-.scratch/*
-build_trace.data
-perimortem_*.log
 AGENTS.md
-puffer/lsp/__pycache__/*
-extension/lldb/__pycache__/*
-.vscode/*.vsix

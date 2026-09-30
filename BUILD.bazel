@@ -1,0 +1,80 @@
+# # Tetrodotoxin
+# Copyright (c) 2023-present Matt Kaes and contributors
+
+load("@rules_cc//cc:cc_import.bzl", "cc_import")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
+load("@tetro_toolchain//:library.bzl", "LINUX", "WINDOWS", "exports")
+load("//build:release.bzl", "sdk_release")
+
+package(default_visibility = ["//visibility:public"])
+
+filegroup(
+    name = "public_headers",
+    srcs = glob(["source/dialects/source/**/*.h", "source/dialects/source/**/*.hpp"]),
+)
+
+cc_library(
+    name = "headers",
+    hdrs = [":public_headers"],
+    strip_include_prefix = "source",
+    include_prefix = "tetrodotoxin",
+    deps = ["@ttx", "@perimortem"],
+)
+
+cc_library(
+    name = "implementation",
+    srcs = [
+        "source/dialects/source/associations.cpp",
+        "source/dialects/source/representation.cpp",
+        "source/dialects/source/dialect.cpp",
+        "source/dialects/source/module.cpp",
+        "source/dialects/source/code.cpp",
+        "source/dialects/source/errors.cpp",
+        "source/dialects/source/formatter.cpp",
+        "source/dialects/source/lexicon.cpp",
+        "source/dialects/source/tokenizer.cpp",
+    ],
+    deps = [":headers"],
+    visibility = ["//visibility:private"],
+)
+
+exports(name = "exports", library = ":implementation", visibility = ["//visibility:private"])
+
+cc_shared_library(
+    name = "build",
+    deps = [":implementation"],
+    shared_lib_name = select({WINDOWS: "tetrodotoxin.dll", "//conditions:default": "libtetrodotoxin.so"}),
+    tags = ["__DONT_DEPEND_ON_DEF_PARSER__"],
+    win_def_file = select({WINDOWS: ":exports", "//conditions:default": None}),
+    user_link_flags = select({LINUX: ["-Wl,-z,defs", "-Wl,-soname,libtetrodotoxin.so", "-Wl,-rpath,$ORIGIN"], "//conditions:default": []}),
+)
+
+filegroup(name = "interface", srcs = [":build"], output_group = "interface_library")
+
+cc_import(
+    name = "tetrodotoxin",
+    shared_library = ":build",
+    interface_library = select({WINDOWS: ":interface", "//conditions:default": None}),
+    deps = [":headers"],
+)
+
+filegroup(
+    name = "sources",
+    srcs = glob(["source/**"]) + [
+        "BUILD.bazel", "MODULE.bazel", "LICENSE", ".bazelrc", ".bazelversion",
+        ".clang-format", ".gitignore", ".gitattributes",
+        ".vscode/tasks.json", ".vscode/launch.json", ".vscode/extensions.json",
+        ".vscode/prepare_debug.py", ".vscode/README.md",
+        "README.md", "PHILOSOPHY.md", "CONTRIBUTING.md", "SDK.md", "DEVELOPMENT.md",
+        "//source/puffer:sources", "//source/dialects/build:sources", "//tests:sources", "//build:sources",
+    ],
+)
+
+filegroup(name = "release_headers", srcs = [":public_headers", "//source/dialects/build:public_headers"])
+sdk_release(
+    name = "sdk",
+    headers = ":release_headers",
+    libraries = [":build", "//source/dialects/build:module"],
+    sources = ":sources",
+)

@@ -1,0 +1,26 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
+load("@tetro_toolchain//:library.bzl", "LINUX", "WINDOWS", "WEB", "exports")
+
+package(default_visibility = ["//visibility:public"])
+filegroup(name = "public_headers", srcs = glob(["*.h", "*.hpp"]))
+cc_library(
+    name = "headers",
+    hdrs = [":public_headers"],
+    strip_include_prefix = "/source",
+    include_prefix = "tetrodotoxin",
+    deps = ["@ttx", "@perimortem"],
+)
+cc_library(name = "implementation", srcs = glob(["*.cpp"]), deps = [":headers", "//:headers"], visibility = ["//visibility:private"])
+exports(name = "exports", library = ":implementation")
+cc_shared_library(
+    name = "module",
+    deps = [":implementation"],
+    shared_lib_name = select({WINDOWS: "tetrodotoxin_build.dll", "//conditions:default": "libtetrodotoxin_build.so"}),
+    tags = ["__DONT_DEPEND_ON_DEF_PARSER__"],
+    win_def_file = select({WINDOWS: ":exports", "//conditions:default": None}),
+    user_link_flags = select({LINUX: ["-Wl,-z,defs", "-Wl,-soname,libtetrodotoxin_build.so", "-Wl,-rpath,$ORIGIN"], "//conditions:default": []}),
+    target_compatible_with = select({WEB: ["@platforms//:incompatible"], "//conditions:default": []}),
+)
+filegroup(name = "sources", srcs = glob(["**"]))
+filegroup(name = "interface", srcs = [":module"], output_group = "interface_library")

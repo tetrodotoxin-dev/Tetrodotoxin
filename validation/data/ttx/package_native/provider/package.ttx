@@ -1,8 +1,0 @@
-/// Tetrodotoxin
-/// Copyright (c) 2023-present Matt Kaes and contributors
-//
-// Native Package provider.
-dialect : Package;
-package(.name = "Validation.Provider", .version = "1.0");
-
-public Api : alias = source("api.ttx");

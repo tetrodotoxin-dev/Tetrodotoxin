@@ -1,26 +1,43 @@
-# # Tetrodotoxin
-# Copyright (c) 2023-present Matt Kaes and contributors
-
-"Bazel file for building Perimortem"
-
-module(
-    name = "perimortem",
-    version = "0.0.1",
-)
+module(name = "tetrodotoxin", version = "0.2.0")
 
 bazel_dep(name = "rules_cc", version = "0.2.17")
 bazel_dep(name = "platforms", version = "1.0.0")
-
-# LLVM is a backend implementation SDK rather than the repository's C++
-# toolchain.  Keeping it as an ordinary repository dependency prevents its
-# headers and flags from becoming ambient inputs to unrelated compile actions.
-llvm_sdk_repository = use_repo_rule(
-    "//toolchain/llvm:repository.bzl",
-    "llvm_sdk_repository",
+bazel_dep(name = "rules_pkg", version = "1.3.0")
+bazel_dep(name = "tetro_toolchain", version = "0.2.1")
+archive_override(
+    module_name = "tetro_toolchain",
+    urls = ["https://github.com/tetrodotoxin-dev/Toolchain/releases/download/v0.2.1/tetro_toolchain-0.2.1-source.tar.gz"],
+    sha256 = "eea7461fb783d2b87a638c4ce1c8d9cbee73e54c90259516ca73cd7e850bdc0f",
 )
-
-llvm_sdk_repository(name = "llvm_22_1_8")
 
 register_toolchains(
-    "//toolchain:cc_toolchain_for_linux_x86_64",
+    "@tetro_toolchain//:cc_toolchain_for_linux_x86_64",
+    "@tetro_toolchain//:cc_toolchain_for_windows_x64",
+    "@tetro_toolchain//:cc_toolchain_for_wasm32",
 )
+
+sdks = use_extension("@tetro_toolchain//:sdk.bzl", "dependencies")
+sdks.release(
+    name = "perimortem",
+    project = "Perimortem",
+    version = "0.1.0",
+    archives = {
+        "headers": "2bb19a82ceb2dd06a122fb51142e96fd13d52fd5ed323b8a662cb640082636ed",
+        "linux-x86_64-v3": "f62c3b71c9c5f554467c9dc03237073fc34d670fa596aa9cd99972dabfb2e653",
+        "windows-x86_64-msvc": "543763f2a684bc410e264f60115a13cc92b20ae12ae25a9c5294c685f9d06d94",
+        "wasm32-emscripten": "7c33f010c47932503f3ef8dcbddf3e4520a34b9e0bac70514a0cb38117400c42",
+    },
+)
+sdks.release(
+    name = "ttx",
+    project = "TTX",
+    version = "0.2.0",
+    deps = ["@perimortem"],
+    archives = {
+        "headers": "b29fc0774de7631a94042a9fc0f08e8a537366b380403d714133ee014bdaedfa",
+        "linux-x86_64-v3": "0214ef3b44b52ec10c1c112d62feb4656771f0d8886303756ec47b847e3489cb",
+        "windows-x86_64-msvc": "2058106e0a0458f6ed322b9288ad0ed6f3d57f550b64bc7c342e6bbc526a8346",
+        "wasm32-emscripten": "997213f7564763ca5a496804d62b41b494515ae8a6adee91739b5bd64d7ee699",
+    },
+)
+use_repo(sdks, "perimortem", "ttx")

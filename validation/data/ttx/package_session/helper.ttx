@@ -1,7 +1,0 @@
-/// Tetrodotoxin
-/// Copyright (c) 2023-present Matt Kaes and contributors
-//
-// Cross-source helper.
-dialect : Library;
-
-public prefix : func = [] -> View[U8] : return "Echo: " -> get_view();

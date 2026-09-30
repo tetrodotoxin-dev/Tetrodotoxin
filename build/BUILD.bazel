@@ -1,0 +1,4 @@
+package(default_visibility = ["//visibility:public"])
+exports_files(["release.bzl", "checksums.py"])
+exports_files(["licenses/TTX-LICENSE", "licenses/Perimortem-LICENSE"])
+filegroup(name = "sources", srcs = glob(["**"]))

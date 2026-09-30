@@ -1,7 +1,0 @@
-/// Tetrodotoxin
-/// Copyright (c) 2023-present Matt Kaes and contributors
-//
-dialect : Library;
-
-public duplicate : U64 = 1;
-public duplicate : U64 = 2;

@@ -1,142 +1,180 @@
 {
-  // See https://go.microsoft.com/fwlink/?LinkId=733558
-  // for the documentation about the tasks.json format
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Validation Unit Tests Build (Linux) [Debug]",
-      "type": "shell",
+      "label": "Tests: build debug",
+      "type": "process",
       "command": "bazel",
+      "args": [
+        "build",
+        "//tests:all",
+        "--config=debug",
+        "--config=linux"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
       "problemMatcher": [
         "$gcc"
       ],
-      "args": [
-        "build",
-        "//validation:unit_tests",
-        "--config=debug"
-      ],
+      "windows": {
+        "args": [
+          "build",
+          "//tests:all",
+          "--config=debug",
+          "--config=windows",
+          "--features=generate_pdb_file"
+        ],
+        "problemMatcher": [
+          "$msCompile"
+        ]
+      },
       "group": {
         "kind": "build",
         "isDefault": true
       },
-      "detail": "Builds the complete validation unit-test binary.",
-      "presentation": {
-        "clear": true
-      }
-    },
-    {
-      "label": "Validation Unit Tests Build (Linux) [Release]",
-      "type": "shell",
-      "command": "bazel",
-      "problemMatcher": [
-        "$gcc"
-      ],
-      "args": [
-        "build",
-        "//validation:unit_tests",
-        "--config=release"
-      ],
-      "group": "build",
-      "detail": "Builds the release validation unit-test binary.",
-      "presentation": {
-        "clear": true
-      }
-    },
-    {
-      "label": "Validation Benchmarks Build (Linux) [Release]",
-      "type": "shell",
-      "command": "bazel",
-      "problemMatcher": [
-        "$gcc"
-      ],
-      "args": [
-        "build",
-        "//validation:benchmarks",
-        "--config=release"
-      ],
-      "group": "build",
-      "detail": "Builds the release validation benchmark binary.",
-      "presentation": {
-        "clear": true
-      }
-    },
-    {
-      "label": "TTX LLVM Debug Validation Build (Linux)",
-      "type": "shell",
-      "command": "bazel",
-      "problemMatcher": [
-        "$gcc"
-      ],
-      "args": [
-        "build",
-        "//validation:unit_tests",
-        "--config=debug",
-        "--experimental_total_worker_memory_limit_mb=4096"
-      ],
-      "group": "build",
-      "detail": "Builds the validation binary with full DWARF for its TTX runtime integration.",
-      "presentation": {
-        "clear": true
-      }
-    },
-    {
-      "label": "TTX Echo Build (Linux) [Debug]",
-      "type": "shell",
-      "command": "bazel",
-      "problemMatcher": [
-        "$gcc"
-      ],
-      "args": [
-        "build",
-        "//apps/ttx/echo:echo",
-        "--config=debug",
-        "--experimental_total_worker_memory_limit_mb=4096"
-      ],
-      "group": "build",
-      "detail": "Builds the pure TTX Echo application with full source debug information.",
-      "presentation": {
-        "clear": true
-      }
-    },
-    {
-      "label": "TTX Scene Lifetime Build (Linux) [Debug]",
-      "type": "shell",
-      "command": "bazel",
-      "problemMatcher": [
-        "$gcc"
-      ],
-      "args": [
-        "build",
-        "//apps/ttx/scene_lifetime:scene_lifetime",
-        "--config=debug",
-        "--experimental_total_worker_memory_limit_mb=4096"
-      ],
-      "group": "build",
-      "detail": "Builds the TTX Scene Lifetime application with full source debug information.",
-      "presentation": {
-        "clear": true
-      }
-    },
-    {
-      "label": "TTX Lsp Build",
-      "type": "shell",
-      "command": "${workspaceFolder}/extension/package.sh",
-      "args": [
-        "--sync"
-      ],
-      "group": "build",
-      "detail": "Builds Puffer, synchronizes the packaged server, and compiles the extension.",
       "presentation": {
         "clear": true,
-        "panel": "dedicated",
-        "reveal": "never"
-      },
-      "problemMatcher": [
-        "$tsc"
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Tests: build release",
+      "type": "process",
+      "command": "bazel",
+      "args": [
+        "build",
+        "//tests:all",
+        "--config=release",
+        "--config=linux"
       ],
       "options": {
         "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "windows": {
+        "args": [
+          "build",
+          "//tests:all",
+          "--config=release",
+          "--config=windows"
+        ],
+        "problemMatcher": [
+          "$msCompile"
+        ]
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "clear": true,
+        "panel": "shared"
       }
+    },
+    {
+      "label": "Tests: run debug",
+      "type": "process",
+      "command": "bazel",
+      "args": [
+        "test",
+        "//tests:all",
+        "--config=debug",
+        "--test_output=errors",
+        "--config=linux"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "windows": {
+        "args": [
+          "test",
+          "//tests:all",
+          "--config=debug",
+          "--test_output=errors",
+          "--config=windows",
+          "--features=generate_pdb_file"
+        ],
+        "problemMatcher": [
+          "$msCompile"
+        ]
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "clear": true,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Tests: run release",
+      "type": "process",
+      "command": "bazel",
+      "args": [
+        "test",
+        "//tests:all",
+        "--config=release",
+        "--test_output=errors",
+        "--config=linux"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "windows": {
+        "args": [
+          "test",
+          "//tests:all",
+          "--config=release",
+          "--test_output=errors",
+          "--config=windows"
+        ],
+        "problemMatcher": [
+          "$msCompile"
+        ]
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "presentation": {
+        "clear": true,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Tests: debug folders",
+      "type": "process",
+      "command": "python3",
+      "args": [
+        "${workspaceFolder}/.vscode/prepare_debug.py"
+      ],
+      "windows": {
+        "command": "python"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Tests: prepare debug",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Tests: build debug",
+        "Tests: debug folders"
+      ],
+      "problemMatcher": []
     }
   ]
 }

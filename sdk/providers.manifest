@@ -1,9 +1,0 @@
-ttx.sdk 1
-Tetrodotoxin.Library .bin/bin/tetrodotoxin/library/plugin.so
-Tetrodotoxin.App .bin/bin/tetrodotoxin/app/plugin.so
-Tetrodotoxin.Render .bin/bin/tetrodotoxin/render/plugin.so
-Tetrodotoxin.Scene .bin/bin/tetrodotoxin/scene/plugin.so
-Tetrodotoxin.Shader .bin/bin/tetrodotoxin/shader/plugin.so
-Tetrodotoxin.LLVM .bin/bin/tetrodotoxin/terminal/native_plugin.so
-Tetrodotoxin.GraphText .bin/bin/tetrodotoxin/terminal/graph_text_plugin.so
-Perimortem.System .bin/bin/tetrodotoxin/runtime/system_plugin.so
