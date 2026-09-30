@@ -46,7 +46,7 @@ class Scalar {
                    id == Policies::Conversion::contract_id ||
                    (__is_same(Value, bool) && id == Policies::Flag::contract_id)
                ? Status::Satisfied
-               : Status::Unsupported;
+               : Status::Unknown;
   }
 
   auto bind_interface(
@@ -92,7 +92,7 @@ class Scalar {
       return Binding::provide<Storage>(api, output);
     }
 
-    return Binding::Status::Unsupported;
+    return Binding::Status::Unknown;
   }
 };
 

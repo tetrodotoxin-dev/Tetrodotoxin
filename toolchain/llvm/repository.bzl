@@ -3,6 +3,8 @@
 
 "Repository rule for the immutable LLVM and LLD Terminal SDK."
 
+load("@tetro_toolchain//:sdk.bzl", "extract_debian")
+
 _LLVM_VERSION = "22.1.8"
 _PACKAGE_VERSION = "1:22.1.8~++20260613092327+e80beda6e255-1~exp1~20260613092437.81"
 _PACKAGE_ROOT = "https://apt.llvm.org/jammy/"
@@ -115,6 +117,17 @@ def _llvm_sdk_repository_impl(repository_ctx):
 
     for root, package in _PACKAGES.items():
         _extract_debian_package(repository_ctx, bsdtar, root, package)
+
+    # LLVM's optional compression and XML support is already compiled into its
+    # archives. Import the matching runtime dependencies explicitly so linking
+    # uses the same libc baseline as the compiler's target SDK.
+    extract_debian(repository_ctx, {
+        "https://snapshot.ubuntu.com/ubuntu/20260925T000000Z/pool/main/z/zlib/zlib1g_1.2.11.dfsg-2ubuntu9.2_amd64.deb": "9dc17e51a1be2d9ed63b7b84ef0e4e29c5abe6f1bc62cb03e7181483cce8a2f2",
+        "https://snapshot.ubuntu.com/ubuntu/20260925T000000Z/pool/main/libz/libzstd/libzstd1_1.4.8+dfsg-3build1_amd64.deb": "ae7db00ce8b093e50c994518b90203544e063b4bc574836a048bb142b950b2c9",
+        "https://snapshot.ubuntu.com/ubuntu/20260925T000000Z/pool/main/libx/libxml2/libxml2_2.9.13+dfsg-1ubuntu0.13_amd64.deb": "825df4a2c852b4cec058ed3e95648f5c7b41f923af85e15d464ec80c14302edc",
+        "https://snapshot.ubuntu.com/ubuntu/20260925T000000Z/pool/main/i/icu/libicu70_70.1-2_amd64.deb": "58a154f6307289813da2276f900498ef536ae7c0522d2cf31a3c3c5cf62dfd9a",
+        "https://snapshot.ubuntu.com/ubuntu/20260925T000000Z/pool/main/x/xz-utils/liblzma5_5.2.5-2ubuntu1.1_amd64.deb": "af77f099e7fa95a31267023535832804382fa66572a6b38002187be6e15116cb",
+    })
 
     config = repository_ctx.read(
         _require_file(

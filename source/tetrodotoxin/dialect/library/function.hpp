@@ -13,15 +13,18 @@ namespace Tetrodotoxin::Dialect::Library {
 // different dialect or a loaded module. Parameter lookup belongs to this
 // source scope and does not become a requirement on the Execution model.
 //
-// The grammar accepts named typed parameters, positional results, a single
-// parameter or unsigned literal return, and empty bodies. Decimal literals
-// must fit U32. Other syntax is diagnosed here, while Type names are resolved
-// through the supplied namespace. The caller supplies the operation identity
-// associated with this declaration's publication. Its Arena owns the emitted
-// native graph independently of the storage used to supply the token stream.
-// Declaration Anchors borrow the original Source observation. Names and routes
-// are copied into the graph Arena so the supplying Cursor can be released as
-// soon as interpretation ends.
+// The grammar accepts named typed parameters, positional results, and returns
+// of parameters or unsigned literals. Parentheses group ordered return values
+// and empty groups contribute no values. Braces contain ordered statements
+// and nested blocks. A colon admits one statement. Empty bodies fall through
+// and are valid only for functions with no results.
+// Decimal literals must fit U32. Other syntax is diagnosed here, while Type
+// names are resolved through the supplied namespace. The caller supplies the
+// operation identity associated with this declaration's publication. Its Arena
+// owns the emitted native graph independently of the storage used to supply the
+// token stream. Declaration Anchors borrow the original Source observation.
+// Names and routes are copied into the graph Arena so the supplying Cursor can
+// be released as soon as interpretation ends.
 class Function {
  public:
   static auto interpret(

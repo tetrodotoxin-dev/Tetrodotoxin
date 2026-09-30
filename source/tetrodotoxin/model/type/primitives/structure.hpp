@@ -30,7 +30,7 @@ class Structure {
     return id == Storage::contract_id || id == Policies::Plain::contract_id ||
                    id == Policies::Conversion::contract_id
                ? Status::Satisfied
-               : Status::Unsupported;
+               : Status::Unknown;
   }
 
   auto bind_interface(
@@ -58,7 +58,7 @@ class Structure {
       return Binding::provide<Storage>(api, output);
     }
 
-    return Binding::Status::Unsupported;
+    return Binding::Status::Unknown;
   }
 
  private:

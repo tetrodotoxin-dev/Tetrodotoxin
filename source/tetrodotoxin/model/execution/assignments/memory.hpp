@@ -7,7 +7,7 @@
 #include "tetrodotoxin/model/execution/value.hpp"
 #include "tetrodotoxin/model/type/policies/conversion.hpp"
 #include "ttx/concept/domain.hpp"
-#include "ttx/semantic/transport/direct.hpp"
+#include "ttx/semantic/transport/flow.hpp"
 
 namespace Tetrodotoxin::Model::Execution::Assignments {
 

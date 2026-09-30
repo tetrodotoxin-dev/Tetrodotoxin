@@ -2,18 +2,16 @@
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/core/diagnostics/log.hpp"
-
 #include "perimortem/core/null_terminated.hpp"
 
-#include "toolchain/validation/unit_test.hpp"
 #include "tests/model/image.hpp"
-
 #include "tetrodotoxin/dialect/library/function.hpp"
-#include "tetrodotoxin/dialect/library/type_reference.hpp"
 #include "tetrodotoxin/model/type/primitives/u32.hpp"
 #include "tetrodotoxin/source/contents/memory.hpp"
 #include "tetrodotoxin/source/lexical/cursors/stream.hpp"
 #include "tetrodotoxin/source/lexical/tokenizer.hpp"
+#include "tetrodotoxin/source/policies/reference.hpp"
+#include "toolchain/validation/unit_test.hpp"
 #include "ttx/concept/answers/none.hpp"
 #include "ttx/concept/answers/unknown.hpp"
 
@@ -147,7 +145,7 @@ VALIDATION_TEST(SourceModels, constant_and_entry) {
           [&](Binding::Failure) { EXPECT(False); });
 }
 
-VALIDATION_TEST(SourceModels, provenance_and_pending) {
+VALIDATION_TEST(SourceModels, provenance_and_unknown) {
   Memory::Allocator::Arena arena;
   const auto text =
       "public identity : func = [.value : U32] -> [U32] { return value; }"_view;
@@ -190,13 +188,13 @@ VALIDATION_TEST(SourceModels, provenance_and_pending) {
       .visit(
           [&](Source::Declaration) { EXPECT(False); },
           [&](Binding::Failure error) {
-            EXPECT(error == Binding::Failure::Unsupported);
+            EXPECT(error == Binding::Failure::Unknown);
           });
 
   Terminal::Llvm::Execution::compile(function).visit(
       [&](auto&) { EXPECT(False); },
       [&](Binding::Failure error) {
-        EXPECT(error == Binding::Failure::Pending);
+        EXPECT(error == Binding::Failure::Unknown);
       });
   // Only the authority changes. No reparsing or completion driver mutates the
   // graph, and there is no native Type cache to repair before querying again.
@@ -257,7 +255,7 @@ VALIDATION_TEST(SourceModels, retained_type_policy) {
   PolicyNamespace names{Abstract::provide(policy)};
   Memory::Allocator::Arena arena;
   const auto& source = observation(arena, "U32"_view);
-  const Dialect::Library::TypeReference reference(
+  const Source::Policies::Reference reference(
       Abstract::provide(names), "U32"_view,
       Source::Anchor(Abstract::provide(source), Source::Range(0, 3)));
   const auto subject = Abstract::provide(reference);
@@ -277,4 +275,48 @@ VALIDATION_TEST(SourceModels, retained_type_policy) {
       subject.supports<Model::Type::Policies::Unsigned>() ==
       Binding::Status::Rejected);
   EXPECT(subject.resolve() == subject);
+}
+
+VALIDATION_TEST(SourceModels, reference_reobserves_context) {
+  TypePolicy policy;
+  PolicyNamespace names{Abstract::provide(policy)};
+  const Source::Anchor anchor(Answers::None::get_none(), Source::Range(4, 3));
+  const Source::Policies::Reference reference(
+      Abstract::provide(names), "U32"_view, anchor);
+  const auto subject = Abstract::provide(reference);
+  EXPECT(
+      subject.supports<Model::Type::Policies::Unsigned>() ==
+      Binding::Status::Satisfied);
+  subject.bind<Model::Type::Storage>().visit(
+      [&](Model::Type::Storage) {}, [&](Binding::Failure) { EXPECT(False); });
+
+  // A retained reference does not retain the answer selected by an earlier
+  // namespace observation. Provenance remains available while the semantic
+  // answer changes, with neither a completion pass nor invalidation cache.
+  names.policy = Answers::Unknown::get_unknown();
+  EXPECT(
+      subject.supports<Model::Type::Policies::Unsigned>() ==
+      Binding::Status::Unknown);
+  subject.bind<Model::Type::Storage>().visit(
+      [&](Model::Type::Storage) { EXPECT(False); },
+      [&](Binding::Failure failure) {
+        EXPECT(failure == Binding::Failure::Unknown);
+      });
+  subject.bind<Source::Declaration>().visit(
+      [&](Source::Declaration value) {
+        ASSERT(value.get_anchor());
+        EXPECT_EQ(value.get_anchor()->get_extent().get_offset(), U64(4));
+      },
+      [&](Binding::Failure) { EXPECT(False); });
+
+  names.policy = Abstract::provide(policy);
+  policy.restricted = true;
+  subject.bind<Model::Type::Storage>().visit(
+      [&](Model::Type::Storage) { EXPECT(False); },
+      [&](Binding::Failure failure) {
+        EXPECT(failure == Binding::Failure::Rejected);
+      });
+  policy.restricted = false;
+  subject.bind<Model::Type::Storage>().visit(
+      [&](Model::Type::Storage) {}, [&](Binding::Failure) { EXPECT(False); });
 }

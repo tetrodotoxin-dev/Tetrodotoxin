@@ -20,7 +20,7 @@
 // Satisfied transfers one output Publication. Every other status leaves output
 // untouched and transfers no ownership. The provider cleans up unsuccessful
 // work. Lexical errors may be represented in a successful token publication
-// according to its own contract. Pending is an unsettled answer, not a promise
+// according to its own contract. Unknown is an unsettled answer, not a promise
 // to write output after this synchronous call has returned.
 //
 // The caller retains the input observation, injected provider services and

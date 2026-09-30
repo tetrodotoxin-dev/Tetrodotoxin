@@ -94,7 +94,7 @@ static ttx_binding_status supports(const void* source, perimortem_uuid id) {
   (void)source;
   return id.high == TETRODOTOXIN_SOURCE_LEXICAL_CURSOR_ID_HIGH &&
                  id.low == TETRODOTOXIN_SOURCE_LEXICAL_CURSOR_ID_LOW
-             ? TTX_BINDING_SATISFIED : TTX_BINDING_UNSUPPORTED;
+             ? TTX_BINDING_SATISFIED : TTX_BINDING_UNKNOWN;
 }
 
 static ttx_binding_status bind(const void* source, perimortem_uuid id, ttx_storage output) {

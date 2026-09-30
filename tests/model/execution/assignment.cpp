@@ -1,12 +1,12 @@
 // # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
-#include "toolchain/validation/unit_test.hpp"
-
 #include "tetrodotoxin/model/execution/assignments/memory.hpp"
 #include "tetrodotoxin/model/execution/values/literal.hpp"
 #include "tetrodotoxin/model/type/primitives/u32.hpp"
-#include "ttx/semantic/transport/block.hpp"
+#include "toolchain/validation/unit_test.hpp"
+#include "ttx/data/protocol/block/provider.hpp"
+#include "ttx/semantic/transport/flow.hpp"
 
 using namespace Perimortem;
 using namespace Tetrodotoxin::Model;
@@ -58,8 +58,7 @@ VALIDATION_TEST(Types, live_write_authority) {
           if (policy.constant_only) {
             const auto status = Abstract(value).supports<Execution::Constant>();
             if (status != Binding::Status::Satisfied) {
-              return status == Binding::Status::Pending ? TTX_BINDING_PENDING
-                                                        : TTX_BINDING_REJECTED;
+              return static_cast<ttx_binding_status>(status);
             }
           }
 
@@ -86,7 +85,7 @@ VALIDATION_TEST(Types, live_write_authority) {
   Abstract::provide(policy).bind<Execution::Assignment>().visit(
       [&](Execution::Assignment assignment) {
         const Binding::Status statuses[] = {
-          Binding::Status::Rejected, Binding::Status::Pending};
+          Binding::Status::Rejected, Binding::Status::Unknown};
         for (const auto status : statuses) {
           policy.authority = status;
           assignment.assign(Abstract::provide(value))
@@ -107,14 +106,14 @@ VALIDATION_TEST(Types, live_write_authority) {
                 [&](Binding::Failure) { EXPECT(False); });
         EXPECT_EQ(stored, U32(42));
 
-        // A mutable location has the same Type and representation as the
-        // literal, but cannot satisfy this constant evaluation policy.
+        // The location supplies no Constant promise. That leaves admission
+        // Unknown even though its Type and representation match the literal.
         policy.constant_only = true;
         assignment.assign(Abstract::provide(memory))
             .visit(
                 [&](Ttx::Data::Status) { EXPECT(False); },
                 [&](Binding::Failure failure) {
-                  EXPECT(failure == Binding::Failure::Rejected);
+                  EXPECT(failure == Binding::Failure::Unknown);
                 });
         assignment.assign(Abstract::provide(value))
             .visit(
@@ -140,7 +139,6 @@ VALIDATION_TEST(Types, transfer_failure) {
     auto get_data() const -> Core::View::Bytes { return {}; }
     auto bind_interface(System::Uuid id, Ttx::Data::Form::Storage output) const
         -> Binding::Status {
-      using Ttx::Semantic::Transport::Block;
       if (id == Execution::Value::contract_id) {
         const Execution::Value::Api api = {
           this, [](const void* self) -> ttx_semantic_query {
@@ -150,29 +148,31 @@ VALIDATION_TEST(Types, transfer_failure) {
         return Binding::provide<Execution::Value>(api, output);
       }
 
-      if (id == Block::Access::contract_id) {
+      if (id == Ttx::Semantic::Transport::Flow::block.provider) {
         if (permission != Binding::Status::Satisfied) {
           return permission;
         }
 
-        static const Block::Access::Operations operations = {
-          [](const void* self) -> const ttx_representation* {
-            return &static_cast<const Source*>(self)->form;
-          },
-          [](const void* self, ttx_block_surface surface) -> ttx_data_status {
-            ++static_cast<const Source*>(self)->writes;
-            surface.data[0] = 27;
-            return TTX_DATA_IO_ERROR;
-          }};
-        return Binding::provide<Block::Access>(
-            Block::Access::Api(this, &operations), output);
+        static const Ttx::Data::Protocol::Block::Provider::Operations
+            operations = {
+              [](const void* self) -> const ttx_representation* {
+                return &static_cast<const Source*>(self)->form;
+              },
+              [](const void* self, ttx_storage surface) -> ttx_data_status {
+                ++static_cast<const Source*>(self)->writes;
+                surface.data[0] = 27;
+                return TTX_DATA_IO_ERROR;
+              }};
+        return Binding::provide<Ttx::Data::Protocol::Block::Provider>(
+            Ttx::Data::Protocol::Block::Provider::Api(this, &operations),
+            output);
       }
 
       if (id == Ttx::Concept::Domain::contract_id) {
         return target.bind_interface(id, output);
       }
 
-      return Binding::Status::Unsupported;
+      return Binding::Status::Unknown;
     }
   } source(Abstract::provide(literal), type.get_representation());
   U32 output = 0;

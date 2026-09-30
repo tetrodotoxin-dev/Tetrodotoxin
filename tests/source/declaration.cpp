@@ -147,8 +147,10 @@ VALIDATION_TEST(SourceDeclarations, sentinel_markers) {
       [](Ttx::Concept::Answers::None) {},
       [&](Binding::Failure) { EXPECT(False); });
   None::get_none().bind<Ttx::Concept::Answers::Constant>().visit(
-      [](Ttx::Concept::Answers::Constant) {},
-      [&](Binding::Failure) { EXPECT(False); });
+      [&](Ttx::Concept::Answers::Constant) { EXPECT(False); },
+      [&](Binding::Failure failure) {
+        EXPECT(failure == Binding::Failure::Unknown);
+      });
   Unknown::get_unknown().bind<Ttx::Concept::Answers::Unknown>().visit(
       [](Ttx::Concept::Answers::Unknown) {},
       [&](Binding::Failure) { EXPECT(False); });
@@ -156,7 +158,7 @@ VALIDATION_TEST(SourceDeclarations, sentinel_markers) {
   Unknown::get_unknown().bind<Declaration>().visit(
       [&](Declaration) { EXPECT(False); },
       [&](Binding::Failure failure) {
-        EXPECT(failure == Binding::Failure::Pending);
+        EXPECT(failure == Binding::Failure::Unknown);
       });
 }
 

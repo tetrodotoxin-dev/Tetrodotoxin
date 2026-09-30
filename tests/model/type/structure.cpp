@@ -3,11 +3,10 @@
 
 #include "tetrodotoxin/model/type/primitives/structure.hpp"
 
-#include "toolchain/validation/unit_test.hpp"
-
 #include "tetrodotoxin/model/execution/assignments/memory.hpp"
 #include "tetrodotoxin/model/execution/values/literal.hpp"
 #include "tetrodotoxin/model/type/policies/unsigned.hpp"
+#include "toolchain/validation/unit_test.hpp"
 #include "ttx/semantic/flows/copy.hpp"
 
 using namespace Perimortem;
@@ -15,7 +14,8 @@ using namespace Tetrodotoxin::Model;
 using namespace Ttx::Concept;
 using namespace Ttx::Semantic::Negotiation;
 
-static Toolchain::Validation::Harness Types = {.name = "Model::Type::Structure"};
+static Toolchain::Validation::Harness Types = {
+  .name = "Model::Type::Structure"};
 
 struct Position {
   R64 x;
@@ -49,14 +49,15 @@ VALIDATION_TEST(Types, nested_plain_record) {
   EXPECT(type.supports<Type::Policies::Plain>() == Binding::Status::Satisfied);
   EXPECT(
       type.supports<Type::Policies::Unsigned>() ==
-      Binding::Status::Unsupported);
+      Binding::Status::Unknown);
 
   const Record input(7, Position(1.5, -2.25), {1, -2, 3, -4});
   const Execution::Values::Literal<Record> value(type, input);
   Ttx::Semantic::Transport::Flow flow;
   ASSERT(
       flow.connect(
-          decltype(flow)::reader(form), Abstract::provide(value).get_query()) ==
+          decltype(flow)::consumer(form),
+          Abstract::provide(value).get_query()) ==
       decltype(flow)::Status::Success);
 
   Record output = {};

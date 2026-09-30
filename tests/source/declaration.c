@@ -18,7 +18,7 @@ static ttx_binding_status bind(
     const void* source, perimortem_uuid id, ttx_storage destination) {
   if (id.high != TETRODOTOXIN_SOURCE_DECLARATION_ID_HIGH ||
       id.low != TETRODOTOXIN_SOURCE_DECLARATION_ID_LOW) {
-    return TTX_BINDING_UNSUPPORTED;
+    return TTX_BINDING_UNKNOWN;
   }
 
   const tetrodotoxin_source_declaration api = {source, get_anchor};
@@ -30,7 +30,7 @@ static ttx_binding_status supports(const void* source, perimortem_uuid id) {
   (void)source;
   return id.high == TETRODOTOXIN_SOURCE_DECLARATION_ID_HIGH &&
                  id.low == TETRODOTOXIN_SOURCE_DECLARATION_ID_LOW
-             ? TTX_BINDING_SATISFIED : TTX_BINDING_UNSUPPORTED;
+             ? TTX_BINDING_SATISFIED : TTX_BINDING_UNKNOWN;
 }
 
 ttx_semantic_query source_declaration_fixture(

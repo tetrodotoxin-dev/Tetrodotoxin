@@ -52,7 +52,7 @@ auto Import::bind_interface(Perimortem::System::Uuid requested) const
     if (!domain_binding) {
       const Abstract& selected = get_type();
       if (selected.is<Unknown>()) {
-        return Binding::Failure::Pending;
+        return Binding::Failure::Unknown;
       }
       if (selected.is<None>()) {
         return Binding::Failure::Rejected;
@@ -91,7 +91,7 @@ auto Import::bind_interface(Perimortem::System::Uuid requested) const
   if (requested != Import::contract_id) {
     const Abstract& selected = get_type();
     if (selected.is<Unknown>()) {
-      return Binding::Failure::Pending;
+      return Binding::Failure::Unknown;
     }
 
     if (selected.is<None>()) {

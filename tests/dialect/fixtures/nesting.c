@@ -49,7 +49,7 @@ static const ttx_abstract_ops pair_operations;
 static ttx_binding_status pair_supports(const void* source, perimortem_uuid id) {
   (void)source;
   return same(id, abstract_id) || same(id, declaration_id)
-             ? TTX_BINDING_SATISFIED : TTX_BINDING_UNSUPPORTED;
+             ? TTX_BINDING_SATISFIED : TTX_BINDING_UNKNOWN;
 }
 
 static U8 anchor(const void* source, tetrodotoxin_source_anchor* output) {
@@ -68,7 +68,7 @@ static ttx_binding_status pair_bind(const void* source, perimortem_uuid id, ttx_
     return ttx_binding_provide(tetrodotoxin_source_declaration_representation(), &value, target);
   }
 
-  return TTX_BINDING_UNSUPPORTED;
+  return TTX_BINDING_UNKNOWN;
 }
 
 static perimortem_view_bytes pair_data(const void* source) {
@@ -116,7 +116,7 @@ typedef struct dialect_provider {
   U8 mode;
 } dialect_provider;
 
-enum { PAIR, FORWARD, REJECT, PENDING, UNSUPPORTED, MODE_COUNT };
+enum { PAIR, FORWARD, REJECT, UNKNOWN, MODE_COUNT };
 static const ttx_abstract_ops provider_operations;
 
 static ttx_binding_status interpret(
@@ -147,8 +147,7 @@ static ttx_binding_status interpret(
     if (status != TTX_BINDING_SATISFIED) { break; }
 
     if (provider->mode != PAIR) {
-      status = provider->mode == REJECT ? TTX_BINDING_REJECTED :
-               provider->mode == PENDING ? TTX_BINDING_PENDING : TTX_BINDING_UNSUPPORTED;
+      status = provider->mode == REJECT ? TTX_BINDING_REJECTED : TTX_BINDING_UNKNOWN;
       break;
     }
   }
@@ -169,7 +168,7 @@ static ttx_binding_status interpret(
 static ttx_binding_status provider_supports(const void* source, perimortem_uuid id) {
   (void)source;
   return same(id, abstract_id) || same(id, dialect_id)
-             ? TTX_BINDING_SATISFIED : TTX_BINDING_UNSUPPORTED;
+             ? TTX_BINDING_SATISFIED : TTX_BINDING_UNKNOWN;
 }
 
 static ttx_binding_status provider_bind(const void* source, perimortem_uuid id, ttx_storage target) {
@@ -183,7 +182,7 @@ static ttx_binding_status provider_bind(const void* source, perimortem_uuid id, 
     return ttx_binding_provide(tetrodotoxin_source_dialect_representation(), &value, target);
   }
 
-  return TTX_BINDING_UNSUPPORTED;
+  return TTX_BINDING_UNKNOWN;
 }
 
 static perimortem_view_bytes provider_data(const void* source) {
@@ -196,7 +195,7 @@ static ttx_abstract provider_resolve(const void* source) {
   return value;
 }
 
-static const char* modes[] = {"pair", "forward", "reject", "pending", "unsupported"};
+static const char* modes[] = {"pair", "forward", "reject", "unknown"};
 
 static ttx_abstract provider_lookup(const void* source, perimortem_view_bytes route) {
   const dialect_provider* provider = source;

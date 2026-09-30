@@ -6,7 +6,8 @@
 #include <stdlib.h>
 
 #include "ttx/concept/answers/none.h"
-#include "ttx/semantic/transport/block.h"
+#include "ttx/data/protocol/block/provider.h"
+#include "ttx/semantic/transport/flow.h"
 
 typedef struct observation {
   const ttx_representation* form;
@@ -26,11 +27,12 @@ static ttx_binding_status supports(const void* source, perimortem_uuid id) {
   }
 
   if ((id.high == TTX_ABSTRACT_ID_HIGH && id.low == TTX_ABSTRACT_ID_LOW) ||
-      (id.high == TTX_BLOCK_ACCESS_ID_HIGH && id.low == TTX_BLOCK_ACCESS_ID_LOW)) {
+      (id.high == TTX_BLOCK_PROVIDER_ID_HIGH &&
+       id.low == TTX_BLOCK_PROVIDER_ID_LOW)) {
     return TTX_BINDING_SATISFIED;
   }
 
-  return TTX_BINDING_UNSUPPORTED;
+  return TTX_BINDING_UNKNOWN;
 }
 
 static U64 size(const void* source) {
@@ -41,14 +43,14 @@ static const ttx_representation* representation(const void* source) {
   return ((const observation*)source)->form;
 }
 
-static ttx_data_status commit(const void* source, ttx_block_surface surface) {
+static ttx_data_status commit(const void* source, ttx_storage surface) {
   const observation* self = source;
   ++((observation*)source)->reads;
   if (self->fail_read) {
     return TTX_DATA_IO_ERROR;
   }
 
-  for (Count i = 0; i < surface.size; ++i) {
+  for (Count i = 0; i < self->size; ++i) {
     surface.data[i] = self->first + i % 26;
   }
 
@@ -72,12 +74,12 @@ static void visit(const void* source, ttx_concept_visitor visitor) {
   (void)visitor;
 }
 
-// These declarations only tie the self-referential Abstract and Query tables
+// These declarations only tie the recursive Abstract and Query tables
 // together. Their bind path still checks the actual C API representation.
 static ttx_binding_status bind(const void*, perimortem_uuid, ttx_storage);
 static ttx_abstract resolve(const void*);
-static const ttx_abstract_ops operations = {
-  supports, bind, data, resolve, missing, visit};
+static const ttx_abstract_ops operations = {supports, bind,    data,
+                                            resolve,  missing, visit};
 
 static ttx_abstract resolve(const void* source) {
   const ttx_abstract result = {source, &operations};
@@ -89,8 +91,8 @@ static ttx_semantic_query bytes(const void* source) {
   return result;
 }
 
-static ttx_binding_status bind(
-    const void* source, perimortem_uuid id, ttx_storage output) {
+static ttx_binding_status
+    bind(const void* source, perimortem_uuid id, ttx_storage output) {
   const ttx_binding_status status = supports(source, id);
   if (status != TTX_BINDING_SATISFIED) {
     return status;
@@ -108,9 +110,9 @@ static ttx_binding_status bind(
         tetrodotoxin_source_content_representation(), &api, output);
   }
 
-  static const ttx_block_access_operations block = {representation, commit};
-  const ttx_block_access api = {source, &block};
-  return ttx_binding_provide(ttx_block_access_representation(), &api, output);
+  static const ttx_block_provider_operations block = {representation, commit};
+  const ttx_block_provider api = {source, &block};
+  return ttx_binding_provide(ttx_block_provider_representation(), &api, output);
 }
 
 static void release(const void* source) {
@@ -120,8 +122,12 @@ static void release(const void* source) {
 }
 
 ttx_publication source_content_open(
-    const ttx_representation* form, Count size, U8 first,
-    ttx_binding_status acceptance, U8 fail_read, U32* releases) {
+    const ttx_representation* form,
+    Count size,
+    U8 first,
+    ttx_binding_status acceptance,
+    U8 fail_read,
+    U32* releases) {
   observation* self = malloc(sizeof(*self));
   if (!self) {
     abort();
@@ -137,15 +143,19 @@ U32 source_content_reads(ttx_semantic_query query) {
 }
 
 static ttx_binding_status tokenization_supports(
-    const void* source, perimortem_uuid id) {
+    const void* source,
+    perimortem_uuid id) {
   (void)source;
   return id.high == TETRODOTOXIN_SOURCE_TOKENIZATION_ID_HIGH &&
                  id.low == TETRODOTOXIN_SOURCE_TOKENIZATION_ID_LOW
-             ? TTX_BINDING_SATISFIED : TTX_BINDING_UNSUPPORTED;
+             ? TTX_BINDING_SATISFIED
+             : TTX_BINDING_UNKNOWN;
 }
 
 static ttx_binding_status tokenization_bind(
-    const void* source, perimortem_uuid id, ttx_storage output) {
+    const void* source,
+    perimortem_uuid id,
+    ttx_storage output) {
   const ttx_binding_status status = tokenization_supports(source, id);
   if (status != TTX_BINDING_SATISFIED) {
     return status;

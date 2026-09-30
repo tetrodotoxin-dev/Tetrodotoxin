@@ -1,6 +1,7 @@
 "Build definitions applied to the pinned LLVM and LLD packages."
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_import.bzl", "cc_import")
 
 package(default_visibility = ["@tetrodotoxin//toolchain/llvm:__pkg__"])
 
@@ -84,10 +85,39 @@ _SYSTEM_LINKOPTS = [
     "-lrt",
     "-ldl",
     "-lm",
-    "-lz",
-    "-lzstd",
-    "-lxml2",
 ]
+
+cc_import(
+    name = "zlib",
+    shared_library = "lib/x86_64-linux-gnu/libz.so.1",
+)
+
+cc_import(
+    name = "zstd",
+    shared_library = "usr/lib/x86_64-linux-gnu/libzstd.so.1",
+)
+
+cc_import(
+    name = "lzma",
+    shared_library = "lib/x86_64-linux-gnu/liblzma.so.5",
+)
+
+cc_import(
+    name = "icu_data",
+    shared_library = "usr/lib/x86_64-linux-gnu/libicudata.so.70",
+)
+
+cc_import(
+    name = "icu",
+    shared_library = "usr/lib/x86_64-linux-gnu/libicuuc.so.70",
+    deps = [":icu_data"],
+)
+
+cc_import(
+    name = "xml2",
+    shared_library = "usr/lib/x86_64-linux-gnu/libxml2.so.2",
+    deps = [":icu", ":lzma", ":zlib"],
+)
 
 cc_library(
     name = "headers",
@@ -115,7 +145,7 @@ cc_library(
         "@platforms//cpu:x86_64",
         "@platforms//os:linux",
     ],
-    deps = [":headers"],
+    deps = [":headers", ":xml2", ":zlib", ":zstd"],
 )
 
 cc_library(
@@ -134,7 +164,7 @@ cc_library(
         "@platforms//cpu:x86_64",
         "@platforms//os:linux",
     ],
-    deps = [":headers"],
+    deps = [":headers", ":xml2", ":zlib", ":zstd"],
 )
 
 filegroup(

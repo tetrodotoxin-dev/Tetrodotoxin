@@ -17,6 +17,7 @@
 #include "tetrodotoxin/model/execution/field.hpp"
 #include "tetrodotoxin/model/execution/function.hpp"
 #include "tetrodotoxin/model/execution/parameter.hpp"
+#include "tetrodotoxin/model/execution/policies/ordered.hpp"
 #include "tetrodotoxin/model/execution/return.hpp"
 #include "tetrodotoxin/model/execution/value.hpp"
 #include "tetrodotoxin/model/type/policies/conversion.hpp"
@@ -165,7 +166,7 @@ static auto lower_value(
                 });
       },
       [&](Binding::Failure failure) -> Result {
-        if (failure != Binding::Failure::Unsupported) {
+        if (failure != Binding::Failure::Unknown) {
           return failure;
         }
 
@@ -181,9 +182,9 @@ static auto lower_value(
               // then emits those bytes into the independently owned object.
               Ttx::Semantic::Transport::Flow flow;
               const auto status = flow.connect(
-                  decltype(flow)::reader(*output.form), constant.get_value());
-              if (status == decltype(flow)::Status::BindingPending) {
-                return Binding::Failure::Pending;
+                  decltype(flow)::consumer(*output.form), constant.get_value());
+              if (status == decltype(flow)::Status::Unknown) {
+                return Binding::Failure::Unknown;
               }
 
               if (status != decltype(flow)::Status::Success ||
@@ -217,6 +218,113 @@ static auto lower_value(
       });
 }
 
+// Only the active ancestry is retained. Reusing one Block in separate places
+// is valid, but recursively visiting the same sequence cannot produce finite
+// code. This stack belongs to compilation and never changes the supplied graph.
+struct SequencePath {
+  Abstract subject;
+  const SequencePath* parent;
+};
+
+struct Emission {
+  const Slots& parameters;
+  const Slots& results;
+  const Positions& positions;
+  LLVMContextRef context;
+  LLVMModuleRef module;
+  LLVMBuilderRef builder;
+  LLVMValueRef entry;
+
+  auto terminated() const -> Bool {
+    return LLVMGetBasicBlockTerminator(LLVMGetInsertBlock(builder)) != nullptr;
+  }
+
+  auto returned(Execution::Layout values) -> Core::Option<Binding::Failure>;
+  auto statement(Abstract subject, const SequencePath* parent = nullptr)
+      -> Core::Option<Binding::Failure>;
+};
+
+auto Emission::returned(Execution::Layout values)
+    -> Core::Option<Binding::Failure> {
+  if (values.get_size() != results.get_size()) {
+    return Binding::Failure::Rejected;
+  }
+
+  for (Count i = 0; i < results.get_size(); ++i) {
+    using Result = Utility::Result<LLVMValueRef, Binding::Failure>;
+    const auto& slot = results.get_view().get_data()[i];
+    Core::Option<Binding::Failure> failed;
+    slot.type.bind<Type::Policies::Conversion>()
+        .visit(
+            [&](Type::Policies::Conversion conversion) -> Result {
+              return conversion.convert(values.get_subject(i))
+                  .visit(
+                      [&](Abstract projected) -> Result {
+                        return lower_value(
+                            projected, slot, parameters, positions, context,
+                            module, builder, LLVMGetParam(entry, 0));
+                      },
+                      [](Binding::Failure failure) -> Result {
+                        return failure;
+                      });
+            },
+            [](Binding::Failure failure) -> Result { return failure; })
+        .visit(
+            [&](LLVMValueRef value) {
+              LLVMBuildMemMove(
+                  builder,
+                  address(
+                      builder, context, LLVMGetParam(entry, 1), slot.offset),
+                  1, value, 1,
+                  LLVMConstInt(
+                      LLVMInt64TypeInContext(context), slot.form->get_extent(),
+                      false));
+            },
+            [&](Binding::Failure failure) { failed = failure; });
+    if (failed) {
+      return failed;
+    }
+  }
+
+  LLVMBuildRetVoid(builder);
+  return {};
+}
+
+auto Emission::statement(Abstract subject, const SequencePath* parent)
+    -> Core::Option<Binding::Failure> {
+  return subject.bind<Execution::Return>().visit(
+      [&](Execution::Return value) { return returned(value.get_values()); },
+      [&](Binding::Failure failure) -> Core::Option<Binding::Failure> {
+        if (failure != Binding::Failure::Unknown) {
+          return failure;
+        }
+
+        const auto ordered = subject.supports<Execution::Policies::Ordered>();
+        if (ordered != Binding::Status::Satisfied) {
+          return static_cast<Binding::Failure>(ordered);
+        }
+        for (auto* ancestor = parent; ancestor; ancestor = ancestor->parent) {
+          if (ancestor->subject == subject) {
+            return Binding::Failure::Rejected;
+          }
+        }
+
+        const SequencePath path(subject, parent);
+        Core::Option<Binding::Failure> failed;
+        // Visitation already supplies occurrence order. The terminal neither
+        // sorts routes nor constructs a second statement inventory. Providers
+        // finish enumeration even after a Return, but unreachable callbacks
+        // cause no further semantic queries or code emission.
+        auto receive = [&](Core::View::Bytes, Abstract child) {
+          if (!failed && !terminated()) {
+            failed = statement(child, &path);
+          }
+        };
+        subject.visit_concepts(Abstract::Visitor(receive));
+        return failed;
+      });
+}
+
 static auto emit(
     Abstract body_subject,
     const Slots& parameters,
@@ -231,70 +339,29 @@ static auto emit(
         [](auto& found) { found.value = Count(-1); });
   }
 
-  return body_subject.bind<Execution::Return>().visit(
-      [&](Execution::Return body) -> Core::Option<Binding::Failure> {
-        const auto values = body.get_values();
-        if (values.get_size() != results.get_size()) {
-          return Binding::Failure::Rejected;
-        }
+  LLVMTypeRef args[] = {
+    LLVMPointerTypeInContext(context, 0), LLVMPointerTypeInContext(context, 0)};
+  const auto signature =
+      LLVMFunctionType(LLVMVoidTypeInContext(context), args, 2, false);
+  const auto entry = LLVMAddFunction(module, "ttx_entry", signature);
+  const auto builder = LLVMCreateBuilderInContext(context);
+  LLVMPositionBuilderAtEnd(
+      builder, LLVMAppendBasicBlockInContext(context, entry, "entry"));
+  Emission emission(
+      parameters, results, positions, context, module, builder, entry);
+  auto failed = emission.statement(body_subject);
+  if (!failed && !emission.terminated()) {
+    // A known empty sequence falls through. Only a function with no results
+    // can leave its body that way, since no producer supplied the output frame.
+    if (results.get_size()) {
+      failed = Binding::Failure::Rejected;
+    } else {
+      LLVMBuildRetVoid(builder);
+    }
+  }
 
-        LLVMTypeRef args[] = {
-          LLVMPointerTypeInContext(context, 0),
-          LLVMPointerTypeInContext(context, 0)};
-        const auto signature =
-            LLVMFunctionType(LLVMVoidTypeInContext(context), args, 2, false);
-        const auto entry = LLVMAddFunction(module, "ttx_entry", signature);
-        const auto builder = LLVMCreateBuilderInContext(context);
-        LLVMPositionBuilderAtEnd(
-            builder, LLVMAppendBasicBlockInContext(context, entry, "entry"));
-        Core::Option<Binding::Failure> failed;
-        for (Count i = 0; i < results.get_size(); ++i) {
-          using Result = Utility::Result<LLVMValueRef, Binding::Failure>;
-          const auto& slot = results.get_view().get_data()[i];
-          slot.type.bind<Type::Policies::Conversion>()
-              .visit(
-                  [&](Type::Policies::Conversion conversion) -> Result {
-                    return conversion.convert(values.get_subject(i))
-                        .visit(
-                            [&](Abstract projected) -> Result {
-                              return lower_value(
-                                  projected, slot, parameters, positions,
-                                  context, module, builder,
-                                  LLVMGetParam(entry, 0));
-                            },
-                            [](Binding::Failure failure) -> Result {
-                              return failure;
-                            });
-                  },
-                  [](Binding::Failure failure) -> Result { return failure; })
-              .visit(
-                  [&](LLVMValueRef value) {
-                    LLVMBuildMemMove(
-                        builder,
-                        address(
-                            builder, context, LLVMGetParam(entry, 1),
-                            slot.offset),
-                        1, value, 1,
-                        LLVMConstInt(
-                            LLVMInt64TypeInContext(context),
-                            slot.form->get_extent(), false));
-                  },
-                  [&](Binding::Failure failure) { failed = failure; });
-          if (failed) {
-            break;
-          }
-        }
-
-        if (!failed) {
-          LLVMBuildRetVoid(builder);
-        }
-
-        LLVMDisposeBuilder(builder);
-        return failed;
-      },
-      [](Binding::Failure failure) -> Core::Option<Binding::Failure> {
-        return failure;
-      });
+  LLVMDisposeBuilder(builder);
+  return failed;
 }
 
 // Object emission uses the same target backend as the existing LLVM terminal.

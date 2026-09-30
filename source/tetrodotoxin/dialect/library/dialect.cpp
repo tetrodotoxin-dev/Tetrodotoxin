@@ -13,14 +13,14 @@ using namespace Ttx::Semantic::Negotiation;
 auto Dialect::Library::Dialect::supports(System::Uuid id) const
     -> Binding::Status {
   return id == Source::Dialect::contract_id ? Binding::Status::Satisfied
-                                            : Binding::Status::Unsupported;
+                                            : Binding::Status::Unknown;
 }
 
 auto Dialect::Library::Dialect::bind_interface(
     System::Uuid id,
     Ttx::Data::Form::Storage output) const -> Binding::Status {
   if (id != Source::Dialect::contract_id) {
-    return Binding::Status::Unsupported;
+    return Binding::Status::Unknown;
   }
   const Source::Dialect::Api api = {
     this,

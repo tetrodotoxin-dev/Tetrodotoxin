@@ -149,7 +149,7 @@ VALIDATION_TEST(MonographTests, nested_invocations) {
     EXPECT(root.resolve() == root);
     EXPECT(
         root.supports<Model::Execution::Function>() ==
-        Binding::Status::Unsupported);
+        Binding::Status::Unknown);
     const auto source = required(root.bind<Source::Declaration>());
     EXPECT(
         source.get_anchor()->get_source() ==
@@ -246,11 +246,10 @@ VALIDATION_TEST(MonographTests, declined_composition) {
   {
     MonographModules modules(leaf, parent);
     const Core::View::Bytes routes[] = {
-      "reject"_view, "pending"_view, "unsupported"_view};
+      "reject"_view, "unknown"_view};
     const Binding::Failure failures[] = {
-      Binding::Failure::Rejected, Binding::Failure::Pending,
-      Binding::Failure::Unsupported};
-    for (Count i = 0; i < 3; ++i) {
+      Binding::Failure::Rejected, Binding::Failure::Unknown};
+    for (Count i = 0; i < 2; ++i) {
       const auto dialect = required(
           modules.pair.resolve_concept(routes[i]).bind<Source::Dialect>());
       MonographInput input("public accepted : func = [] -> [] {}"_view);

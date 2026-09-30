@@ -1,18 +1,18 @@
 // # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
-#include "perimortem/core/null_terminated.hpp"
-
 #include "tests/source/lexical/publication.h"
 
-#include "toolchain/validation/unit_test.hpp"
+#include "perimortem/core/null_terminated.hpp"
 
+#include "tests/source/content.h"
 #include "tetrodotoxin/source/contents/memory.hpp"
 #include "tetrodotoxin/source/lexical/cursor.hpp"
 #include "tetrodotoxin/source/lexical/tokenization.hpp"
+#include "toolchain/validation/unit_test.hpp"
+#include "ttx/data/protocol/shared/provider.hpp"
 #include "ttx/semantic/flows/copy.hpp"
-#include "ttx/semantic/transport/shared.hpp"
-#include "tests/source/content.h"
+#include "ttx/semantic/transport/flow.hpp"
 
 using namespace Perimortem;
 using namespace Tetrodotoxin;
@@ -74,13 +74,12 @@ VALIDATION_TEST(LexicalPublication, borrowed_input) {
             [&](Source::Content content) {
               Flow flow;
               ASSERT(
-                  flow.connect(Flow::reader(form), content.get_data()) ==
+                  flow.connect(Flow::consumer(form), content.get_data()) ==
                   Flow::Status::Success);
               flow.visit(
                   [&](const void* data) { EXPECT(data == text.get_data()); },
                   [&](const void*) { EXPECT(False); },
-                  [&](auto, auto) { EXPECT(False); },
-                  [&](auto) { EXPECT(False); });
+                  [&](auto) { EXPECT(False); }, [&](auto) { EXPECT(False); });
             },
             [&](Binding::Failure) { EXPECT(False); });
       },
@@ -114,7 +113,8 @@ VALIDATION_TEST(LexicalPublication, foreign_materialization) {
                   [&](Source::Content content) {
                     Flow flow;
                     ASSERT(
-                        flow.connect(Flow::reader(form), content.get_data()) ==
+                        flow.connect(
+                            Flow::consumer(form), content.get_data()) ==
                         Flow::Status::Success);
                     EXPECT(flow.get_protocol() == Flow::Protocol::Direct);
                     U8 text[8];
@@ -146,9 +146,9 @@ struct SharedInput {
   auto get_data() const -> Core::View::Bytes { return {}; }
   auto supports(System::Uuid id) const -> Binding::Status {
     return id == Source::Content::contract_id ||
-                   id == Shared::Access::contract_id
+                   id == Ttx::Semantic::Transport::Flow::shared.provider
                ? Binding::Status::Satisfied
-               : Binding::Status::Unsupported;
+               : Binding::Status::Unknown;
   }
   auto bind_interface(System::Uuid id, Storage target) const
       -> Binding::Status {
@@ -162,21 +162,24 @@ struct SharedInput {
       return Binding::provide<Source::Content>(api, target);
     }
 
-    if (id == Shared::Access::contract_id) {
-      static const Shared::Access::Operations operations = {
-        [](const void*) -> const ttx_representation* { return &form; },
-        [](const void* self, ttx_shared_lifetime* lifetime) -> ttx_data_status {
-          ++static_cast<const SharedInput*>(self)->acquisitions;
-          *lifetime = {"public f", self, [](const void* value) {
-                         ++static_cast<const SharedInput*>(value)->releases;
-                       }};
-          return TTX_DATA_SUCCESS;
-        }};
-      return Binding::provide<Shared::Access>(
-          Shared::Access::Api(this, &operations), target);
+    if (id == Ttx::Semantic::Transport::Flow::shared.provider) {
+      static const Ttx::Data::Protocol::Shared::Provider::Operations
+          operations = {
+            [](const void*) -> const ttx_representation* { return &form; },
+            [](const void* self,
+               ttx_shared_lifetime* lifetime) -> ttx_data_status {
+              ++static_cast<const SharedInput*>(self)->acquisitions;
+              *lifetime = {"public f", self, [](const void* value) {
+                             ++static_cast<const SharedInput*>(value)->releases;
+                           }};
+              return TTX_DATA_SUCCESS;
+            }};
+      return Binding::provide<Ttx::Data::Protocol::Shared::Provider>(
+          Ttx::Data::Protocol::Shared::Provider::Api(this, &operations),
+          target);
     }
 
-    return Binding::Status::Unsupported;
+    return Binding::Status::Unknown;
   }
 };
 
@@ -226,7 +229,7 @@ VALIDATION_TEST(LexicalPublication, empty_input) {
 VALIDATION_TEST(LexicalPublication, failed_input) {
   U32 releases = 0;
   const ttx_binding_status statuses[] = {
-    TTX_BINDING_PENDING, TTX_BINDING_REJECTED, TTX_BINDING_UNSUPPORTED,
+    TTX_BINDING_UNKNOWN, TTX_BINDING_REJECTED,
     TTX_BINDING_SATISFIED};
   for (const auto status : statuses) {
     Publication input(source_content_open(&form, 8, 'a', status, 1, &releases));
@@ -244,7 +247,7 @@ VALIDATION_TEST(LexicalPublication, failed_input) {
         [&](Binding::Failure) { EXPECT(False); });
   }
 
-  EXPECT_EQ(releases, U32(4));
+  EXPECT_EQ(releases, U32(3));
 }
 
 struct DifferentCursorOps {
@@ -281,7 +284,7 @@ VALIDATION_TEST(LexicalPublication, cursor_abi_mismatch) {
       .visit(
           [&](Publication& output) {
             // Both outer records contain two pointers and an index, and both
-            // operation tables have equal size. The output-Token signature
+            // operation tables have equal size. The output Token signature
             // behind one table pointer must still prevent binding the new
             // contract.
             static_assert(

@@ -13,13 +13,13 @@ package(default_visibility = ["//visibility:private"])
 alias(
     name = "sdk",
     actual = "@llvm_22_1_8//:sdk",
-    visibility = ["//tetrodotoxin/terminal:__pkg__"],
+    visibility = ["//source/tetrodotoxin/terminal:__pkg__"],
 )
 
 alias(
     name = "lld",
     actual = "@llvm_22_1_8//:lld",
-    visibility = ["//tetrodotoxin/terminal:__pkg__"],
+    visibility = ["//source/tetrodotoxin/terminal:__pkg__"],
 )
 
 cc_test(

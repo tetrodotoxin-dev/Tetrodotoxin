@@ -1,18 +1,16 @@
 // # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
-#include "perimortem/core/null_terminated.hpp"
-
-#include "toolchain/validation/unit_test.hpp"
-
 #include "perimortem/core/algorithm/search.hpp"
+#include "perimortem/core/null_terminated.hpp"
 
 #include "perimortem/memory/dynamic/bytes.hpp"
 
+#include "tests/source/lexical/publication.h"
 #include "tetrodotoxin/source/dialect.hpp"
 #include "tetrodotoxin/source/lexical/cursors/stream.hpp"
 #include "tetrodotoxin/source/lexical/tokenizer.hpp"
-#include "tests/source/lexical/publication.h"
+#include "toolchain/validation/unit_test.hpp"
 
 using namespace Perimortem;
 using namespace Tetrodotoxin::Source;
@@ -60,7 +58,7 @@ VALIDATION_TEST(CursorTests, forked_position) {
   auto cursor = state.get_interface();
 
   // Fork after observing the current Token. The copy inherits that cached
-  // value but owns its progress; both continue borrowing the same spelling.
+  // value but owns its progress. Both continue borrowing the same spelling.
   const Token first = cursor.current();
   const auto text = cursor.get_text(first);
   auto nested = cursor;
@@ -79,7 +77,7 @@ VALIDATION_TEST(CursorTests, forked_position) {
   EXPECT(cursor.get_error(0)->get_message() == "Missing value."_view);
 
   // The caller decides whether to adopt the fork. That assignment also clears
-  // the old current-token cache, including when moving back to an earlier
+  // the cached current Token, including when moving back to an earlier
   // index.
   cursor.set_index(nested.get_index());
   EXPECT(cursor.matches(Code::Type::Terminal));
@@ -110,8 +108,9 @@ VALIDATION_TEST(CursorTests, positioned_lookahead) {
   // The raw provider takes an absolute index, independent of the position
   // carried by any facade. Looking beyond input observes the same Terminal.
   const auto api = cursor.get_abi();
-  EXPECT(api.operations->get_token(api.source, 0) == cursor.peek(-1));
-  EXPECT(api.operations->get_token(api.source, U64(-1)) == cursor.peek(2));
+  EXPECT(Token(api.operations->get_token(api.source, 0)) == cursor.peek(-1));
+  EXPECT(
+      Token(api.operations->get_token(api.source, U64(-1))) == cursor.peek(2));
   EXPECT_EQ(provider.get_interface().get_index(), U64(0));
 }
 

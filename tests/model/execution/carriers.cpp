@@ -2,14 +2,12 @@
 // Copyright (c) 2023-present Matt Kaes and contributors
 
 #include "perimortem/core/null_terminated.hpp"
-
-#include "toolchain/validation/unit_test.hpp"
-#include "tests/model/image.hpp"
-
 #include "perimortem/core/time.hpp"
+#include "perimortem/core/writer/textual.hpp"
 
 #include "perimortem/memory/dynamic/vector.hpp"
 
+#include "tests/model/image.hpp"
 #include "tetrodotoxin/model/execution/fields/value.hpp"
 #include "tetrodotoxin/model/execution/functions/function.hpp"
 #include "tetrodotoxin/model/execution/layouts/sequence.hpp"
@@ -18,6 +16,7 @@
 #include "tetrodotoxin/model/execution/values/parameter.hpp"
 #include "tetrodotoxin/model/type/primitives/scalar.hpp"
 #include "tetrodotoxin/model/type/primitives/structure.hpp"
+#include "toolchain/validation/unit_test.hpp"
 
 using namespace Perimortem;
 using namespace Ttx::Concept;
@@ -56,7 +55,8 @@ static auto compile(Value value, Bool constant)
 }
 
 template <typename Value>
-static auto check(Value input, Toolchain::Validation::Test::TestResult& result) -> void {
+static auto check(Value input, Toolchain::Validation::Test::TestResult& result)
+    -> void {
   for (Count mode = 0; mode < 2; ++mode) {
     compile(input, mode != 0)
         .visit(
@@ -92,7 +92,7 @@ VALIDATION_TEST(Carriers, scalar_lowering) {
   check(true, result);
 }
 
-struct Record {
+struct CarrierRecord {
   U16 key;
   R64 coordinates[3];
 };
@@ -100,31 +100,31 @@ struct Record {
 // A frame contains a nested record plus a signed scalar. Separate output fields
 // reverse their order, so copying the whole input buffer would be incorrect.
 // This checks both composition's padding and the terminal's occurrence map.
-struct Input {
-  Record record;
+struct CarrierInput {
+  CarrierRecord record;
   S32 delta;
 };
-struct Output {
+struct CarrierOutput {
   S32 delta;
-  Record record;
+  CarrierRecord record;
 };
 TTX_DATA_RECORD(
-    Record,
-    TTX_DATA_MEMBER(Record, key),
-    TTX_DATA_MEMBER(Record, coordinates));
+    CarrierRecord,
+    TTX_DATA_MEMBER(CarrierRecord, key),
+    TTX_DATA_MEMBER(CarrierRecord, coordinates));
 TTX_DATA_RECORD(
-    Input,
-    TTX_DATA_MEMBER(Input, record),
-    TTX_DATA_MEMBER(Input, delta));
+    CarrierInput,
+    TTX_DATA_MEMBER(CarrierInput, record),
+    TTX_DATA_MEMBER(CarrierInput, delta));
 TTX_DATA_RECORD(
-    Output,
-    TTX_DATA_MEMBER(Output, delta),
-    TTX_DATA_MEMBER(Output, record));
+    CarrierOutput,
+    TTX_DATA_MEMBER(CarrierOutput, delta),
+    TTX_DATA_MEMBER(CarrierOutput, record));
 
 VALIDATION_TEST(Carriers, heterogeneous_frame) {
   using namespace Tetrodotoxin::Model::Execution;
   const auto& form = Ttx::Data::Form::Compiled<
-      Ttx::Data::Form::Native<Record>::reference>::get_representation();
+      Ttx::Data::Form::Native<CarrierRecord>::reference>::get_representation();
   const Type::Primitives::Structure record(form);
   const Type::Primitives::Scalar<S32> signed_type;
   const Fields::Value a(Abstract::provide(record));
@@ -146,9 +146,12 @@ VALIDATION_TEST(Carriers, heterogeneous_frame) {
   Llvm::Execution::compile(Abstract::provide(function))
       .visit(
           [&](Llvm::Execution& artifact) {
-            EXPECT_EQ(artifact.get_inputs().get_extent(), Count(sizeof(Input)));
             EXPECT_EQ(
-                artifact.get_outputs().get_extent(), Count(sizeof(Output)));
+                artifact.get_inputs().get_extent(),
+                Count(sizeof(CarrierInput)));
+            EXPECT_EQ(
+                artifact.get_outputs().get_extent(),
+                Count(sizeof(CarrierOutput)));
             Validation::ModelTests::Image image(artifact);
             ASSERT(image.is_set());
             Ttx::Semantic::Realization::Invocation invocation;
@@ -156,8 +159,9 @@ VALIDATION_TEST(Carriers, heterogeneous_frame) {
                 invocation.connect(
                     image.get_query(), operation, artifact.get_inputs(),
                     artifact.get_outputs()) == Binding::Status::Satisfied);
-            const Input input(Record(17, {1.25, -3.5, 8.75}), -42);
-            Output output;
+            const CarrierInput input(
+                CarrierRecord(17, {1.25, -3.5, 8.75}), -42);
+            CarrierOutput output;
             EXPECT(
                 invocation.invoke(&input, &output) ==
                 Ttx::Data::Status::Success);
@@ -245,7 +249,9 @@ VALIDATION_TEST(Carriers, wide_frame) {
             Core::Writer::Textual text(buffer);
             text << "512-field compile: "_view << duration
                  << " ns, 10000 retained calls: "_view << warm << " ns"_view;
-            Toolchain::Validation::Test::log_message(Toolchain::Validation::bytes("Model::Execution"), 0, Toolchain::Validation::bytes(text));
+            Toolchain::Validation::Test::log_message(
+                Toolchain::Validation::bytes("Model::Execution"), 0,
+                Toolchain::Validation::bytes(buffer));
           },
           [&](Binding::Failure) { EXPECT(False); });
 }

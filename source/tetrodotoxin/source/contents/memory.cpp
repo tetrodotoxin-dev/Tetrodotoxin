@@ -3,7 +3,8 @@
 
 #include "tetrodotoxin/source/contents/memory.hpp"
 
-#include "ttx/semantic/transport/direct.hpp"
+#include "ttx/data/protocol/direct/provider.hpp"
+#include "ttx/semantic/transport/flow.hpp"
 
 using namespace Perimortem;
 using namespace Tetrodotoxin::Source;
@@ -11,9 +12,10 @@ using namespace Ttx::Semantic::Negotiation;
 using namespace Ttx::Semantic::Transport;
 
 auto Contents::Memory::supports(System::Uuid id) const -> Binding::Status {
-  return id == Content::contract_id || id == Direct::Access::contract_id
+  return id == Content::contract_id ||
+                 id == Ttx::Semantic::Transport::Flow::direct.provider
              ? Binding::Status::Satisfied
-             : Binding::Status::Unsupported;
+             : Binding::Status::Unknown;
 }
 
 auto Contents::Memory::bind_interface(
@@ -33,17 +35,17 @@ auto Contents::Memory::bind_interface(
     return Binding::provide<Content>(api, output);
   }
 
-  if (id == Direct::Access::contract_id) {
-    static const Direct::Access::Operations operations = {
-      [](const void* self) -> const ttx_representation* {
-        return &static_cast<const Contents::Memory*>(self)->representation;
-      },
-      [](const void* self) -> const void* {
-        return static_cast<const Contents::Memory*>(self)->bytes.get_data();
-      }};
-    return Binding::provide<Direct::Access>(
-        Direct::Access::Api(this, &operations), output);
+  if (id == Ttx::Semantic::Transport::Flow::direct.provider) {
+    static const Ttx::Data::Protocol::Direct::Provider::Operations operations =
+        {[](const void* self) -> const ttx_representation* {
+           return &static_cast<const Contents::Memory*>(self)->representation;
+         },
+         [](const void* self) -> const void* {
+           return static_cast<const Contents::Memory*>(self)->bytes.get_data();
+         }};
+    return Binding::provide<Ttx::Data::Protocol::Direct::Provider>(
+        Ttx::Data::Protocol::Direct::Provider::Api(this, &operations), output);
   }
 
-  return Binding::Status::Unsupported;
+  return Binding::Status::Unknown;
 }

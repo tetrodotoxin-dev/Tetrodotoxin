@@ -21,7 +21,7 @@ class Parameter {
     return id == Execution::Parameter::contract_id ||
                    id == Ttx::Concept::Domain::contract_id
                ? Status::Satisfied
-               : Status::Unsupported;
+               : Status::Unknown;
   }
 
   auto bind_interface(
@@ -47,7 +47,7 @@ class Parameter {
     }
 
     if (id != Contract::contract_id) {
-      return Ttx::Semantic::Negotiation::Binding::Status::Unsupported;
+      return Ttx::Semantic::Negotiation::Binding::Status::Unknown;
     }
 
     const Contract::Api api = {

@@ -79,8 +79,8 @@ static auto declaration_offset(const Option<const selected_type&>& selected)
 }
 
 // Source barriers apply to the declaration's published completion service.
-// A generated value may have no source work, while Pending or Rejected must
-// stop the barrier instead of selecting another path to the same object.
+// Only an acquired service supplies source work here. Unknown leaves that
+// service unsettled, while explicit rejection stops the barrier.
 static auto complete_declaration(
     Abstract::Handle subject,
     Tetrodotoxin::Source::Declaration::Phase phase,
@@ -94,7 +94,7 @@ static auto complete_declaration(
                 [&](Binding::Failure) { succeeded = False; });
       },
       [&](Binding::Failure failure) {
-        if (failure != Binding::Failure::Unsupported) {
+        if (failure != Binding::Failure::Unknown) {
           succeeded = False;
         }
       });

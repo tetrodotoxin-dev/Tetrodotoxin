@@ -94,8 +94,7 @@ VALIDATION_TEST(SourceTokenization, unsettled_result) {
   query.bind<Tokenization>().visit(
       [&](Tokenization tokenizer) {
         const Binding::Status statuses[] = {
-          Binding::Status::Pending, Binding::Status::Rejected,
-          Binding::Status::Unsupported};
+          Binding::Status::Unknown, Binding::Status::Rejected};
         for (const auto status : statuses) {
           service.status = status;
           tokenizer.tokenize(source).visit(
@@ -107,6 +106,6 @@ VALIDATION_TEST(SourceTokenization, unsettled_result) {
       },
       [&](Binding::Failure) { EXPECT(False); });
 
-  EXPECT_EQ(service.calls, U32(3));
+  EXPECT_EQ(service.calls, U32(2));
   EXPECT_EQ(service.releases, U32(0));
 }

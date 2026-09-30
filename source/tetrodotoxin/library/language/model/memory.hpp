@@ -68,7 +68,7 @@ class Memory : public Tetrodotoxin::Source::Addressable {
   virtual auto get_domain() const -> Ttx::Concept::Domain::Answer {
     const auto& type = get_type();
     if (&type == &Tetrodotoxin::Source::Unknown::get_unknown()) {
-      return Ttx::Semantic::Negotiation::Binding::Failure::Pending;
+      return Ttx::Semantic::Negotiation::Binding::Failure::Unknown;
     }
     return type.get_interface();
   }

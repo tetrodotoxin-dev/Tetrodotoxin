@@ -13,9 +13,9 @@ auto Simulacra::Handle::project(Abstract::Handle candidate) const
   return operations.project(source, candidate);
 }
 
-// Absence of one role does not disqualify an object from having another.
-// Pending and rejected answers do stop projection, since treating them as
-// absence would publish a weaker contract than the provider actually offers.
+// Unknown leaves a role unsettled while allowing this projection to ask about
+// other roles. An empty slot records only that no interface was acquired.
+// An explicit rejection stops projection at the encountered policy.
 template <typename Contract>
 static auto collect(
     Abstract::Handle source,
@@ -28,7 +28,7 @@ static auto collect(
         return {};
       },
       [](Binding::Failure failure) -> Option<Binding::Failure> {
-        if (failure == Binding::Failure::Unsupported) {
+        if (failure == Binding::Failure::Unknown) {
           return {};
         }
         return failure;

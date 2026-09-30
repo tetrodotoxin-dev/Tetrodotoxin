@@ -1,14 +1,13 @@
 // # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
-#include "perimortem/core/null_terminated.hpp"
-
 #include "tests/source/content.h"
 
-#include "toolchain/validation/unit_test.hpp"
+#include "perimortem/core/null_terminated.hpp"
 
 #include "tetrodotoxin/source/contents/memory.hpp"
 #include "tetrodotoxin/source/policies/authored.hpp"
+#include "toolchain/validation/unit_test.hpp"
 #include "ttx/concept/answers/none.hpp"
 #include "ttx/semantic/flows/copy.hpp"
 #include "ttx/semantic/ownership/publication.hpp"
@@ -22,7 +21,8 @@ using namespace Ttx::Semantic::Ownership;
 using namespace Ttx::Semantic::Transport;
 using namespace Ttx::Semantic::Flows;
 
-static Toolchain::Validation::Harness SourceContent = {.name = "Source::Content"};
+static Toolchain::Validation::Harness SourceContent = {
+  .name = "Source::Content"};
 static constexpr auto bytes = Schema::range(Native<U8>::reference, 8, 1, 8, 1);
 static constexpr auto empty = Schema::range(Native<U8>::reference, 0, 1, 0, 1);
 static constexpr auto& form = Compiled<bytes>::get_representation();
@@ -36,7 +36,7 @@ VALIDATION_TEST(SourceContent, direct_observation) {
         EXPECT_EQ(content.get_size(), Count(8));
         Flow flow;
         ASSERT(
-            flow.connect(Flow::reader(form), content.get_data()) ==
+            flow.connect(Flow::consumer(form), content.get_data()) ==
             Flow::Status::Success);
         EXPECT(flow.get_protocol() == Flow::Protocol::Direct);
         U8 output[8] = {};
@@ -58,7 +58,7 @@ VALIDATION_TEST(SourceContent, foreign_observation) {
           // Block and asks it to populate the caller's independent storage.
           Flow flow;
           ASSERT(
-              flow.connect(Flow::reader(form), content.get_data()) ==
+              flow.connect(Flow::consumer(form), content.get_data()) ==
               Flow::Status::Success);
           EXPECT(flow.get_protocol() == Flow::Protocol::Block);
           U8 output[8] = {};
@@ -97,7 +97,7 @@ VALIDATION_TEST(SourceContent, retained_revision) {
                         Flow flow;
                         ASSERT(
                             flow.connect(
-                                Flow::reader(form), content.get_data()) ==
+                                Flow::consumer(form), content.get_data()) ==
                             Flow::Status::Success);
                         U8 output[8] = {};
                         EXPECT(
@@ -129,7 +129,7 @@ VALIDATION_TEST(SourceContent, empty_observation) {
         EXPECT_EQ(content.get_size(), Count(0));
         Flow flow;
         ASSERT(
-            flow.connect(Flow::reader(empty_form), content.get_data()) ==
+            flow.connect(Flow::consumer(empty_form), content.get_data()) ==
             Flow::Status::Success);
         EXPECT(
             Copy::flow(flow, Storage(ttx_storage{&empty_form, nullptr, 0})) ==
@@ -141,7 +141,7 @@ VALIDATION_TEST(SourceContent, empty_observation) {
 VALIDATION_TEST(SourceContent, policy_outcomes) {
   U32 releases = 0;
   const ttx_binding_status statuses[] = {
-    TTX_BINDING_PENDING, TTX_BINDING_REJECTED, TTX_BINDING_UNSUPPORTED};
+    TTX_BINDING_UNKNOWN, TTX_BINDING_REJECTED};
   for (const auto status : statuses) {
     Publication publication(
         source_content_open(&form, 8, 'a', status, 0, &releases));
@@ -154,7 +154,7 @@ VALIDATION_TEST(SourceContent, policy_outcomes) {
         });
   }
 
-  EXPECT_EQ(releases, U32(3));
+  EXPECT_EQ(releases, U32(2));
 }
 
 VALIDATION_TEST(SourceContent, failed_observation) {
@@ -165,7 +165,7 @@ VALIDATION_TEST(SourceContent, failed_observation) {
       [&](Content content) {
         Flow flow;
         ASSERT(
-            flow.connect(Flow::reader(form), content.get_data()) ==
+            flow.connect(Flow::consumer(form), content.get_data()) ==
             Flow::Status::Success);
         U8 output[8] = {};
         EXPECT(
@@ -188,7 +188,7 @@ VALIDATION_TEST(SourceContent, incompatible_bytes) {
                 Compiled<Native<U32[2]>::reference>::get_representation();
             Flow flow;
             EXPECT(
-                flow.connect(Flow::reader(words), content.get_data()) ==
+                flow.connect(Flow::consumer(words), content.get_data()) ==
                 Flow::Status::Incompatible);
           },
           [&](Binding::Failure) { EXPECT(False); });

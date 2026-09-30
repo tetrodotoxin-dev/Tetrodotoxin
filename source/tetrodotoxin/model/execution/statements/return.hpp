@@ -17,7 +17,7 @@ class Return {
       -> Ttx::Semantic::Negotiation::Binding::Status {
     using Ttx::Semantic::Negotiation::Binding::Status;
     return id == Execution::Return::contract_id ? Status::Satisfied
-                                                : Status::Unsupported;
+                                                : Status::Unknown;
   }
 
   auto bind_interface(
@@ -26,7 +26,7 @@ class Return {
       -> Ttx::Semantic::Negotiation::Binding::Status {
     using Contract = Execution::Return;
     if (id != Contract::contract_id) {
-      return Ttx::Semantic::Negotiation::Binding::Status::Unsupported;
+      return Ttx::Semantic::Negotiation::Binding::Status::Unknown;
     }
 
     const Contract::Api api = {

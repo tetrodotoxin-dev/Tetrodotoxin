@@ -51,7 +51,7 @@ auto Language::Model::Type::bind_interface(Perimortem::System::Uuid requested)
     return Tetrodotoxin::Source::Type::bind_interface(requested);
   }
   if (resolve().is<Unknown>()) {
-    return Binding::Failure::Pending;
+    return Binding::Failure::Unknown;
   }
 
   static const Language::Initialization::Operations operations = {
@@ -63,11 +63,11 @@ auto Language::Model::Type::bind_interface(Perimortem::System::Uuid requested)
         if (type.get_layout().is_empty()) {
           return Core::Option<Abstract::Handle>();
         }
-        return Binding::Failure::Unsupported;
+        return Binding::Failure::Unknown;
       }
       auto identity = produced->get_identity();
       if (!identity) {
-        return Binding::Failure::Unsupported;
+        return Binding::Failure::Unknown;
       }
 
       // A source expression still needs a terminal implementation before it

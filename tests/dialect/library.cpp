@@ -1,26 +1,24 @@
 // # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
+#include "perimortem/system/library.hpp"
+
 #include "perimortem/core/diagnostics/log.hpp"
-
 #include "perimortem/core/null_terminated.hpp"
-
-#include "tetrodotoxin/dialect/library/dialect.hpp"
-
-#include "toolchain/validation/unit_test.hpp"
-#include "tests/model/image.hpp"
 
 #include "perimortem/memory/dynamic/bytes.hpp"
 
-#include "perimortem/system/library.hpp"
-
+#include "tests/model/fixtures/cursor.h"
+#include "tests/model/image.hpp"
+#include "tetrodotoxin/dialect/library/dialect.hpp"
+#include "tetrodotoxin/model/execution/policies/ordered.hpp"
 #include "tetrodotoxin/model/type/primitives/u32.hpp"
 #include "tetrodotoxin/source/contents/memory.hpp"
 #include "tetrodotoxin/source/declaration.hpp"
 #include "tetrodotoxin/source/lexical/tokenization.hpp"
 #include "tetrodotoxin/source/lexical/tokenizer.hpp"
+#include "toolchain/validation/unit_test.hpp"
 #include "ttx/concept/answers/none.hpp"
-#include "tests/model/fixtures/cursor.h"
 
 using namespace Perimortem;
 using namespace Tetrodotoxin;
@@ -239,6 +237,20 @@ VALIDATION_TEST(DialectTests, native_publication) {
 
   const auto root = required(graph.get_query().bind<Abstract>());
   EXPECT(root.get_data() == "answer"_view);
+  const auto body = root.resolve_concept("body"_view);
+  EXPECT(
+      body.supports<Model::Execution::Policies::Ordered>() ==
+      Binding::Status::Satisfied);
+  Count statements = 0;
+  auto inspect = [&](Core::View::Bytes route, Abstract statement) {
+    ++statements;
+    EXPECT(body.resolve_concept(route) == statement);
+    const auto declaration = required(statement.bind<Source::Declaration>());
+    const auto span = declaration.get_anchor()->get_extent();
+    EXPECT(text.slice(span.get_offset(), span.get_size()) == "return 42;"_view);
+  };
+  body.visit_concepts(Abstract::Visitor(inspect));
+  EXPECT_EQ(statements, Count(1));
   const auto declaration = required(root.bind<Source::Declaration>());
   EXPECT(declaration.get_anchor()->get_source() == origin);
   Terminal::Llvm::Execution::compile(root).visit(
@@ -258,6 +270,122 @@ VALIDATION_TEST(DialectTests, native_publication) {
         EXPECT_EQ(value, U32(42));
       },
       [&](Binding::Failure) { EXPECT(False); });
+}
+
+VALIDATION_TEST(DialectTests, positional_returns) {
+  // The foreign Cursor ends before compilation, and the graph ends before the
+  // emitted function is invoked. Grouping and parameter names belong to Source,
+  // while the terminal sees only ordered Execution producers.
+  const auto text =
+      "public reorder : func = [.first : U32, .second : U32] "
+      "-> [U32, U32, U32, U32] { return (second, (17, first), second,); }"_view;
+  compile_foreign(
+      text,
+      [&](Source::Lexical::Cursor cursor, ttx_binding_status status) {
+        EXPECT(status == TTX_BINDING_SATISFIED);
+        EXPECT(cursor.matches(Source::Lexical::Code::Type::Terminal));
+        EXPECT_EQ(cursor.get_error_count(), Count(0));
+      })
+      .visit(
+          [&](Terminal::Llvm::Execution& artifact) {
+            Validation::ModelTests::Image image(artifact);
+            ASSERT(image.is_set());
+            Ttx::Semantic::Realization::Invocation invoke;
+            ASSERT(
+                invoke.connect(
+                    image.get_query(), operation, artifact.get_inputs(),
+                    artifact.get_outputs()) == Binding::Status::Satisfied);
+            const U32 input[] = {7, 31};
+            U32 output[4] = {};
+            EXPECT(invoke.invoke(input, output) == Ttx::Data::Status::Success);
+            EXPECT_EQ(output[0], U32(31));
+            EXPECT_EQ(output[1], U32(17));
+            EXPECT_EQ(output[2], U32(7));
+            EXPECT_EQ(output[3], U32(31));
+          },
+          [&](Binding::Failure) { EXPECT(False); });
+}
+
+VALIDATION_TEST(DialectTests, nested_blocks) {
+  const Core::View::Bytes sources[] = {
+    "public f : func = [.value : U32] -> [U32] { {} { {} return value; } }"_view,
+    "public f : func = [.value : U32] -> [U32] : return value;"_view,
+  };
+  for (const auto text : sources) {
+    compile_foreign(
+        text,
+        [&](Source::Lexical::Cursor cursor, ttx_binding_status status) {
+          EXPECT(status == TTX_BINDING_SATISFIED);
+          EXPECT(cursor.matches(Source::Lexical::Code::Type::Terminal));
+        })
+        .visit(
+            [&](Terminal::Llvm::Execution& artifact) {
+              Validation::ModelTests::Image image(artifact);
+              ASSERT(image.is_set());
+              Ttx::Semantic::Realization::Invocation invoke;
+              ASSERT(
+                  invoke.connect(
+                      image.get_query(), operation, artifact.get_inputs(),
+                      artifact.get_outputs()) == Binding::Status::Satisfied);
+              const U32 input = 123;
+              U32 output = 0;
+              EXPECT(
+                  invoke.invoke(&input, &output) == Ttx::Data::Status::Success);
+              EXPECT_EQ(output, input);
+            },
+            [&](Binding::Failure) { EXPECT(False); });
+  }
+}
+
+VALIDATION_TEST(DialectTests, empty_return) {
+  const auto text = "public empty : func = [] -> [] { return ((), ()); }"_view;
+  compile_foreign(
+      text,
+      [&](Source::Lexical::Cursor cursor, ttx_binding_status status) {
+        EXPECT(status == TTX_BINDING_SATISFIED);
+        EXPECT(cursor.matches(Source::Lexical::Code::Type::Terminal));
+      })
+      .visit(
+          [&](Terminal::Llvm::Execution& artifact) {
+            EXPECT_EQ(artifact.get_inputs().get_extent(), Count(0));
+            EXPECT_EQ(artifact.get_outputs().get_extent(), Count(0));
+            Validation::ModelTests::Image image(artifact);
+            ASSERT(image.is_set());
+            Ttx::Semantic::Realization::Invocation invoke;
+            ASSERT(
+                invoke.connect(
+                    image.get_query(), operation, artifact.get_inputs(),
+                    artifact.get_outputs()) == Binding::Status::Satisfied);
+            EXPECT(
+                invoke.invoke(nullptr, nullptr) == Ttx::Data::Status::Success);
+          },
+          [&](Binding::Failure) { EXPECT(False); });
+}
+
+VALIDATION_TEST(DialectTests, rejected_return_flow) {
+  const Core::View::Bytes sources[] = {
+    "public f : func = [] -> [U32] { return (); }"_view,
+    "public f : func = [] -> [U32] { return (1, 2); }"_view,
+    "public f : func = [] -> [U32, U32] { return (1 2); }"_view,
+    "public f : func = [] -> [U32] { {} {} }"_view,
+    "public f : func = [] -> [U32] { { return 1; } return 2; }"_view,
+    "public f : func = [] -> [] { { }"_view,
+    "public f : func = [] -> [] :"_view,
+  };
+  for (const auto text : sources) {
+    compile_foreign(
+        text,
+        [&](Source::Lexical::Cursor cursor, ttx_binding_status status) {
+          EXPECT(status == TTX_BINDING_REJECTED);
+          EXPECT_EQ(cursor.get_error_count(), Count(1));
+          EXPECT(cursor.get_error(0)->get_anchor());
+        })
+        .visit(
+            [&](Terminal::Llvm::Execution&) { EXPECT(False); },
+            [&](Binding::Failure failure) {
+              EXPECT(failure == Binding::Failure::Rejected);
+            });
+  }
 }
 
 VALIDATION_TEST(DialectTests, forked_dialect) {

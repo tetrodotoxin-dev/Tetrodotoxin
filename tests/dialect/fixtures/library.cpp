@@ -85,12 +85,12 @@ struct LibraryModuleFixture {
   auto get_data() const -> Core::View::Bytes { return {}; }
   auto supports(System::Uuid id) const -> Binding::Status {
     return id == Source::Dialect::contract_id ? Binding::Status::Satisfied
-                                              : Binding::Status::Unsupported;
+                                              : Binding::Status::Unknown;
   }
   auto bind_interface(System::Uuid id, Ttx::Data::Form::Storage target) const
       -> Binding::Status {
     if (id != Source::Dialect::contract_id) {
-      return Binding::Status::Unsupported;
+      return Binding::Status::Unknown;
     }
 
     return Binding::provide<Source::Dialect>(

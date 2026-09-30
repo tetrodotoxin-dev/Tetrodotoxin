@@ -6,7 +6,8 @@
 #include "tetrodotoxin/model/execution/constant.hpp"
 #include "tetrodotoxin/model/execution/value.hpp"
 #include "ttx/concept/domain.hpp"
-#include "ttx/semantic/transport/direct.hpp"
+#include "ttx/data/protocol/direct/provider.hpp"
+#include "ttx/semantic/transport/flow.hpp"
 
 namespace Tetrodotoxin::Model::Execution::Values {
 
@@ -28,9 +29,9 @@ class Literal {
     return id == Constant::contract_id ||
                    id == Ttx::Concept::Domain::contract_id ||
                    id == Execution::Value::contract_id ||
-                   id == Ttx::Semantic::Transport::Direct::Access::contract_id
+                   id == Ttx::Semantic::Transport::Flow::direct.provider
                ? Status::Satisfied
-               : Status::Unsupported;
+               : Status::Unknown;
   }
 
   auto bind_interface(
@@ -38,7 +39,7 @@ class Literal {
       Ttx::Data::Form::Storage output) const
       -> Ttx::Semantic::Negotiation::Binding::Status {
     using namespace Ttx::Semantic::Negotiation;
-    using Ttx::Semantic::Transport::Direct;
+
     if (id == Constant::contract_id) {
       return Binding::marker(output);
     }
@@ -63,20 +64,22 @@ class Literal {
       return Binding::provide<Execution::Value>(api, output);
     }
 
-    if (id == Direct::Access::contract_id) {
-      static const Direct::Access::Operations operations = {
-        [](const void*) -> const ttx_representation* {
-          return &Ttx::Data::Form::Compiled<Ttx::Data::Form::Native<
-              Payload>::reference>::get_representation();
-        },
-        [](const void* self) -> const void* {
-          return &static_cast<const Literal*>(self)->value;
-        }};
-      return Binding::provide<Direct::Access>(
-          Direct::Access::Api(this, &operations), output);
+    if (id == Ttx::Semantic::Transport::Flow::direct.provider) {
+      static const Ttx::Data::Protocol::Direct::Provider::Operations
+          operations = {
+            [](const void*) -> const ttx_representation* {
+              return &Ttx::Data::Form::Compiled<Ttx::Data::Form::Native<
+                  Payload>::reference>::get_representation();
+            },
+            [](const void* self) -> const void* {
+              return &static_cast<const Literal*>(self)->value;
+            }};
+      return Binding::provide<Ttx::Data::Protocol::Direct::Provider>(
+          Ttx::Data::Protocol::Direct::Provider::Api(this, &operations),
+          output);
     }
 
-    return Binding::Status::Unsupported;
+    return Binding::Status::Unknown;
   }
 
  private:

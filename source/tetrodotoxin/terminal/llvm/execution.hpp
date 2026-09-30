@@ -16,8 +16,10 @@ namespace Tetrodotoxin::Terminal::Llvm {
 // source graph may be released after compilation. The supplying dialect and
 // source locations have no role in runtime dispatch.
 //
-// This terminal lowers parameter uses, constants and Return through each
-// Type's selected Storage form. Scalars and plain records share that path.
+// This terminal walks Ordered bodies and lowers parameter uses, constants and
+// Return through each Type's selected Storage form. Nested sequences preserve
+// control transfer, so Return ends the function rather than just its inner
+// Block. Scalars and plain records share that path.
 // Other bodies decline through their negotiated capabilities. Adding another
 // body requires its lowering here, independently of the dialect that supplies
 // it. Invocation uses the generic TTX frame contract. Each object exports

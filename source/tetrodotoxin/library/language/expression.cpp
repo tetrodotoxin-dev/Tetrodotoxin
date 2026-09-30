@@ -42,7 +42,7 @@ auto Language::Expression::bind_interface(Perimortem::System::Uuid requested)
         }
         const Abstract& type = expression.get_type();
         if (&type == &Unknown::get_unknown()) {
-          return TTX_BINDING_PENDING;
+          return TTX_BINDING_UNKNOWN;
         }
         *output = type.get_interface().get_abi();
         return TTX_BINDING_SATISFIED;

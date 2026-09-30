@@ -4,18 +4,18 @@
 #ifndef VALIDATION_MODEL_FOREIGN_H
 #define VALIDATION_MODEL_FOREIGN_H
 
-#include "tetrodotoxin/model/type/storage.h"
-#include "ttx/concept/domain.h"
+#include "tetrodotoxin/model/execution/constant.h"
+#include "tetrodotoxin/model/execution/field.h"
+#include "tetrodotoxin/model/execution/function.h"
+#include "tetrodotoxin/model/execution/parameter.h"
+#include "tetrodotoxin/model/execution/return.h"
+#include "tetrodotoxin/model/execution/value.h"
 #include "tetrodotoxin/model/type/policies/conversion.h"
 #include "tetrodotoxin/model/type/policies/unsigned.h"
-#include "tetrodotoxin/model/execution/function.h"
-#include "tetrodotoxin/model/execution/field.h"
-#include "tetrodotoxin/model/execution/parameter.h"
-#include "tetrodotoxin/model/execution/constant.h"
-#include "tetrodotoxin/model/execution/value.h"
-#include "tetrodotoxin/model/execution/return.h"
-#include "ttx/data/protocol/block.h"
-#include "ttx/semantic/transport/block.h"
+#include "tetrodotoxin/model/type/storage.h"
+#include "ttx/concept/domain.h"
+#include "ttx/data/protocol/block/provider.h"
+#include "ttx/semantic/transport/flow.h"
 
 // The fixture borrows the host's canonical API descriptions. It independently
 // implements the entire model in C, including a Block supplied constant. This
@@ -54,6 +54,7 @@ typedef struct model_fixture {
   U32 literal;
 } model_fixture;
 
-PERIMORTEM_C ttx_abstract model_fixture_open(model_fixture* fixture, model_forms forms, U8 mode);
+PERIMORTEM_C ttx_abstract
+    model_fixture_open(model_fixture* fixture, model_forms forms, U8 mode);
 
 #endif

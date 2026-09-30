@@ -19,7 +19,6 @@ cc_library(
         "dialect.hpp",
         "function.hpp",
         "monograph.hpp",
-        "type_reference.hpp",
     ],
     deps = [
         "//source/tetrodotoxin/model",

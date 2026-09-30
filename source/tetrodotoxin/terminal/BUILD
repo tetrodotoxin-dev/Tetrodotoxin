@@ -76,6 +76,7 @@ cc_library(
         "//source/tetrodotoxin:library",
         "//source/tetrodotoxin:linker",
         "//source/tetrodotoxin/language",
+        "//source/tetrodotoxin/model",
         "//source/tetrodotoxin/scene/language",
         "//source/tetrodotoxin/source",
         "//source/tetrodotoxin/source:lexical",

@@ -19,10 +19,9 @@ static auto status(Flow::Status value) -> Binding::Status {
   switch (value) {
   case Flow::Status::Success:
     return Binding::Status::Satisfied;
+  case Flow::Status::Unknown:
+    return Binding::Status::Unknown;
   case Flow::Status::Unsupported:
-    return Binding::Status::Unsupported;
-  case Flow::Status::BindingPending:
-    return Binding::Status::Pending;
   case Flow::Status::Invalid:
   case Flow::Status::Bounds:
   case Flow::Status::Overflow:
@@ -63,7 +62,7 @@ class LexicalPublication {
     }
 
     const auto connected =
-        access.connect(Flow::reader(*representation), input.get_data());
+        access.connect(Flow::consumer(*representation), input.get_data());
     if (connected != Flow::Status::Success) {
       return status(connected);
     }
@@ -87,7 +86,7 @@ class LexicalPublication {
       return copied;
     };
     const auto observed = access.visit(
-        borrow, borrow, [&](auto, auto) { return copy(); },
+        borrow, borrow, [&](auto) { return copy(); },
         [&](auto) { return copy(); });
     if (observed != Ttx::Data::Status::Success) {
       return Binding::Status::Rejected;
@@ -153,14 +152,14 @@ static auto tokenize(const void*, ttx_abstract source, ttx_publication* output)
 auto Source::Lexical::Tokenization::supports(System::Uuid id) const
     -> Binding::Status {
   return id == Source::Tokenization::contract_id ? Binding::Status::Satisfied
-                                                 : Binding::Status::Unsupported;
+                                                 : Binding::Status::Unknown;
 }
 
 auto Source::Lexical::Tokenization::bind_interface(
     System::Uuid id,
     Storage output) const -> Binding::Status {
   if (id != Source::Tokenization::contract_id) {
-    return Binding::Status::Unsupported;
+    return Binding::Status::Unknown;
   }
 
   const Source::Tokenization::Api api = {this, tokenize};

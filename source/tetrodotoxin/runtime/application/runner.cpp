@@ -71,6 +71,12 @@ auto Runtime::Application::Runner::run(const Product& product) -> int {
   U32 physical_height = window.get_logical_height() * window.get_scale();
   Photophore::Renderer renderer(
       window.get_presentation(), physical_width, physical_height);
+  if (!renderer.get_context().get_device()) {
+    Core::Diagnostics::Log::error(
+        "Application cannot acquire a compatible Vulkan presenter."_view);
+    return 1;
+  }
+
   Photophore::Pipelines pipelines(
       renderer.get_context(), renderer.get_swapchain().get_format(),
       Core::View::Vector<Photophore::Description::Program>(
@@ -148,9 +154,7 @@ auto Runtime::Application::Runner::run(const Product& product) -> int {
       }
       continue;
     }
-    Bool frame_complete = pipelines.record(
-        frame.command_buffer, frame.width, frame.height,
-        submission->get_batches());
+    Bool frame_complete = pipelines.record(frame, submission->get_batches());
     renderer.end_frame(frame);
     if (!frame_complete) {
       Core::Diagnostics::Log::error(

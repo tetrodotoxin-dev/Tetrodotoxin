@@ -1,27 +1,28 @@
 // # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
-#include "toolchain/validation/unit_test.hpp"
-
 #include "perimortem/memory/allocator/arena.hpp"
 
 #include "tetrodotoxin/model/execution/assignments/memory.hpp"
 #include "tetrodotoxin/model/execution/values/literal.hpp"
 #include "tetrodotoxin/model/type/primitives/u32.hpp"
 #include "tetrodotoxin/model/type/primitives/u8.hpp"
+#include "toolchain/validation/unit_test.hpp"
+#include "ttx/data/protocol/block/provider.hpp"
 #include "ttx/semantic/flows/copy.hpp"
-#include "ttx/semantic/transport/block.hpp"
+#include "ttx/semantic/transport/flow.hpp"
 
 using namespace Perimortem;
 using namespace Tetrodotoxin::Model;
 using namespace Ttx::Concept;
 using namespace Ttx::Semantic::Negotiation;
 
-static Toolchain::Validation::Harness Types = {.name = "Model::Type::Conversion"};
+static Toolchain::Validation::Harness Types = {
+  .name = "Model::Type::Conversion"};
 
 // Retaining a conversion interface retains its callable lifetime only. The
 // source's Type policy changes after the first call, so the same interface
-// must observe Pending, rejection and the later successful answer in turn.
+// must observe Unknown, rejection and the later successful answer in turn.
 VALIDATION_TEST(Types, live_conversion) {
   const Type::Primitives::U32 base;
   struct Policy {
@@ -51,8 +52,7 @@ VALIDATION_TEST(Types, live_conversion) {
                 },
                 [&](Binding::Failure) { EXPECT(False); });
         const Binding::Status statuses[] = {
-          Binding::Status::Pending, Binding::Status::Rejected,
-          Binding::Status::Unsupported};
+          Binding::Status::Unknown, Binding::Status::Rejected};
         for (const auto status : statuses) {
           policy.status = status;
           conversion.convert(Abstract::provide(value))
@@ -70,7 +70,7 @@ VALIDATION_TEST(Types, live_conversion) {
                   EXPECT(output == Abstract::provide(value));
                 },
                 [&](Binding::Failure) { EXPECT(False); });
-        EXPECT_EQ(policy.observations, Count(5));
+        EXPECT_EQ(policy.observations, Count(4));
       },
       [&](Binding::Failure) { EXPECT(False); });
 }
@@ -87,9 +87,9 @@ class Widened {
     return id == Ttx::Concept::Domain::contract_id ||
                    id == Execution::Value::contract_id ||
                    id == Execution::Constant::contract_id ||
-                   id == Ttx::Semantic::Transport::Block::Access::contract_id
+                   id == Ttx::Semantic::Transport::Flow::block.provider
                ? Binding::Status::Satisfied
-               : Binding::Status::Unsupported;
+               : Binding::Status::Unknown;
   }
   auto bind_interface(System::Uuid id, Ttx::Data::Form::Storage output) const
       -> Binding::Status {
@@ -113,21 +113,20 @@ class Widened {
     if (id == Execution::Constant::contract_id) {
       return Binding::marker(output);
     }
-    if (id == Ttx::Semantic::Transport::Block::Access::contract_id) {
-      using Ttx::Semantic::Transport::Block;
-      static const Block::Access::Operations operations = {
-        [](const void*) -> const ttx_representation* {
-          return &Type::Primitives::U32::get_representation();
-        },
-        [](const void* self, ttx_block_surface surface) -> ttx_data_status {
-          const U32 value = static_cast<const Widened*>(self)->observation;
-          Core::Data::copy(surface.data, &value);
-          return TTX_DATA_SUCCESS;
-        }};
-      return Binding::provide<Block::Access>(
-          Block::Access::Api(this, &operations), output);
+    if (id == Ttx::Semantic::Transport::Flow::block.provider) {
+      static const Ttx::Data::Protocol::Block::Provider::Operations operations =
+          {[](const void*) -> const ttx_representation* {
+             return &Type::Primitives::U32::get_representation();
+           },
+           [](const void* self, ttx_storage surface) -> ttx_data_status {
+             const U32 value = static_cast<const Widened*>(self)->observation;
+             Core::Data::copy(surface.data, &value);
+             return TTX_DATA_SUCCESS;
+           }};
+      return Binding::provide<Ttx::Data::Protocol::Block::Provider>(
+          Ttx::Data::Protocol::Block::Provider::Api(this, &operations), output);
     }
-    return Binding::Status::Unsupported;
+    return Binding::Status::Unknown;
   }
 
  private:
@@ -161,11 +160,11 @@ class Widening {
             [&](Execution::Value value) -> ttx_binding_status {
               const auto& form = Type::Primitives::U8::get_representation();
               Ttx::Semantic::Transport::Flow flow;
-              const auto status =
-                  flow.connect(decltype(flow)::reader(form), value.get_value());
+              const auto status = flow.connect(
+                  decltype(flow)::consumer(form), value.get_value());
               if (status != decltype(flow)::Status::Success) {
-                return status == decltype(flow)::Status::BindingPending
-                           ? TTX_BINDING_PENDING
+                return status == decltype(flow)::Status::Unknown
+                           ? TTX_BINDING_UNKNOWN
                            : TTX_BINDING_REJECTED;
               }
 

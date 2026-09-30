@@ -8,13 +8,14 @@
 
 #include "perimortem/memory/managed/vector.hpp"
 
-#include "tetrodotoxin/dialect/library/type_reference.hpp"
 #include "tetrodotoxin/model/execution/fields/value.hpp"
 #include "tetrodotoxin/model/execution/functions/function.hpp"
 #include "tetrodotoxin/model/execution/layouts/sequence.hpp"
+#include "tetrodotoxin/model/execution/statements/block.hpp"
 #include "tetrodotoxin/model/execution/statements/return.hpp"
 #include "tetrodotoxin/model/execution/values/literal.hpp"
 #include "tetrodotoxin/model/execution/values/parameter.hpp"
+#include "tetrodotoxin/source/policies/reference.hpp"
 #include "ttx/concept/answers/none.hpp"
 
 using namespace Perimortem;
@@ -61,7 +62,7 @@ static auto fields(
 
     const Token type_token = cursor.require(Code::Type::Type);
     BAIL_IF(!type_token);
-    const auto& reference = arena.construct<Dialect::Library::TypeReference>(
+    const auto& reference = arena.construct<Source::Policies::Reference>(
         types, arena.proxy(cursor.get_text(type_token)),
         cursor.get_anchor(type_token));
     const auto& field = arena.construct<Model::Execution::Fields::Value>(
@@ -84,8 +85,7 @@ static auto returned(
     Memory::Allocator::Arena& arena,
     Cursor& cursor,
     Abstract types,
-    Core::View::Vector<Abstract> parameters,
-    Core::View::Vector<Abstract> results) -> Core::Option<Abstract> {
+    Core::View::Vector<Abstract> parameters) -> Core::Option<Abstract> {
   const Token token = cursor.current();
   if (cursor.matches(Code::Type::Addressable)) {
     const auto name = cursor.get_text();
@@ -107,7 +107,7 @@ static auto returned(
     return {};
   }
 
-  if (cursor.matches(Code::Type::Numeric) && results.get_size() == 1) {
+  if (cursor.matches(Code::Type::Numeric)) {
     Core::Reader::Textual number(cursor.get_text());
     const U64 value = number.read_unsigned();
     if (!number.is_valid() || value > U32(-1)) {
@@ -120,8 +120,8 @@ static auto returned(
     // result declaration can request a different conversion, but must not
     // retroactively label four payload bytes as another source Type.
     const auto anchor = cursor.get_anchor(token);
-    const auto& type = arena.construct<Dialect::Library::TypeReference>(
-        types, "U32"_view, anchor);
+    const auto& type =
+        arena.construct<Source::Policies::Reference>(types, "U32"_view, anchor);
     const auto& literal =
         arena.construct<Model::Execution::Values::Literal<U32>>(
             Abstract::provide(type), U32(value));
@@ -130,6 +130,117 @@ static auto returned(
 
   cursor.create_token_error("Expected a parameter name or U32 constant."_view);
   return {};
+}
+
+// Parentheses group Library's positional flow, but do not create a stored
+// tuple. Each leaf remains its own producer in the Return's ordered Layout.
+// Empty groups therefore contribute no value and nesting preserves leaf order.
+static auto returned_values(
+    Memory::Allocator::Arena& arena,
+    Cursor& cursor,
+    Abstract types,
+    Core::View::Vector<Abstract> parameters,
+    Memory::Managed::Vector<Abstract>& output) -> Bool {
+  if (!cursor.matches(Code::Type::PackingStart)) {
+    auto value = returned(arena, cursor, types, parameters);
+    BAIL_IF(!value);
+    output.insert(*value);
+    return True;
+  }
+
+  cursor.consume();
+  while (!cursor.matches(Code::Type::PackingEnd)) {
+    BAIL_IF(!returned_values(arena, cursor, types, parameters, output));
+    if (cursor.matches(Code::Type::PackingEnd)) {
+      break;
+    }
+
+    BAIL_IF(!cursor.require(
+        Code::Type::PackingOp,
+        "Return values require a comma or closing parenthesis."_view));
+  }
+
+  cursor.consume();
+  return True;
+}
+
+// These facts describe the syntax just consumed. They are not retained as a
+// completion state on the model. The terminal independently interprets the
+// emitted sequence through its capabilities.
+struct ParsedBlock {
+  Abstract subject;
+  Token closing;
+  Bool returns;
+};
+
+static auto block(
+    Memory::Allocator::Arena& arena,
+    Cursor& cursor,
+    Abstract types,
+    Core::View::Vector<Abstract> parameters,
+    Count result_count) -> Core::Option<ParsedBlock> {
+  const Bool single = cursor.matches(Code::Type::Define);
+  const Token opening =
+      single ? cursor.consume() : cursor.require(Code::Type::ScopeStart);
+  BAIL_IF(!opening);
+  Memory::Managed::Vector<Abstract> statements(arena);
+  Bool returns = False;
+  Token closing;
+  while (single || !cursor.matches(Code::Type::ScopeEnd)) {
+    if (returns) {
+      cursor.create_token_error(
+          "Statement follows an unconditional return."_view);
+      return {};
+    }
+
+    if (cursor.matches(Code::Type::ScopeStart)) {
+      auto nested = block(arena, cursor, types, parameters, result_count);
+      BAIL_IF(!nested);
+      statements.insert(nested->subject);
+      closing = nested->closing;
+      returns = nested->returns;
+    } else {
+      const Token start = cursor.require(Code::Type::Return);
+      BAIL_IF(!start);
+      Memory::Managed::Vector<Abstract> values(arena);
+      if (!cursor.matches(Code::Type::EndStatement)) {
+        BAIL_IF(!returned_values(arena, cursor, types, parameters, values));
+      }
+      closing = cursor.require(Code::Type::EndStatement);
+      BAIL_IF(!closing);
+      if (values.get_size() != result_count) {
+        cursor.create_expression_error(
+            Span(start, closing),
+            "Return flow does not cover the declared results."_view);
+        return {};
+      }
+      const auto& flow = arena.construct<Model::Execution::Layouts::Sequence>(
+          values.get_view());
+      const auto& returned =
+          arena.construct<Model::Execution::Statements::Return>(
+              flow.get_interface());
+      statements.insert(authored(
+          arena, cursor, Abstract::provide(returned), Token(),
+          cursor.get_anchor(Span(start, closing), start)));
+      returns = True;
+    }
+
+    if (single) {
+      break;
+    }
+  }
+
+  if (!single) {
+    closing = cursor.require(Code::Type::ScopeEnd);
+    BAIL_IF(!closing);
+  }
+  const auto& sequence = arena.construct<Model::Execution::Statements::Block>(
+      statements.get_view());
+  return ParsedBlock(
+      authored(
+          arena, cursor, Abstract::provide(sequence), Token(),
+          cursor.get_anchor(Span(opening, closing), opening)),
+      closing, returns);
 }
 
 auto Dialect::Library::Function::interpret(
@@ -157,27 +268,14 @@ auto Dialect::Library::Function::interpret(
   BAIL_IF(!fields(arena, cursor, types, True, parameters));
   BAIL_IF(!cursor.require(Code::Type::CallOp));
   BAIL_IF(!fields(arena, cursor, types, False, results));
-  const Token body_opening = cursor.require(Code::Type::ScopeStart);
-  BAIL_IF(!body_opening);
-  Memory::Managed::Vector<Abstract> values(arena);
-  if (!cursor.matches(Code::Type::ScopeEnd)) {
-    BAIL_IF(!cursor.require(Code::Type::Return));
-    if (!cursor.matches(Code::Type::EndStatement)) {
-      auto value = returned(
-          arena, cursor, types, parameters.get_view(), results.get_view());
-      BAIL_IF(!value);
-      values.insert(*value);
-    }
-
-    BAIL_IF(!cursor.require(Code::Type::EndStatement));
-  }
-
-  const Token closing = cursor.require(Code::Type::ScopeEnd);
-  BAIL_IF(!closing);
-  if (values.get_size() != results.get_size()) {
+  const Token body_opening = cursor.current();
+  auto body =
+      block(arena, cursor, types, parameters.get_view(), results.get_size());
+  BAIL_IF(!body);
+  if (!body->returns && !results.is_empty()) {
     cursor.create_expression_error(
-        Span(body_opening, closing),
-        "Return flow does not cover the declared results."_view);
+        Span(body_opening, body->closing),
+        "Function body does not return its declared results."_view);
     return {};
   }
 
@@ -185,16 +283,10 @@ auto Dialect::Library::Function::interpret(
       parameters.get_view());
   const auto& output =
       arena.construct<Model::Execution::Layouts::Sequence>(results.get_view());
-  const auto& returned_values =
-      arena.construct<Model::Execution::Layouts::Sequence>(values.get_view());
-  const auto& body = arena.construct<Model::Execution::Statements::Return>(
-      returned_values.get_interface());
-  const auto body_view = authored(
-      arena, cursor, Abstract::provide(body), Token(),
-      cursor.get_anchor(Span(body_opening, closing), body_opening));
+  const auto body_view = body->subject;
   const auto& model = arena.construct<Model::Execution::Functions::Function>(
       operation, input.get_interface(), output.get_interface(), body_view);
-  const auto evidence = cursor.get_anchor(Span(opening, closing), name);
+  const auto evidence = cursor.get_anchor(Span(opening, body->closing), name);
   auto& function = arena.construct<Function>(
       Tetrodotoxin::Source::Policies::Authored(
           Abstract::provide(model), evidence,

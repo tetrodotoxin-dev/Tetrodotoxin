@@ -11,14 +11,14 @@ namespace Tetrodotoxin::Model::Type::Policies {
 // A receiving Type owns which value observations it can accept. Conversion
 // asks that policy for the actual source subject in this transaction. Success
 // returns the admitted producer, which may be the source or a provider owned
-// projection. No write is implied, and the result grants no permission for a
-// later transaction. Retaining an answer without repeating this question needs
-// a Constant proof for the particular edge, not merely a retained interface.
+// projection. No write is implied, and success alone grants no permission for
+// a later transaction. Reusing an answer needs a Constant proof for that edge
+// or an invalidation agreement covering its dependencies. Retaining the
+// interface only keeps its borrowed access, not the answer's validity.
 //
 // Inputs and returned subjects borrow their publications. A provider supplying
 // a new projection keeps it alive under that publication's lifetime.
-// Unsupported, Pending and Rejected leave output unavailable and preserve the
-// current policy.
+// Unknown and Rejected leave output unavailable and preserve the current policy.
 class Conversion {
  public:
   static constexpr Perimortem::System::Uuid contract_id{

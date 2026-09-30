@@ -3,18 +3,22 @@
 
 #pragma once
 
-#include "tetrodotoxin/source/policies/authored.hpp"
+#include "tetrodotoxin/source/declaration.hpp"
+#include "ttx/concept/abstract.hpp"
 
-namespace Tetrodotoxin::Dialect::Library {
+namespace Tetrodotoxin::Source::Policies {
 
-// A source type reference keeps the route and authority that supplied it.
-// Each capability request observes that authority again, so a Pending type can
-// settle without a completion phase or a cached native Type that bypasses it.
+// A source reference keeps the route and authority that supplied it.
+// Each capability request observes that authority again, so an Unknown answer
+// can settle without a completion phase or a cached answer that bypasses it.
 // This policy self resolves and retains its source location independently of
-// the implementation selected by the type namespace.
-class TypeReference {
+// the implementation selected by its context. Lexical visibility belongs to
+// that context and must reflect the reference position, not a completion pass.
+// Context, route bytes and Source observation remain borrowed from their
+// supplying publications. This owner retains no selected answer between calls.
+class Reference {
  public:
-  constexpr TypeReference(
+  constexpr Reference(
       Ttx::Concept::Abstract context,
       Perimortem::Core::View::Bytes route,
       Tetrodotoxin::Source::Anchor anchor)
@@ -60,4 +64,4 @@ class TypeReference {
   Tetrodotoxin::Source::Anchor anchor;
 };
 
-}  // namespace Tetrodotoxin::Dialect::Library
+}  // namespace Tetrodotoxin::Source::Policies

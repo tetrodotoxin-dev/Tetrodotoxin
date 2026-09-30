@@ -85,7 +85,7 @@ auto Image::get_query() const -> Ttx::Semantic::Negotiation::Query {
          const auto& image = *static_cast<const Image*>(self);
          ++image.bindings;
          if (Perimortem::System::Uuid(id) != image.artifact.get_operation()) {
-           return TTX_BINDING_UNSUPPORTED;
+           return TTX_BINDING_UNKNOWN;
          }
 
          const ttx_invocation api = {
@@ -102,6 +102,6 @@ auto Image::get_query() const -> Ttx::Semantic::Negotiation::Query {
          return Perimortem::System::Uuid(id) == static_cast<const Image*>(self)
                                                     ->artifact.get_operation()
                     ? TTX_BINDING_SATISFIED
-                    : TTX_BINDING_UNSUPPORTED;
+                    : TTX_BINDING_UNKNOWN;
        }});
 }

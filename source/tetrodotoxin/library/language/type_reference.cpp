@@ -84,7 +84,7 @@ auto Language::TypeReference::bind_interface(Perimortem::System::Uuid requested)
     const -> Perimortem::Utility::Result<Binding, Binding::Failure> {
   if (requested == Ttx::Concept::Domain::contract_id) {
     if (subject == nullptr) {
-      return Binding::Failure::Pending;
+      return Binding::Failure::Unknown;
     }
     if (!domain) {
       Core::Option<Binding::Failure> failure;
@@ -100,7 +100,7 @@ auto Language::TypeReference::bind_interface(Perimortem::System::Uuid requested)
   using Import = Tetrodotoxin::Language::Import;
   if (requested != Import::contract_id || !dependency) {
     if (!subject) {
-      return Binding::Failure::Pending;
+      return Binding::Failure::Unknown;
     }
     return subject->bind_interface(requested);
   }
@@ -308,7 +308,7 @@ auto Language::TypeReference::resolve_with_root(
           suffix = next;
         },
         [&](Binding::Failure failure) {
-          if (failure != Binding::Failure::Unsupported) {
+          if (failure != Binding::Failure::Unknown) {
             boundary_failure = failure;
           }
         });

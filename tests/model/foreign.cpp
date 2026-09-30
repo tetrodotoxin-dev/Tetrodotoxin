@@ -1,17 +1,14 @@
 // # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
-#include "perimortem/core/null_terminated.hpp"
-
 #include "tests/model/fixtures/foreign.h"
-
-#include "toolchain/validation/unit_test.hpp"
-#include "tests/model/image.hpp"
 
 #include <dlfcn.h>
 
+#include "perimortem/core/null_terminated.hpp"
 #include "perimortem/core/time.hpp"
 
+#include "tests/model/image.hpp"
 #include "tetrodotoxin/dialect/library/function.hpp"
 #include "tetrodotoxin/model/execution/constant.hpp"
 #include "tetrodotoxin/model/execution/field.hpp"
@@ -25,15 +22,18 @@
 #include "tetrodotoxin/source/contents/memory.hpp"
 #include "tetrodotoxin/source/lexical/cursors/stream.hpp"
 #include "tetrodotoxin/source/lexical/tokenizer.hpp"
+#include "toolchain/validation/unit_test.hpp"
 #include "ttx/concept/domain.hpp"
-#include "ttx/semantic/transport/block.hpp"
+#include "ttx/data/protocol/block/provider.hpp"
+#include "ttx/semantic/transport/flow.hpp"
 
 using namespace Perimortem;
 using namespace Ttx::Concept;
 using namespace Ttx::Semantic::Negotiation;
 using namespace Tetrodotoxin;
 
-static Toolchain::Validation::Harness ForeignModels = {.name = "Model::Foreign"};
+static Toolchain::Validation::Harness ForeignModels = {
+  .name = "Model::Foreign"};
 
 static auto forms() -> model_forms {
   return {
@@ -45,7 +45,7 @@ static auto forms() -> model_forms {
     &Binding::representation<Model::Execution::Parameter>(),
     &Binding::representation<Model::Execution::Return>(),
     &Binding::representation<Model::Execution::Function>(),
-    &Binding::representation<Ttx::Semantic::Transport::Block::Access>(),
+    &Binding::representation<Ttx::Data::Protocol::Block::Provider>(),
     &Binding::representation<Ttx::Concept::Domain>(),
     &Binding::representation<Model::Type::Policies::Conversion>(),
     &Binding::representation<Model::Execution::Value>(),
@@ -54,8 +54,7 @@ static auto forms() -> model_forms {
 
 static auto compiled(U8 mode)
     -> Utility::Result<Terminal::Llvm::Execution, Binding::Failure> {
-  void* library =
-      dlopen("tests/libmodel_foreign.so", RTLD_NOW | RTLD_LOCAL);
+  void* library = dlopen("tests/libmodel_foreign.so", RTLD_NOW | RTLD_LOCAL);
   if (!library) {
     return Binding::Failure::Rejected;
   }
@@ -104,8 +103,7 @@ VALIDATION_TEST(ForeignModels, released_provider) {
 }
 
 VALIDATION_TEST(ForeignModels, policy_and_shape) {
-  void* library =
-      dlopen("tests/libmodel_foreign.so", RTLD_NOW | RTLD_LOCAL);
+  void* library = dlopen("tests/libmodel_foreign.so", RTLD_NOW | RTLD_LOCAL);
   ASSERT(library);
   auto open = reinterpret_cast<decltype(&model_fixture_open)>(
       dlsym(library, "model_fixture_open"));
@@ -113,8 +111,7 @@ VALIDATION_TEST(ForeignModels, policy_and_shape) {
   model_fixture fixture;
   const Abstract root(open(&fixture, forms(), 0));
   const Binding::Failure failures[] = {
-    Binding::Failure::Unsupported, Binding::Failure::Pending,
-    Binding::Failure::Rejected};
+    Binding::Failure::Unknown, Binding::Failure::Rejected};
   for (const auto failure : failures) {
     fixture.refusal = static_cast<ttx_binding_status>(failure);
     Terminal::Llvm::Execution::compile(root).visit(
@@ -144,8 +141,7 @@ VALIDATION_TEST(ForeignModels, policy_and_shape) {
 }
 
 VALIDATION_TEST(ForeignModels, constant_block_read) {
-  void* library =
-      dlopen("tests/libmodel_foreign.so", RTLD_NOW | RTLD_LOCAL);
+  void* library = dlopen("tests/libmodel_foreign.so", RTLD_NOW | RTLD_LOCAL);
   ASSERT(library);
   auto open = reinterpret_cast<decltype(&model_fixture_open)>(
       dlsym(library, "model_fixture_open"));
@@ -177,7 +173,9 @@ VALIDATION_TEST(ForeignModels, constant_block_read) {
         Core::Static::Bytes<192> timing_buffer;
         Core::Writer::Textual timing(timing_buffer);
         timing << "One million retained calls: "_view << elapsed << " ns"_view;
-        Toolchain::Validation::Test::log_message(Toolchain::Validation::bytes("Model::Foreign"), 0, Toolchain::Validation::bytes(timing));
+        Toolchain::Validation::Test::log_message(
+            Toolchain::Validation::bytes("Model::Foreign"), 0,
+            Toolchain::Validation::bytes(timing));
         EXPECT_EQ(image.get_bindings(), Count(1));
         EXPECT_EQ(observed, U32(12345));
         EXPECT_EQ(fixture.observations, observations);
@@ -194,8 +192,7 @@ struct ImportedTypes {
 };
 
 VALIDATION_TEST(ForeignModels, source_foreign_type) {
-  void* library =
-      dlopen("tests/libmodel_foreign.so", RTLD_NOW | RTLD_LOCAL);
+  void* library = dlopen("tests/libmodel_foreign.so", RTLD_NOW | RTLD_LOCAL);
   ASSERT(library);
   auto open = reinterpret_cast<decltype(&model_fixture_open)>(
       dlsym(library, "model_fixture_open"));

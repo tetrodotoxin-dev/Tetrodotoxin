@@ -1,7 +1,7 @@
 # # Tetrodotoxin
 # Copyright (c) 2023-present Matt Kaes and contributors
 
-"Bazel file for building TTX and Tetrodotoxin"
+"Tetrodotoxin source toolchain and released foundation SDKs."
 
 module(
     name = "tetrodotoxin",
@@ -25,11 +25,11 @@ llvm_sdk_repository(name = "llvm_22_1_8")
 # Target headers belong to the consumer's compiler configuration. Importing
 # the Perimortem binary SDK does not register or download another compiler.
 
-bazel_dep(name = "tetro_toolchain", version = "0.1.0")
+bazel_dep(name = "tetro_toolchain", version = "0.2.0")
 archive_override(
     module_name = "tetro_toolchain",
-    sha256 = "c34c2230660426abefb7344305969b72ebb7cfe119e9adeaaa81d5533c7cd1f5",
-    urls = ["https://github.com/tetrodotoxin-dev/Toolchain/releases/download/v0.1.0/tetro_toolchain-0.1.0-source.tar.gz"],
+    sha256 = "83a4075e4fc96d53ca68319a6dd004d2f784ba8cd221f6c6a11126fb31e85085",
+    urls = ["https://github.com/tetrodotoxin-dev/Toolchain/releases/download/v0.2.0/tetro_toolchain-0.2.0-source.tar.gz"],
 )
 
 register_toolchains("@tetro_toolchain//:cc_toolchain_for_linux_x86_64", "@tetro_toolchain//:cc_toolchain_for_wasm32", "@tetro_toolchain//:cc_toolchain_for_windows_x64")
@@ -38,18 +38,21 @@ sdks = use_extension("@tetro_toolchain//:sdk.bzl", "dependencies")
 sdks.release(
     name = "perimortem",
     archives = {
-        "linux-x86_64-v3": "6c64132eebb13ef8db2458f77c3885c9cf1e0a6ff4ef72826397de53277510b3",
-        "wasm32-emscripten": "0f04ee2af8c803e96b893430ea5215e448d79c41ef28d7c286086c9536330878",
+        "headers": "2bb19a82ceb2dd06a122fb51142e96fd13d52fd5ed323b8a662cb640082636ed",
+        "linux-x86_64-v3": "f62c3b71c9c5f554467c9dc03237073fc34d670fa596aa9cd99972dabfb2e653",
+        "windows-x86_64-msvc": "543763f2a684bc410e264f60115a13cc92b20ae12ae25a9c5294c685f9d06d94",
+        "wasm32-emscripten": "7c33f010c47932503f3ef8dcbddf3e4520a34b9e0bac70514a0cb38117400c42",
     },
     project = "Perimortem",
     version = "0.1.0",
-    deps = [],
 )
 sdks.release(
     name = "ttx",
     archives = {
-        "linux-x86_64-v3": "930c5a1c770a841f9a04bc41264942373c70076805634e0cba8a5021d010e2a8",
-        "wasm32-emscripten": "d5daa90ee9bddbb2b89a39ccd27bd6593eee667a3fae17ec45928694577cffcc",
+        "headers": "05a389c9cc3a2a896614c0c8776778bec8e68ed801cd0c5d1796b147c534ee61",
+        "linux-x86_64-v3": "7603d82082c5c1f9865b3416d5cc003655408eeaea399481dac80849f59e4526",
+        "windows-x86_64-msvc": "f4975cf5e3a3b13b20069bedd47794a4580d76f3c40f0ea4ff5e7f7855c785d3",
+        "wasm32-emscripten": "f7f1cc60e84b84bec11578a0bb3154a063f54e9736ca51fc6327d08f081afdf1",
     },
     project = "TTX",
     version = "0.1.0",
@@ -57,9 +60,27 @@ sdks.release(
 )
 sdks.release(
     name = "photophore",
-    archives = {"linux-x86_64-v3": "f7e082d7e9030da7aa4a94866add24dcb9c34381387e4bbbd01e1adddf46adcf"},
+    archives = {
+        "headers": "5253713048f2c90b4666bd5458fbc936151d498b371007ad92f49875a766020e",
+        "linux-x86_64-v3": "3a869eb4c671c2960de0f5780b41f15e54a2256b3ab0032a492bede1e57eec3b",
+        "windows-x86_64-msvc": "f3c591eda2bf09767497b7502a9ce1316497a141f93a1a00e393a025e3338303",
+        "wasm32-emscripten": "3af378c2491849050e65b694d14b2e74f77b4a27f74e156ad8999b00f27b7191",
+    },
     project = "Photophore",
     version = "0.1.0",
-    deps = ["@perimortem"],
+    deps = ["@perimortem", "@vulkan_headers//:vulkan_headers", "@wayland"],
 )
 use_repo(sdks, "perimortem", "photophore", "ttx")
+
+bazel_dep(name = "vulkan_headers", version = "1.4.349")
+
+wayland_sdk = use_repo_rule("@tetro_toolchain//:sdk.bzl", "debian_sdk")
+wayland_sdk(
+    name = "wayland",
+    archives = {
+        "https://deb.debian.org/debian/pool/main/w/wayland/libwayland-dev_1.23.0-1~bpo12+1_amd64.deb": "277cb77a121cdd485b63a9dd782322115762554295f1ba88551efcc950c88a27",
+        "https://deb.debian.org/debian/pool/main/w/wayland/libwayland-client0_1.23.0-1~bpo12+1_amd64.deb": "0f00e0f00b8746d6a02fbe6c91708d290c26271883778c555569444f97028d9c",
+        "https://deb.debian.org/debian/pool/main/libf/libffi/libffi8_3.4.4-1_amd64.deb": "6d9f6c25c30efccce6d4bceaa48ea86c329a3432abb360a141f76ac223a4c34a",
+    },
+    build_file = "//toolchain:wayland.BUILD.bazel",
+)

@@ -16,7 +16,7 @@ namespace Tetrodotoxin::Model::Execution {
 //
 // The returned binding status describes admission. Only Satisfied supplies a
 // transfer outcome, which reports whether the admitted write completed. This
-// keeps Pending or a policy refusal distinct from an I/O failure after a write
+// keeps Unknown or a policy refusal distinct from an I/O failure after a write
 // began. A failed transfer supplies no valid result and may have touched the
 // destination. Atomic commit or rollback belongs to the destination policy.
 class Assignment {

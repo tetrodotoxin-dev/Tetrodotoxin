@@ -18,7 +18,7 @@ struct AliasSubject {
   auto get_data() const -> View::Bytes { return "subject"_view; }
   auto supports(Perimortem::System::Uuid id) const -> Binding::Status {
     return id == Answers::Constant::contract_id ? Binding::Status::Satisfied
-                                                : Binding::Status::Unsupported;
+                                                : Binding::Status::Unknown;
   }
 };
 

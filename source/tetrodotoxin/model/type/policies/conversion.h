@@ -17,8 +17,8 @@
 // a Constant proof for the particular edge, not merely a retained interface.
 //
 // Inputs and returned subjects borrow their publications. A provider supplying
-// a new projection keeps it alive under that publication's lifetime. Unsupported,
-// Pending and Rejected leave output unavailable and preserve the current policy.
+// a new projection keeps it alive under that publication's lifetime. Unknown
+// and Rejected leave output unavailable and preserve the current policy.
 typedef struct tetrodotoxin_model_type_conversion {
   const void* source;
   ttx_binding_status (*convert)(const void* source, ttx_abstract value, ttx_abstract* output);

@@ -1,8 +1,6 @@
 // # Tetrodotoxin
 // Copyright (c) 2023-present Matt Kaes and contributors
 
-#include "toolchain/validation/unit_test.hpp"
-
 #include "perimortem/memory/allocator/arena.hpp"
 
 #include "tetrodotoxin/model/execution/assignments/memory.hpp"
@@ -20,8 +18,8 @@
 #include "tetrodotoxin/model/type/primitives/u32.hpp"
 #include "tetrodotoxin/model/type/primitives/u64.hpp"
 #include "tetrodotoxin/model/type/primitives/u8.hpp"
+#include "toolchain/validation/unit_test.hpp"
 #include "ttx/semantic/flows/copy.hpp"
-#include "ttx/semantic/transport/block.hpp"
 #include "ttx/semantic/transport/flow.hpp"
 
 using namespace Perimortem;
@@ -54,7 +52,7 @@ static auto primitive(
               Ttx::Semantic::Transport::Flow flow;
               ASSERT(
                   flow.connect(
-                      decltype(flow)::reader(representation),
+                      decltype(flow)::consumer(representation),
                       Abstract::provide(literal).get_query()) ==
                   decltype(flow)::Status::Success);
 
@@ -83,7 +81,7 @@ static auto primitive(
                   [&](Binding::Failure) { EXPECT(False); });
               EXPECT(
                   type.supports<Execution::Assignment>() ==
-                  Binding::Status::Unsupported);
+                  Binding::Status::Unknown);
 
               output = Value();
               const Execution::Assignments::Memory location(type, destination);
@@ -136,10 +134,10 @@ VALIDATION_TEST(Types, truth_is_a_policy) {
   const Type::Primitives::U8 integer;
   EXPECT(
       Abstract::provide(integer).supports<Type::Policies::Flag>() ==
-      Binding::Status::Unsupported);
+      Binding::Status::Unknown);
   EXPECT(
       Abstract::provide(boolean).supports<Type::Policies::Unsigned>() ==
-      Binding::Status::Unsupported);
+      Binding::Status::Unknown);
 
   Abstract::provide(boolean).bind<Type::Policies::Flag>().visit(
       [&](Type::Policies::Flag flag) {
@@ -189,7 +187,7 @@ VALIDATION_TEST(Types, unrelated_domains) {
     memory.assign(source).visit(
         [&](Ttx::Data::Status) { EXPECT(False); },
         [&](Binding::Failure status) {
-          EXPECT(status == Binding::Failure::Unsupported);
+          EXPECT(status == Binding::Failure::Unknown);
         });
     EXPECT_EQ(output, U32(123));
   }

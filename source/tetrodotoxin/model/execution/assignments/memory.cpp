@@ -3,6 +3,7 @@
 
 #include "tetrodotoxin/model/execution/assignments/memory.hpp"
 
+#include "ttx/data/protocol/direct/provider.hpp"
 #include "ttx/semantic/flows/copy.hpp"
 
 using namespace Perimortem;
@@ -17,18 +18,17 @@ static auto transfer(Abstract value, Ttx::Data::Form::Storage target)
       [&](Execution::Value value) -> Result {
         Ttx::Semantic::Transport::Flow flow;
         const auto status = flow.connect(
-            decltype(flow)::reader(target.get_representation()),
+            decltype(flow)::consumer(target.get_representation()),
             value.get_value());
         switch (status) {
         case decltype(flow)::Status::Success:
           return Ttx::Semantic::Flows::Copy::flow(flow, target);
-        case decltype(flow)::Status::BindingPending:
-          return Binding::Failure::Pending;
-        case decltype(flow)::Status::Unsupported:
-          return Binding::Failure::Unsupported;
+        case decltype(flow)::Status::Unknown:
+          return Binding::Failure::Unknown;
         case decltype(flow)::Status::Rejected:
         case decltype(flow)::Status::Incompatible:
           return Binding::Failure::Rejected;
+        case decltype(flow)::Status::Unsupported:
         case decltype(flow)::Status::Invalid:
         case decltype(flow)::Status::Bounds:
         case decltype(flow)::Status::Overflow:
@@ -64,9 +64,9 @@ auto Execution::Assignments::Memory::supports(System::Uuid id) const
   return id == Execution::Assignment::contract_id ||
                  id == Execution::Value::contract_id ||
                  id == Ttx::Concept::Domain::contract_id ||
-                 id == Ttx::Semantic::Transport::Direct::Access::contract_id
+                 id == Ttx::Semantic::Transport::Flow::direct.provider
              ? Binding::Status::Satisfied
-             : Binding::Status::Unsupported;
+             : Binding::Status::Unknown;
 }
 
 auto Execution::Assignments::Memory::bind_interface(
@@ -109,18 +109,20 @@ auto Execution::Assignments::Memory::bind_interface(
     return Binding::provide<Execution::Value>(api, output);
   }
 
-  if (id == Ttx::Semantic::Transport::Direct::Access::contract_id) {
-    using Ttx::Semantic::Transport::Direct;
-    static const Direct::Access::Operations operations = {
-      [](const void* self) -> const ttx_representation* {
-        return &static_cast<const Memory*>(self)->storage.get_representation();
-      },
-      [](const void* self) -> const void* {
-        return static_cast<const Memory*>(self)->storage.get_bytes().get_data();
-      }};
-    return Binding::provide<Direct::Access>(
-        Direct::Access::Api(this, &operations), output);
+  if (id == Ttx::Semantic::Transport::Flow::direct.provider) {
+    static const Ttx::Data::Protocol::Direct::Provider::Operations operations =
+        {[](const void* self) -> const ttx_representation* {
+           return &static_cast<const Memory*>(self)
+                       ->storage.get_representation();
+         },
+         [](const void* self) -> const void* {
+           return static_cast<const Memory*>(self)
+               ->storage.get_bytes()
+               .get_data();
+         }};
+    return Binding::provide<Ttx::Data::Protocol::Direct::Provider>(
+        Ttx::Data::Protocol::Direct::Provider::Api(this, &operations), output);
   }
 
-  return Binding::Status::Unsupported;
+  return Binding::Status::Unknown;
 }

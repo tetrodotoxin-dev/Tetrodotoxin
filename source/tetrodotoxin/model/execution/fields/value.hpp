@@ -17,7 +17,7 @@ class Value {
       -> Ttx::Semantic::Negotiation::Binding::Status {
     using Ttx::Semantic::Negotiation::Binding::Status;
     return id == Execution::Field::contract_id ? Status::Satisfied
-                                               : Status::Unsupported;
+                                               : Status::Unknown;
   }
 
   auto bind_interface(
@@ -25,7 +25,7 @@ class Value {
       Ttx::Data::Form::Storage output) const
       -> Ttx::Semantic::Negotiation::Binding::Status {
     if (id != Field::contract_id) {
-      return Ttx::Semantic::Negotiation::Binding::Status::Unsupported;
+      return Ttx::Semantic::Negotiation::Binding::Status::Unknown;
     }
 
     const Field::Api api = {

@@ -62,6 +62,7 @@ test(
             "**/*.h",
         ],
         exclude = [
+            "data/**",
             "model/fixtures/foreign.c",
             "model/fixtures/cursor.c",
             "dialect/fixtures/library.cpp",

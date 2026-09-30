@@ -76,7 +76,7 @@ VALIDATION_TEST(Models, rejected_invocation) {
         EXPECT(
             invoke.connect(
                 image.get_query(), System::Uuid(0, 0), artifact.get_inputs(),
-                artifact.get_outputs()) == Binding::Status::Unsupported);
+                artifact.get_outputs()) == Binding::Status::Unknown);
       },
       [&](Binding::Failure) { EXPECT(False); });
 }
